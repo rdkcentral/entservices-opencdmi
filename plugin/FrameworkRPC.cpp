@@ -676,8 +676,12 @@ namespace Plugin {
                     TRACE(Trace::Information, (_T("ResetOutputProtection! %p"), this));
                     _mediaKeySession->ResetOutputProtection();
                 }
-
-                virtual void SetParameter(const std::string& name, const std::string& value) override {
+#ifdef USE_THUNDER_R4
+                virtual void SetParameter(const std::string& name, const std::string& value)
+#else
+                virtual void SetParameter(const std::string& name, const std::string& value) override
+#endif /* USE_THUNDER_R4 */
+                {
                     TRACE(Trace::Information, (_T("SetParameter! %p"), this));
                     _mediaKeySession->SetParameter(name, value);
                 }
