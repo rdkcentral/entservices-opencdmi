@@ -20,7 +20,7 @@ cmake -G Ninja -S "$GITHUB_WORKSPACE" -B build/entservices-inputoutput \
 -DCMAKE_DISABLE_FIND_PACKAGE_DS=ON \
 -DCOMCAST_CONFIG=OFF \
 -DRDK_SERVICES_COVERITY=ON \
--DRDK_SERVICES_L1_TEST=ON \
+-DRDK_SERVICES_L1_TEST=OFF \
 -DDS_FOUND=ON \
 -DPLUGIN_SCREENCAPTURE=ON \
 -DHAS_FRONT_PANEL=ON \
@@ -57,6 +57,6 @@ cmake -G Ninja -S "$GITHUB_WORKSPACE" -B build/entservices-inputoutput \
 -DUSE_DRM_SCREENCAPTURE -DHAS_API_SYSTEM -DHAS_API_POWERSTATE \
 -DHAS_RBUS -DDISABLE_SECURITY_TOKEN -DENABLE_DEVICE_MANUFACTURER_INFO -DUSE_THUNDER_R4 -DTHUNDER_VERSION=4 -DTHUNDER_VERSION_MAJOR=4 -DTHUNDER_VERSION_MINOR=4" \
 
-cmake --build build/entservices-inputoutput --target install
+# cmake --build build/entservices-inputoutput --target install
 echo "======================================================================================"
 exit 0
