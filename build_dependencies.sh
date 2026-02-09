@@ -10,7 +10,7 @@ cd ${GITHUB_WORKSPACE}
 #1. Install Dependencies and packages
 
 apt update
-apt install -y valgrind lcov clang libsystemd-dev meson curl libunwind-dev
+apt install -y valgrind lcov clang libsystemd-dev meson curl libunwind-dev libgstreamer1.0-dev libgstreamer-plugins-base1.0-dev
 pip install jsonref
 
 ############################
