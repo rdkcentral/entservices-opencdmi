@@ -22,19 +22,11 @@ echo "Applying Thunder R4.4 compatibility patch to plugin"
 cd ${GITHUB_WORKSPACE}
 PATCH_DIR="${GITHUB_WORKSPACE}/meta-rdk-video/recipes-extended/entservices/files"
 
-# Apply OCDM patches in exact order from Yocto recipe
-PATCHES=(
-    "0003-set-OCDM-sharepath-to-tmp-OCDM.patch"
-    "0001-RDK-31882-Add-GstCaps-parsing-in-OCDM-to-rdkservices.patch"
-    "0001-add_gstcaps_forcobalt_mediatype.patch"
-    "0001-rdkservices_cbcs_changes.patch"
-    "0002-Adding-Support-For-R4.patch"
-    "0001-Add-a-new-metrics-punch-through-on-the-OCDM-framework-rdkservice.patch"
-    "0001-set-OCDM-process-thread-name.patch"
-)
-
-for PATCH_NAME in "${PATCHES[@]}"; do
+# Apply OCDM patches in exact order from Yocto recipe (POSIX-compatible)
+apply_patch() {
+    PATCH_NAME="$1"
     PATCH_FILE="${PATCH_DIR}/${PATCH_NAME}"
+    
     if [ -f "$PATCH_FILE" ]; then
         echo "Applying patch: $PATCH_NAME"
         
@@ -47,7 +39,16 @@ for PATCH_NAME in "${PATCHES[@]}"; do
         # Rename back to plugin/
         mv OpenCDMi plugin 2>/dev/null || true
     fi
-done
+}
+
+# Apply patches in order
+apply_patch "0003-set-OCDM-sharepath-to-tmp-OCDM.patch"
+apply_patch "0001-RDK-31882-Add-GstCaps-parsing-in-OCDM-to-rdkservices.patch"
+apply_patch "0001-add_gstcaps_forcobalt_mediatype.patch"
+apply_patch "0001-rdkservices_cbcs_changes.patch"
+apply_patch "0002-Adding-Support-For-R4.patch"
+apply_patch "0001-Add-a-new-metrics-punch-through-on-the-OCDM-framework-rdkservice.patch"
+apply_patch "0001-set-OCDM-process-thread-name.patch"
 
 ############################
 # Build entservices-opencdmi
