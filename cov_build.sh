@@ -32,17 +32,28 @@ if [ -f "$PATCH_FILE" ]; then
         -e 's|+++ git/OpenCDMi/|+++ git/plugin/|g' \
         "$PATCH_FILE" > /tmp/opencdmi_r4_patch.patch
     
-    # Try to apply the patch, but don't fail if already applied
-    patch -p1 -N < /tmp/opencdmi_r4_patch.patch || {
-        echo "Patch may already be applied or failed - checking files"
-        # Verify if Exchange namespace is already in use
-        if grep -q "Exchange::IAccessorOCDM" plugin/FrameworkRPC.cpp 2>/dev/null; then
-            echo "Thunder R4.4 changes already present"
-        else
-            echo "ERROR: Patch failed and Thunder R4 changes not present!"
-            exit 1
-        fi
-    }
+    # Check if patch is needed by looking for old namespace
+    if grep -q "::OCDM::IAccessorOCDM" plugin/FrameworkRPC.cpp 2>/dev/null; then
+        echo "Applying patch - old OCDM namespace detected"
+        # Try to apply the patch
+        patch -p1 -N < /tmp/opencdmi_r4_patch.patch || {
+            echo "Some hunks failed but continuing - checking if critical changes are present"
+        }
+    else
+        echo "Patch not needed - checking if Thunder R4.4 changes already present"
+    fi
+    
+    # Verify Thunder R4.4 changes are present in key files
+    if grep -q "Exchange::KeyId" plugin/CENCParser.h 2>/dev/null && \
+       ! grep -q "::OCDM::IAccessorOCDM" plugin/FrameworkRPC.cpp 2>/dev/null; then
+        echo "Thunder R4.4 compatibility verified"
+    else
+        echo "ERROR: Thunder R4.4 changes verification failed!"
+        echo "Checking FrameworkRPC.cpp namespace..."
+        grep -n "IAccessorOCDM" plugin/FrameworkRPC.cpp | head -5 || echo "No IAccessorOCDM found"
+        exit 1
+    fi
+    
     rm -f /tmp/opencdmi_r4_patch.patch
 else
     echo "ERROR: Patch file not found at $PATCH_FILE"
