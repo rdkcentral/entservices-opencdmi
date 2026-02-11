@@ -32,25 +32,27 @@ if [ -f "$PATCH_FILE" ]; then
         -e 's|+++ git/OpenCDMi/|+++ git/plugin/|g' \
         "$PATCH_FILE" > /tmp/opencdmi_r4_patch.patch
     
-    # Check if patch is needed by looking for old namespace
-    if grep -q "::OCDM::IAccessorOCDM" plugin/FrameworkRPC.cpp 2>/dev/null; then
-        echo "Applying patch - old OCDM namespace detected"
-        # Try to apply the patch
-        patch -p1 -N < /tmp/opencdmi_r4_patch.patch || {
-            echo "Some hunks failed but continuing - checking if critical changes are present"
-        }
-    else
-        echo "Patch not needed - checking if Thunder R4.4 changes already present"
-    fi
+    # Apply the patch - some hunks may fail if already applied or files differ
+    # Expected partial failures: CapsParser.cpp/h (deleted files), CMakeLists.txt (differences)
+    echo "Applying patch (some hunks may skip if already applied)..."
+    patch -p1 -f < /tmp/opencdmi_r4_patch.patch || {
+        echo "Patch completed with some rejected hunks (expected)"
+    }
     
     # Verify Thunder R4.4 changes are present in key files
+    echo "Verifying Thunder R4.4 compatibility changes..."
     if grep -q "Exchange::KeyId" plugin/CENCParser.h 2>/dev/null && \
+       grep -q "Exchange::IAccessorOCDM" plugin/FrameworkRPC.cpp 2>/dev/null && \
        ! grep -q "::OCDM::IAccessorOCDM" plugin/FrameworkRPC.cpp 2>/dev/null; then
-        echo "Thunder R4.4 compatibility verified"
+        echo "✓ Thunder R4.4 compatibility verified successfully"
     else
         echo "ERROR: Thunder R4.4 changes verification failed!"
-        echo "Checking FrameworkRPC.cpp namespace..."
-        grep -n "IAccessorOCDM" plugin/FrameworkRPC.cpp | head -5 || echo "No IAccessorOCDM found"
+        echo "CENCParser.h Exchange::KeyId:"
+        grep -c "Exchange::KeyId" plugin/CENCParser.h || echo "NOT FOUND"
+        echo "FrameworkRPC.cpp Exchange::IAccessorOCDM:"
+        grep -c "Exchange::IAccessorOCDM" plugin/FrameworkRPC.cpp || echo "NOT FOUND"
+        echo "FrameworkRPC.cpp old ::OCDM::IAccessorOCDM (should be 0):"
+        grep -c "::OCDM::IAccessorOCDM" plugin/FrameworkRPC.cpp || echo "0"
         exit 1
     fi
     
