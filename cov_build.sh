@@ -38,19 +38,15 @@ if [ -f "$PATCH_FILE" ]; then
     patch -p1 -f --forward < /tmp/opencdmi_r4_patch.patch || {
         echo "Patch completed with some rejected hunks"
         
-        # If FrameworkRPC.cpp still has old namespace, force apply just that file
-        if grep -q "::OCDM::ISession" plugin/FrameworkRPC.cpp 2>/dev/null; then
-            echo "FrameworkRPC.cpp still needs patching - extracting and applying separately"
-            # Extract only FrameworkRPC.cpp changes from the patch
-            grep -A 99999 "Index: git/plugin/FrameworkRPC.cpp" /tmp/opencdmi_r4_patch.patch | \
-            grep -B 99999 -m 1 "^Index: " | head -n -1 > /tmp/frameworkrpc_only.patch || \
-            grep -A 99999 "Index: git/plugin/FrameworkRPC.cpp" /tmp/opencdmi_r4_patch.patch > /tmp/frameworkrpc_only.patch
-            
-            # Apply with --forward to ignore reversed detection
-            patch -p1 --forward < /tmp/frameworkrpc_only.patch || {
-                echo "WARNING: FrameworkRPC.cpp patch failed - will verify manually"
-            }
-            rm -f /tmp/frameworkrpc_only.patch
+        # If FrameworkRPC.cpp still has old namespace, apply direct text replacements
+        if grep -q "::OCDM::ISession\|::OCDM::ISessionExt\|::OCDM::DataExchange" plugin/FrameworkRPC.cpp 2>/dev/null; then
+            echo "FrameworkRPC.cpp still has old OCDM namespace - applying direct replacements"
+            sed -i \
+                -e 's|::OCDM::ISession|Exchange::ISession|g' \
+                -e 's|::OCDM::ISessionExt|Exchange::ISessionExt|g' \
+                -e 's|::OCDM::DataExchange|Exchange::DataExchange|g' \
+                plugin/FrameworkRPC.cpp
+            echo "Applied direct namespace replacements to FrameworkRPC.cpp"
         fi
     }
     
