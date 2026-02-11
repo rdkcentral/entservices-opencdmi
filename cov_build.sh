@@ -22,12 +22,14 @@ echo "Applying Thunder R4.4 compatibility patch to plugin"
 cd ${GITHUB_WORKSPACE}
 PATCH_DIR="${GITHUB_WORKSPACE}/meta-rdk-video/recipes-extended/entservices/files"
 
-# Apply multiple OCDM patches in order (matching Yocto recipe)
+# Apply OCDM patches in exact order from Yocto recipe
 PATCHES=(
+    "0003-set-OCDM-sharepath-to-tmp-OCDM.patch"
+    "0001-RDK-31882-Add-GstCaps-parsing-in-OCDM-to-rdkservices.patch"
+    "0001-add_gstcaps_forcobalt_mediatype.patch"
     "0001-rdkservices_cbcs_changes.patch"
     "0002-Adding-Support-For-R4.patch"
-    "0001-RDK-31882-Add-GstCaps-parsing-in-OCDM-to-rdkservices.patch"
-    "0003-set-OCDM-sharepath-to-tmp-OCDM.patch"
+    "0001-Add-a-new-metrics-punch-through-on-the-OCDM-framework-rdkservice.patch"
     "0001-set-OCDM-process-thread-name.patch"
 )
 
