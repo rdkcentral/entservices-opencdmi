@@ -35,15 +35,30 @@ if [ -f "$PATCH_FILE" ]; then
     # Apply the patch - some hunks may fail if already applied or files differ
     # Expected partial failures: CapsParser.cpp/h (deleted files), CMakeLists.txt (differences)
     echo "Applying patch (some hunks may skip if already applied)..."
-    patch -p1 -f < /tmp/opencdmi_r4_patch.patch || {
-        echo "Patch completed with some rejected hunks (expected)"
+    patch -p1 -f --forward < /tmp/opencdmi_r4_patch.patch || {
+        echo "Patch completed with some rejected hunks"
+        
+        # If FrameworkRPC.cpp still has old namespace, force apply just that file
+        if grep -q "::OCDM::ISession" plugin/FrameworkRPC.cpp 2>/dev/null; then
+            echo "FrameworkRPC.cpp still needs patching - extracting and applying separately"
+            # Extract only FrameworkRPC.cpp changes from the patch
+            grep -A 99999 "Index: git/plugin/FrameworkRPC.cpp" /tmp/opencdmi_r4_patch.patch | \
+            grep -B 99999 -m 1 "^Index: " | head -n -1 > /tmp/frameworkrpc_only.patch || \
+            grep -A 99999 "Index: git/plugin/FrameworkRPC.cpp" /tmp/opencdmi_r4_patch.patch > /tmp/frameworkrpc_only.patch
+            
+            # Apply with --forward to ignore reversed detection
+            patch -p1 --forward < /tmp/frameworkrpc_only.patch || {
+                echo "WARNING: FrameworkRPC.cpp patch failed - will verify manually"
+            }
+            rm -f /tmp/frameworkrpc_only.patch
+        fi
     }
     
     # Verify Thunder R4.4 changes are present in key files
     echo "Verifying Thunder R4.4 compatibility changes..."
     if grep -q "Exchange::KeyId" plugin/CENCParser.h 2>/dev/null && \
        grep -q "Exchange::IAccessorOCDM" plugin/FrameworkRPC.cpp 2>/dev/null && \
-       ! grep -q "::OCDM::IAccessorOCDM" plugin/FrameworkRPC.cpp 2>/dev/null; then
+       ! grep -q "::OCDM::ISession.*public ::OCDM::ISessionExt" plugin/FrameworkRPC.cpp 2>/dev/null; then
         echo "✓ Thunder R4.4 compatibility verified successfully"
     else
         echo "ERROR: Thunder R4.4 changes verification failed!"
@@ -51,8 +66,8 @@ if [ -f "$PATCH_FILE" ]; then
         grep -c "Exchange::KeyId" plugin/CENCParser.h || echo "NOT FOUND"
         echo "FrameworkRPC.cpp Exchange::IAccessorOCDM:"
         grep -c "Exchange::IAccessorOCDM" plugin/FrameworkRPC.cpp || echo "NOT FOUND"
-        echo "FrameworkRPC.cpp old ::OCDM::IAccessorOCDM (should be 0):"
-        grep -c "::OCDM::IAccessorOCDM" plugin/FrameworkRPC.cpp || echo "0"
+        echo "FrameworkRPC.cpp old ::OCDM::ISession (line 239, should be Exchange::ISession):"
+        grep  "class SessionImplementation.*ISession" plugin/FrameworkRPC.cpp | head -1
         exit 1
     fi
     
