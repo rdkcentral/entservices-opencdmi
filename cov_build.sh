@@ -4,6 +4,34 @@ set -e
 ##############################
 GITHUB_WORKSPACE="${PWD}"
 ls -la ${GITHUB_WORKSPACE}
+
+############################
+# Clone meta-rdk-video for patches
+echo "======================================================================================"
+echo "Cloning meta-rdk-video for Thunder R4.4 compatibility patch"
+
+if [ ! -d "meta-rdk-video" ]; then
+    git clone --depth 1 https://github.com/rdkcentral/meta-rdk-video.git
+fi
+
+############################
+# Apply Thunder R4.4 compatibility patch
+echo "======================================================================================"
+echo "Applying Thunder R4.4 compatibility patch to plugin"
+
+cd ${GITHUB_WORKSPACE}
+PATCH_FILE="${GITHUB_WORKSPACE}/meta-rdk-video/recipes-extended/entservices/files/0001-rdkservices_cbcs_changes.patch"
+
+if [ -f "$PATCH_FILE" ]; then
+    echo "Found patch file: $PATCH_FILE"
+    # The patch expects OpenCDMi/ directory, but our plugin is in plugin/
+    sed 's|OpenCDMi/|plugin/|g' "$PATCH_FILE" > /tmp/opencdmi_r4_patch.patch
+    patch -p1 < /tmp/opencdmi_r4_patch.patch || echo "Patch already applied or failed"
+    rm -f /tmp/opencdmi_r4_patch.patch
+else
+    echo "Warning: Patch file not found at $PATCH_FILE"
+fi
+
 ############################
 # Build entservices-opencdmi
 echo "======================================================================================"
