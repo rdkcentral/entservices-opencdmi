@@ -32,23 +32,42 @@ if [ -f "$PATCH_FILE" ]; then
         -e 's|+++ git/OpenCDMi/|+++ git/plugin/|g' \
         "$PATCH_FILE" > /tmp/opencdmi_r4_patch.patch
     
-    # Apply the patch - some hunks may fail if already applied or files differ
+    # Apply the patch - use git apply for better fuzzy matching
     # Expected partial failures: CapsParser.cpp/h (deleted files), CMakeLists.txt (differences)
-    echo "Applying patch (some hunks may skip if already applied)..."
-    patch -p1 -f --forward < /tmp/opencdmi_r4_patch.patch || {
-        echo "Patch completed with some rejected hunks"
+    echo "Applying patch with git apply (3-way merge)..."
+    git apply --3way --whitespace=fix /tmp/opencdmi_r4_patch.patch 2>&1 || {
+        git_status=$?
+        echo "Git apply completed with status $git_status"
         
-        # If FrameworkRPC.cpp still has old namespace, apply direct text replacements
-        if grep -q "::OCDM::ISession\|::OCDM::ISessionExt\|::OCDM::DataExchange" plugin/FrameworkRPC.cpp 2>/dev/null; then
-            echo "FrameworkRPC.cpp still has old OCDM namespace - applying direct replacements"
-            sed -i \
-                -e 's|::OCDM::ISession|Exchange::ISession|g' \
-                -e 's|::OCDM::ISessionExt|Exchange::ISessionExt|g' \
-                -e 's|::OCDM::DataExchange|Exchange::DataExchange|g' \
-                plugin/FrameworkRPC.cpp
-            echo "Applied direct namespace replacements to FrameworkRPC.cpp"
-        fi
+        # Accept "ours" (current state) for files already modified
+        git checkout --ours plugin/CENCParser.h plugin/OCDM.cpp 2>/dev/null || true
+        git add plugin/CENCParser.h plugin/OCDM.cpp 2>/dev/null || true
     }
+    
+    # Apply comprehensive namespace replacements for any remaining old OCDM references
+    echo "Applying comprehensive OCDM → Exchange namespace replacements..."
+    
+    for file in plugin/FrameworkRPC.cpp plugin/OCDM.cpp plugin/CENCParser.h; do
+        if [ -f "$file" ] && grep -q "OCDM::" "$file" 2>/dev/null; then
+            echo "  Fixing $file..."
+            sed -i \
+                -e 's|\bOCDM::KeyId\b|Exchange::KeyId|g' \
+                -e 's|::OCDM::DataExchange\b|Exchange::DataExchange|g' \
+                -e 's|::OCDM::IAccessorOCDM\b|Exchange::IAccessorOCDM|g' \
+                -e 's|::OCDM::ISession\b|Exchange::ISession|g' \
+                -e 's|\bOCDM::ISession\b|Exchange::ISession|g' \
+                -e 's|::OCDM::ISessionExt\b|Exchange::ISessionExt|g' \
+                -e 's|::OCDM::OCDM_INVALID_DECRYPT_BUFFER\b|Exchange::OCDM_INVALID_DECRYPT_BUFFER|g' \
+                -e 's|\bOCDM::OCDM_KEYSYSTEM_NOT_SUPPORTED\b|Exchange::OCDM_KEYSYSTEM_NOT_SUPPORTED|g' \
+                -e 's|::OCDM::OCDM_RESULT\b|Exchange::OCDM_RESULT|g' \
+                -e 's|\bOCDM::OCDM_RESULT\b|Exchange::OCDM_RESULT|g' \
+                -e 's|::OCDM::OCDM_S_FALSE\b|Exchange::OCDM_S_FALSE|g' \
+                -e 's|::OCDM::OCDM_SUCCESS\b|Exchange::OCDM_SUCCESS|g' \
+                -e 's|\bOCDM::OCDM_SUCCESS\b|Exchange::OCDM_SUCCESS|g' \
+                "$file"
+        fi
+    done
+    echo "Namespace replacements complete"
     
     # Verify Thunder R4.4 changes are present in key files
     echo "Verifying Thunder R4.4 compatibility changes..."
