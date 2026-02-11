@@ -102,7 +102,7 @@ echo "building ThunderClientLibraries"
 
 cmake -G Ninja -S ThunderClientLibraries -B build/ThunderClientLibraries \
     -DCDMI=ON \
-    -DCDMI_ADAPTER_IMPLEMENTATION=None \
+    -DCDMI_ADAPTER_IMPLEMENTATION=gstreamer \
     -DCMAKE_INSTALL_PREFIX="$GITHUB_WORKSPACE/install/usr" \
     -DCMAKE_MODULE_PATH="$GITHUB_WORKSPACE/install/tools/cmake" \
     -DCMAKE_PREFIX_PATH="$GITHUB_WORKSPACE/install/usr"
