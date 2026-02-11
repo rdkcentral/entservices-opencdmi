@@ -25,11 +25,28 @@ PATCH_FILE="${GITHUB_WORKSPACE}/meta-rdk-video/recipes-extended/entservices/file
 if [ -f "$PATCH_FILE" ]; then
     echo "Found patch file: $PATCH_FILE"
     # The patch expects OpenCDMi/ directory, but our plugin is in plugin/
-    sed 's|OpenCDMi/|plugin/|g' "$PATCH_FILE" > /tmp/opencdmi_r4_patch.patch
-    patch -p1 < /tmp/opencdmi_r4_patch.patch || echo "Patch already applied or failed"
+    # Also adjust git index lines and file paths
+    sed -e 's|OpenCDMi/|plugin/|g' \
+        -e 's|Index: git/OpenCDMi/|Index: git/plugin/|g' \
+        -e 's|--- git.orig/OpenCDMi/|--- git.orig/plugin/|g' \
+        -e 's|+++ git/OpenCDMi/|+++ git/plugin/|g' \
+        "$PATCH_FILE" > /tmp/opencdmi_r4_patch.patch
+    
+    # Try to apply the patch, but don't fail if already applied
+    patch -p1 -N < /tmp/opencdmi_r4_patch.patch || {
+        echo "Patch may already be applied or failed - checking files"
+        # Verify if Exchange namespace is already in use
+        if grep -q "Exchange::IAccessorOCDM" plugin/FrameworkRPC.cpp 2>/dev/null; then
+            echo "Thunder R4.4 changes already present"
+        else
+            echo "ERROR: Patch failed and Thunder R4 changes not present!"
+            exit 1
+        fi
+    }
     rm -f /tmp/opencdmi_r4_patch.patch
 else
-    echo "Warning: Patch file not found at $PATCH_FILE"
+    echo "ERROR: Patch file not found at $PATCH_FILE"
+    exit 1
 fi
 
 ############################
