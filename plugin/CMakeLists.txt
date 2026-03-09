@@ -62,11 +62,13 @@ set_target_properties(${PLUGIN_OCDM_IMPLEMENTATION} PROPERTIES
 target_link_libraries(${MODULE_NAME}
         PRIVATE
                 CompileSettingsDebug::CompileSettingsDebug
-                ${NAMESPACE}Plugins::${NAMESPACE}Plugins)
+                ${NAMESPACE}Plugins::${NAMESPACE}Plugins
+                -ltelemetry_msgsender)
 target_link_libraries(${PLUGIN_OCDM_IMPLEMENTATION}
         PRIVATE
                 CompileSettingsDebug::CompileSettingsDebug
                 ${NAMESPACE}Plugins::${NAMESPACE}Plugins
+                -ltelemetry_msgsender
                 ocdm::ocdm)
 
 # Library definition section
