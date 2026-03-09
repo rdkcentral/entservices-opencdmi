@@ -139,7 +139,7 @@ jobs:
         with:
           repository: rdkcentral/entservices-opencdmi
           path: entservices-opencdmi
-          ref: feature/RDKEMW-13578
+          ref: develop
 
       - name: Checkout googletest
         uses: actions/checkout@v3
