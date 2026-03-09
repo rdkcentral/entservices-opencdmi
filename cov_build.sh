@@ -29,15 +29,9 @@ apply_patch() {
     
     if [ -f "$PATCH_FILE" ]; then
         echo "Applying patch: $PATCH_NAME"
-        
-        # Temporarily rename plugin/ to OpenCDMi/ to match patch expectations
-        mv plugin OpenCDMi 2>/dev/null || true
-        
+                    
         # Apply the patch
         patch -p1 --forward --no-backup-if-mismatch < "$PATCH_FILE" || true
-        
-        # Rename back to plugin/
-        mv OpenCDMi plugin 2>/dev/null || true
     fi
 }
 
