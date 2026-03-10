@@ -34,6 +34,7 @@ endif()
 find_package(ocdm REQUIRED)
 find_package(${NAMESPACE}Plugins REQUIRED)
 find_package(CompileSettingsDebug CONFIG REQUIRED)
+find_package(Telemetry)
 
 add_library(${MODULE_NAME} SHARED
         OCDM.cpp
@@ -62,14 +63,17 @@ set_target_properties(${PLUGIN_OCDM_IMPLEMENTATION} PROPERTIES
 target_link_libraries(${MODULE_NAME}
         PRIVATE
                 CompileSettingsDebug::CompileSettingsDebug
-                ${NAMESPACE}Plugins::${NAMESPACE}Plugins
-                -ltelemetry_msgsender)
+                ${NAMESPACE}Plugins::${NAMESPACE}Plugins)
 target_link_libraries(${PLUGIN_OCDM_IMPLEMENTATION}
         PRIVATE
                 CompileSettingsDebug::CompileSettingsDebug
                 ${NAMESPACE}Plugins::${NAMESPACE}Plugins
-                -ltelemetry_msgsender
                 ocdm::ocdm)
+
+if(TELEMETRY_FOUND)
+    target_link_libraries(${MODULE_NAME} PRIVATE ${TELEMETRY_LIBRARIES})
+    target_include_directories(${MODULE_NAME} PRIVATE ${TELEMETRY_INCLUDE_DIRS})
+endif()
 
 # Library definition section
 install(TARGETS ${MODULE_NAME}
