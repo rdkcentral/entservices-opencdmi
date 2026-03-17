@@ -20,6 +20,7 @@
 #include <regex>
 #include <string>
 #include <vector>
+#include <stdio.h>
 
 #include "Module.h"
 #include "CENCParser.h"
@@ -605,7 +606,9 @@ namespace Plugin {
                 // Process a key message response.
                 virtual void Update(const uint8_t* keyMessage, const uint16_t keyLength) override
                 {
-                    TRACE(Trace::Information, ("Update(%d %s)", keyLength));
+                    TRACE(Trace::Information, ("Update(%d)", keyLength));
+                    printf("Update(%d %s)", keyLength);  
+
                     return (_mediaKeySession->Update(keyMessage, keyLength));
                 }
 
