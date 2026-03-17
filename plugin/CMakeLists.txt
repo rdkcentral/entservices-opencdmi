@@ -59,9 +59,6 @@ set_target_properties(${PLUGIN_OCDM_IMPLEMENTATION} PROPERTIES
         CXX_STANDARD 11
         CXX_STANDARD_REQUIRED YES)
 
-target_compile_options(${PLUGIN_OCDM_IMPLEMENTATION} PRIVATE -Wno-error=format)
-target_compile_options(${MODULE_NAME} PRIVATE -Wno-error=format)
-
 target_link_libraries(${MODULE_NAME}
         PRIVATE
                 CompileSettingsDebug::CompileSettingsDebug
