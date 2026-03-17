@@ -28,6 +28,11 @@
 // DRM engines.
 #include <interfaces/IDRM.h>
 #include <interfaces/IContentDecryption.h>
+#ifdef USE_THUNDER_R4
+#include <interfaces/IOCDM.h>
+#else
+#include <ocdm/IOCDM.h>
+#endif
 
 extern "C" {
 
@@ -618,7 +623,7 @@ namespace Plugin {
                     _mediaKeySession->ResetOutputProtection();
                 }
 
-                virtual void Revoke(OCDM::ISession::ICallback* callback) override
+                virtual void Revoke(::OCDM::ISession::ICallback* callback) override
                 {
                     _sink.Revoke(callback);
                 }
@@ -628,34 +633,34 @@ namespace Plugin {
                     return _mediaKeySessionExt->GetSessionIdExt();
                 }
 
-                virtual OCDM::OCDM_RESULT SetDrmHeader(const uint8_t drmHeader[], uint32_t drmHeaderLength) override
+                virtual ::OCDM::OCDM_RESULT SetDrmHeader(const uint8_t drmHeader[], uint32_t drmHeaderLength) override
                 {
-                    return (OCDM::OCDM_RESULT)_mediaKeySessionExt->SetDrmHeader(drmHeader, drmHeaderLength);
+                    return (::OCDM::OCDM_RESULT)_mediaKeySessionExt->SetDrmHeader(drmHeader, drmHeaderLength);
                 }
 
-                virtual OCDM::OCDM_RESULT GetChallengeDataExt(uint8_t* challenge, uint32_t& challengeSize, uint32_t isLDL) override
+                virtual ::OCDM::OCDM_RESULT GetChallengeDataExt(uint8_t* challenge, uint32_t& challengeSize, uint32_t isLDL) override
                 {
-                    return (OCDM::OCDM_RESULT)_mediaKeySessionExt->GetChallengeDataExt(challenge, challengeSize, isLDL);
+                    return (::OCDM::OCDM_RESULT)_mediaKeySessionExt->GetChallengeDataExt(challenge, challengeSize, isLDL);
                 }
 
-                virtual OCDM::OCDM_RESULT CancelChallengeDataExt() override
+                virtual ::OCDM::OCDM_RESULT CancelChallengeDataExt() override
                 {
-                    return (OCDM::OCDM_RESULT)_mediaKeySessionExt->CancelChallengeDataExt();
+                    return (::OCDM::OCDM_RESULT)_mediaKeySessionExt->CancelChallengeDataExt();
                 }
 
-                virtual OCDM::OCDM_RESULT StoreLicenseData(const uint8_t licenseData[], uint32_t licenseDataSize, unsigned char* secureStopId) override
+                virtual ::OCDM::OCDM_RESULT StoreLicenseData(const uint8_t licenseData[], uint32_t licenseDataSize, unsigned char* secureStopId) override
                 {
-                    return (OCDM::OCDM_RESULT)_mediaKeySessionExt->StoreLicenseData(licenseData, licenseDataSize, secureStopId);
+                    return (::OCDM::OCDM_RESULT)_mediaKeySessionExt->StoreLicenseData(licenseData, licenseDataSize, secureStopId);
                 }
 
-                virtual OCDM::OCDM_RESULT SelectKeyId(const uint8_t keyLength, const uint8_t keyId[]) override
+                virtual ::OCDM::OCDM_RESULT SelectKeyId(const uint8_t keyLength, const uint8_t keyId[]) override
                 {
-                    return (OCDM::OCDM_RESULT)_mediaKeySessionExt->SelectKeyId(keyLength, keyId);
+                    return (::OCDM::OCDM_RESULT)_mediaKeySessionExt->SelectKeyId(keyLength, keyId);
                 }
 
-                virtual OCDM::OCDM_RESULT CleanDecryptContext() override
+                virtual ::OCDM::OCDM_RESULT CleanDecryptContext() override
                 {
-                    return (OCDM::OCDM_RESULT)_mediaKeySessionExt->CleanDecryptContext();
+                    return (::OCDM::OCDM_RESULT)_mediaKeySessionExt->CleanDecryptContext();
                 }
 
                 BEGIN_INTERFACE_MAP(Session)
@@ -663,7 +668,6 @@ namespace Plugin {
                 INTERFACE_RELAY(::OCDM::ISessionExt, _mediaKeySessionExt)
                 END_INTERFACE_MAP
 
-            private:
             private:
                 AccessorOCDM& _parent;
                 mutable Core::CriticalSection _adminLock;
@@ -701,17 +705,17 @@ namespace Plugin {
                 return (_parent.IsTypeSupported(keySystem, mimeType) ? 0 : 1);
             }
 
-            virtual OCDM::OCDM_RESULT Metadata(
+            virtual ::OCDM::OCDM_RESULT Metadata(
                 const std::string& keySystem,
                 std::string& metadata) const override
             {
-                OCDM::OCDM_RESULT result = OCDM::OCDM_KEYSYSTEM_NOT_SUPPORTED;
+                ::OCDM::OCDM_RESULT result = ::OCDM::OCDM_KEYSYSTEM_NOT_SUPPORTED;
                 metadata.clear();
 
                 CDMi::IMediaKeys* system = _parent.KeySystem(keySystem);
                 if (system != nullptr) {
                     metadata = system->GetMetadata();
-                    result = OCDM::OCDM_SUCCESS;
+                    result = ::OCDM::OCDM_SUCCESS;
                 }
 
                 return result;
@@ -722,7 +726,7 @@ namespace Plugin {
             }
 
             // Create a MediaKeySession using the supplied init data and CDM data.
-            virtual OCDM::OCDM_RESULT CreateSession(
+            virtual ::OCDM::OCDM_RESULT CreateSession(
                 const std::string& keySystem,
                 const int32_t licenseType,
                 const std::string& initDataType,
@@ -805,7 +809,7 @@ namespace Plugin {
             {
                 CDMi::IMediaKeysExt* systemExt = dynamic_cast<CDMi::IMediaKeysExt*>(_parent.KeySystem(keySystem));
                 if (systemExt) {
-                    return (OCDM::OCDM_RESULT)systemExt->GetDrmSystemTime();
+                    return (::OCDM::OCDM_RESULT)systemExt->GetDrmSystemTime();
                 }
                 return ::OCDM::OCDM_RESULT::OCDM_S_FALSE;
             }
@@ -837,11 +841,11 @@ namespace Plugin {
                 return false;
             }
 
-            OCDM::OCDM_RESULT EnableSecureStop(const std::string& keySystem, bool enable) override
+            ::OCDM::OCDM_RESULT EnableSecureStop(const std::string& keySystem, bool enable) override
             {
                 CDMi::IMediaKeysExt* systemExt = dynamic_cast<CDMi::IMediaKeysExt*>(_parent.KeySystem(keySystem));
                 if (systemExt) {
-                    return (OCDM::OCDM_RESULT)systemExt->EnableSecureStop(enable);
+                    return (::OCDM::OCDM_RESULT)systemExt->EnableSecureStop(enable);
                 }
                 return ::OCDM::OCDM_RESULT::OCDM_S_FALSE;
             }
@@ -855,7 +859,7 @@ namespace Plugin {
                 return 0;
             }
 
-            OCDM::OCDM_RESULT GetSecureStopIds(
+            ::OCDM::OCDM_RESULT GetSecureStopIds(
                 const std::string& keySystem,
                 unsigned char Ids[],
                 uint16_t idsLength,
@@ -863,12 +867,12 @@ namespace Plugin {
             {
                 CDMi::IMediaKeysExt* systemExt = dynamic_cast<CDMi::IMediaKeysExt*>(_parent.KeySystem(keySystem));
                 if (systemExt) {
-                    return (OCDM::OCDM_RESULT)systemExt->GetSecureStopIds(Ids, idsLength, count);
+                    return (::OCDM::OCDM_RESULT)systemExt->GetSecureStopIds(Ids, idsLength, count);
                 }
                 return ::OCDM::OCDM_RESULT::OCDM_S_FALSE;
             }
 
-            OCDM::OCDM_RESULT GetSecureStop(
+            ::OCDM::OCDM_RESULT GetSecureStop(
                 const std::string& keySystem,
                 const unsigned char sessionID[],
                 uint32_t sessionIDLength,
@@ -877,12 +881,12 @@ namespace Plugin {
             {
                 CDMi::IMediaKeysExt* systemExt = dynamic_cast<CDMi::IMediaKeysExt*>(_parent.KeySystem(keySystem));
                 if (systemExt) {
-                    return (OCDM::OCDM_RESULT)systemExt->GetSecureStop(sessionID, sessionIDLength, rawData, rawSize);
+                    return (::OCDM::OCDM_RESULT)systemExt->GetSecureStop(sessionID, sessionIDLength, rawData, rawSize);
                 }
                 return ::OCDM::OCDM_RESULT::OCDM_S_FALSE;
             }
 
-            OCDM::OCDM_RESULT CommitSecureStop(
+            ::OCDM::OCDM_RESULT CommitSecureStop(
                 const std::string& keySystem,
                 const unsigned char sessionID[],
                 uint32_t sessionIDLength,
@@ -891,49 +895,49 @@ namespace Plugin {
             {
                 CDMi::IMediaKeysExt* systemExt = dynamic_cast<CDMi::IMediaKeysExt*>(_parent.KeySystem(keySystem));
                 if (systemExt) {
-                    return (OCDM::OCDM_RESULT)systemExt->CommitSecureStop(sessionID, sessionIDLength, serverResponse, serverResponseLength);
+                    return (::OCDM::OCDM_RESULT)systemExt->CommitSecureStop(sessionID, sessionIDLength, serverResponse, serverResponseLength);
                 }
                 return ::OCDM::OCDM_RESULT::OCDM_S_FALSE;
             }
 
-            OCDM::OCDM_RESULT DeleteKeyStore(const std::string& keySystem) override
+            ::OCDM::OCDM_RESULT DeleteKeyStore(const std::string& keySystem) override
             {
                 CDMi::IMediaKeysExt* systemExt = dynamic_cast<CDMi::IMediaKeysExt*>(_parent.KeySystem(keySystem));
                 if (systemExt) {
-                    return (OCDM::OCDM_RESULT)systemExt->DeleteKeyStore();
+                    return (::OCDM::OCDM_RESULT)systemExt->DeleteKeyStore();
                 }
                 return ::OCDM::OCDM_RESULT::OCDM_S_FALSE;
             }
 
-            OCDM::OCDM_RESULT DeleteSecureStore(const std::string& keySystem) override
+            ::OCDM::OCDM_RESULT DeleteSecureStore(const std::string& keySystem) override
             {
                 CDMi::IMediaKeysExt* systemExt = dynamic_cast<CDMi::IMediaKeysExt*>(_parent.KeySystem(keySystem));
                 if (systemExt) {
-                    return (OCDM::OCDM_RESULT)systemExt->DeleteSecureStore();
+                    return (::OCDM::OCDM_RESULT)systemExt->DeleteSecureStore();
                 }
                 return ::OCDM::OCDM_RESULT::OCDM_S_FALSE;
             }
 
-            OCDM::OCDM_RESULT GetKeyStoreHash(
+            ::OCDM::OCDM_RESULT GetKeyStoreHash(
                 const std::string& keySystem,
                 uint8_t keyStoreHash[],
                 uint32_t keyStoreHashLength) override
             {
                 CDMi::IMediaKeysExt* systemExt = dynamic_cast<CDMi::IMediaKeysExt*>(_parent.KeySystem(keySystem));
                 if (systemExt) {
-                    return (OCDM::OCDM_RESULT)systemExt->GetSecureStoreHash(keyStoreHash, keyStoreHashLength);
+                    return (::OCDM::OCDM_RESULT)systemExt->GetSecureStoreHash(keyStoreHash, keyStoreHashLength);
                 }
                 return ::OCDM::OCDM_RESULT::OCDM_S_FALSE;
             }
 
-            OCDM::OCDM_RESULT GetSecureStoreHash(
+            ::OCDM::OCDM_RESULT GetSecureStoreHash(
                 const std::string& keySystem,
                 uint8_t secureStoreHash[],
                 uint32_t secureStoreHashLength) override
             {
                 CDMi::IMediaKeysExt* systemExt = dynamic_cast<CDMi::IMediaKeysExt*>(_parent.KeySystem(keySystem));
                 if (systemExt) {
-                    return (OCDM::OCDM_RESULT)systemExt->GetSecureStoreHash(secureStoreHash, secureStoreHashLength);
+                    return (::OCDM::OCDM_RESULT)systemExt->GetSecureStoreHash(secureStoreHash, secureStoreHashLength);
                 }
                 return ::OCDM::OCDM_RESULT::OCDM_S_FALSE;
             }
