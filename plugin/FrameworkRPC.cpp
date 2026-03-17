@@ -20,7 +20,7 @@
 #include <regex>
 #include <string>
 #include <vector>
-
+#include <stdio.h>
 #include "Module.h"
 #include "CENCParser.h"
 
@@ -71,6 +71,7 @@ namespace Plugin {
 
     static void ParseContentType(const std::string& contentType, std::string& mimeType, std::vector<std::string>& codecsList) {
         codecsList.clear();
+        printf("Test Coverity workflow %s\n");
         if (contentType.empty() == false) {
             std::smatch matches;
             const size_t kCaptureGroupsNumber = 4;
