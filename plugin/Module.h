@@ -29,6 +29,8 @@
 
 #ifdef USE_THUNDER_R4
 #include <interfaces/IOCDM.h>
+// Thunder R4 exposes OCDM interfaces under WPEFramework::Exchange.
+namespace OCDM = WPEFramework::Exchange;
 #else
 // Get in the definitions required for access to the OCDM
 // counter part living in the applications

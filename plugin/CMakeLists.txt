@@ -22,6 +22,7 @@ set(PLUGIN_OCDM_IMPLEMENTATION "${MODULE_NAME}Impl" CACHE STRING "Specify a libr
 set(PLUGIN_OPENCDMI_AUTOSTART "true" CACHE STRING "Automatically start OpenCDMi plugin")
 set(PLUGIN_OPENCDMI_MODE "Local" CACHE STRING "Controls if the plugin should run in its own process, in process or remote")
 set(PLUGIN_OCDM_STARTUPORDER "" CACHE STRING "To configure startup order of OCDM plugin")
+option(USE_THUNDER_R4 "Build against Thunder R4 IOCDM interfaces" OFF)
 
 # deprecated/legacy flags support
 if(PLUGIN_OPENCDMI_OOP)
@@ -59,8 +60,15 @@ set_target_properties(${PLUGIN_OCDM_IMPLEMENTATION} PROPERTIES
         CXX_STANDARD 11
         CXX_STANDARD_REQUIRED YES)
 
-target_compile_options(${PLUGIN_OCDM_IMPLEMENTATION} PRIVATE -Wno-error=format)
-target_compile_options(${MODULE_NAME} PRIVATE -Wno-error=format)
+if(USE_THUNDER_R4)
+        target_compile_definitions(${PLUGIN_OCDM_IMPLEMENTATION} PRIVATE USE_THUNDER_R4)
+        target_compile_definitions(${MODULE_NAME} PRIVATE USE_THUNDER_R4)
+endif()
+
+if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
+        target_compile_options(${PLUGIN_OCDM_IMPLEMENTATION} PRIVATE -Wno-error)
+        target_compile_options(${MODULE_NAME} PRIVATE -Wno-error)
+endif()
 
 target_link_libraries(${MODULE_NAME}
         PRIVATE
