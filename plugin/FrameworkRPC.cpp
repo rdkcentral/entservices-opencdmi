@@ -20,7 +20,6 @@
 #include <regex>
 #include <string>
 #include <vector>
-#include <stdio.h>
 
 #include "Module.h"
 #include "CENCParser.h"
@@ -607,7 +606,11 @@ namespace Plugin {
                 virtual void Update(const uint8_t* keyMessage, const uint16_t keyLength) override
                 {
                     TRACE(Trace::Information, ("Update(%d)", keyLength));
-                    printf("Update(%d %s)", keyLength);  
+
+                    // Coverity test: intentional resource leak (CWE-401) - RESOURCE_LEAK
+                    uint8_t* testBuf = new uint8_t[16]();
+                    (void)testBuf;
+                    // testBuf is never deleted - Coverity will flag RESOURCE_LEAK
 
                     return (_mediaKeySession->Update(keyMessage, keyLength));
                 }
