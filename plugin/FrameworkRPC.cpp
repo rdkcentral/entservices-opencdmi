@@ -43,6 +43,12 @@ namespace WPEFramework {
 
 namespace Plugin {
 
+#ifdef USE_THUNDER_R4
+    using OCDMLength = uint16_t;
+#else
+    using OCDMLength = uint32_t;
+#endif
+
     static void TrimWs(const std::string& str, size_t& start, size_t& end)
     {
         while(std::isspace(str[start]) && start < end) {
@@ -599,7 +605,7 @@ namespace Plugin {
                 // Process a key message response.
                 virtual void Update(const uint8_t* keyMessage, const uint16_t keyLength) override
                 {
-                    TRACE(Trace::Information, ("Update , Test coverity workflow(%d %s)", keyLength));
+                    TRACE(Trace::Information, ("Update(%d)", keyLength));
                     return (_mediaKeySession->Update(keyMessage, keyLength));
                 }
 
@@ -633,14 +639,17 @@ namespace Plugin {
                     return _mediaKeySessionExt->GetSessionIdExt();
                 }
 
-                virtual ::OCDM::OCDM_RESULT SetDrmHeader(const uint8_t drmHeader[], uint32_t drmHeaderLength) override
+                virtual ::OCDM::OCDM_RESULT SetDrmHeader(const uint8_t drmHeader[], OCDMLength drmHeaderLength) override
                 {
                     return (::OCDM::OCDM_RESULT)_mediaKeySessionExt->SetDrmHeader(drmHeader, drmHeaderLength);
                 }
 
-                virtual ::OCDM::OCDM_RESULT GetChallengeDataExt(uint8_t* challenge, uint32_t& challengeSize, uint32_t isLDL) override
+                virtual ::OCDM::OCDM_RESULT GetChallengeDataExt(uint8_t* challenge, OCDMLength& challengeSize, uint32_t isLDL) override
                 {
-                    return (::OCDM::OCDM_RESULT)_mediaKeySessionExt->GetChallengeDataExt(challenge, challengeSize, isLDL);
+                    uint32_t challengeSizeExt = challengeSize;
+                    const auto status = _mediaKeySessionExt->GetChallengeDataExt(challenge, challengeSizeExt, isLDL);
+                    challengeSize = static_cast<OCDMLength>(challengeSizeExt);
+                    return (::OCDM::OCDM_RESULT)status;
                 }
 
                 virtual ::OCDM::OCDM_RESULT CancelChallengeDataExt() override
@@ -648,7 +657,7 @@ namespace Plugin {
                     return (::OCDM::OCDM_RESULT)_mediaKeySessionExt->CancelChallengeDataExt();
                 }
 
-                virtual ::OCDM::OCDM_RESULT StoreLicenseData(const uint8_t licenseData[], uint32_t licenseDataSize, unsigned char* secureStopId) override
+                virtual ::OCDM::OCDM_RESULT StoreLicenseData(const uint8_t licenseData[], OCDMLength licenseDataSize, unsigned char* secureStopId) override
                 {
                     return (::OCDM::OCDM_RESULT)_mediaKeySessionExt->StoreLicenseData(licenseData, licenseDataSize, secureStopId);
                 }
@@ -875,7 +884,7 @@ namespace Plugin {
             ::OCDM::OCDM_RESULT GetSecureStop(
                 const std::string& keySystem,
                 const unsigned char sessionID[],
-                uint32_t sessionIDLength,
+                OCDMLength sessionIDLength,
                 unsigned char* rawData,
                 uint16_t& rawSize)
             {
@@ -889,9 +898,9 @@ namespace Plugin {
             ::OCDM::OCDM_RESULT CommitSecureStop(
                 const std::string& keySystem,
                 const unsigned char sessionID[],
-                uint32_t sessionIDLength,
+                OCDMLength sessionIDLength,
                 const unsigned char serverResponse[],
-                uint32_t serverResponseLength)
+                OCDMLength serverResponseLength)
             {
                 CDMi::IMediaKeysExt* systemExt = dynamic_cast<CDMi::IMediaKeysExt*>(_parent.KeySystem(keySystem));
                 if (systemExt) {
@@ -921,7 +930,7 @@ namespace Plugin {
             ::OCDM::OCDM_RESULT GetKeyStoreHash(
                 const std::string& keySystem,
                 uint8_t keyStoreHash[],
-                uint32_t keyStoreHashLength) override
+                OCDMLength keyStoreHashLength) override
             {
                 CDMi::IMediaKeysExt* systemExt = dynamic_cast<CDMi::IMediaKeysExt*>(_parent.KeySystem(keySystem));
                 if (systemExt) {
@@ -933,7 +942,7 @@ namespace Plugin {
             ::OCDM::OCDM_RESULT GetSecureStoreHash(
                 const std::string& keySystem,
                 uint8_t secureStoreHash[],
-                uint32_t secureStoreHashLength) override
+                OCDMLength secureStoreHashLength) override
             {
                 CDMi::IMediaKeysExt* systemExt = dynamic_cast<CDMi::IMediaKeysExt*>(_parent.KeySystem(keySystem));
                 if (systemExt) {
