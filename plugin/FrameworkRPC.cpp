@@ -594,7 +594,7 @@ namespace Plugin {
                 // Process a key message response.
                 virtual void Update(const uint8_t* keyMessage, const uint16_t keyLength) override
                 {
-                    TRACE(Trace::Information, ("Update(%d)", keyLength));
+                    TRACE(Trace::Information, ("Update , Test coverity workflow(%d %s)", keyLength));
                     return (_mediaKeySession->Update(keyMessage, keyLength));
                 }
 
