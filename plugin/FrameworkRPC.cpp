@@ -634,6 +634,20 @@ namespace Plugin {
                     _sink.Revoke(callback);
                 }
 
+#ifdef USE_THUNDER_R4
+                virtual void SetParameter(const std::string& name, const std::string& value) override
+                {
+                    if (_mediaKeySession != nullptr) {
+                        _mediaKeySession->SetParameter(name, value);
+                    }
+                }
+#else
+                virtual ::OCDM::OCDM_RESULT SetParameter(const std::string& name, const std::string& value) override
+                {
+                    return (_mediaKeySession != nullptr ? (::OCDM::OCDM_RESULT)_mediaKeySession->SetParameter(name, value) : ::OCDM::OCDM_S_FALSE);
+                }
+#endif
+
                 virtual uint32_t SessionIdExt() const override
                 {
                     return _mediaKeySessionExt->GetSessionIdExt();
