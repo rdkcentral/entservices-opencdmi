@@ -46,9 +46,14 @@ namespace WPEFramework {
             CDMi::MediaType GetMediaType() const { 
                 return _mediaType; 
             } 
-        
+            // get secure memory flag
+            bool IsSecureMemoryDisabled() const {
+                return _no_secure_memory;
+            }
+
         private:
             std::string FindMarker(const std::string& data, const TCHAR* tag) const;
+            std::string FindDecryptToHost(const std::string& data) const;
 
         private:
             size_t _lastHash;
@@ -56,6 +61,7 @@ namespace WPEFramework {
             CDMi::MediaType _mediaType;
             uint16_t _width;
             uint16_t _height;
+            bool _no_secure_memory;
         };
     }
 }

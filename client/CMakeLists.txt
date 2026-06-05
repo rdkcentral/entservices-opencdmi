@@ -34,6 +34,13 @@ find_package(${NAMESPACE}Core REQUIRED)
 find_package(${NAMESPACE}COM REQUIRED)
 find_package(${NAMESPACE}Messaging REQUIRED)
 
+if (ENABLE_FANDANGO_WORKAROUND STREQUAL "1")
+    add_definitions(-DENABLE_FANDANGO_WORKAROUND)
+endif()
+if (ENABLE_AMAZON_WORKAROUND STREQUAL "1")
+    add_definitions(-DENABLE_AMAZON_WORKAROUND)
+endif()
+
 find_package(GSTREAMER REQUIRED)
 find_package(GSTREAMER_BASE REQUIRED)
 
@@ -44,6 +51,7 @@ add_library(${TARGET} SHARED
         CapsParser.cpp
         open_cdm.cpp
         open_cdm_ext.cpp
+        open_cdm_impl.cpp
         )
 
 set(PUBLIC_HEADERS
@@ -124,6 +132,13 @@ if (${CDMI_ADAPTER_IMPLEMENTATION} STREQUAL "broadcom-svp-secbuf")
     target_link_libraries(${TARGET}
             PRIVATE
             -lb_secbuf
+            -lgstsvpext
+            )
+endif()
+
+if (${CDMI_ADAPTER_IMPLEMENTATION} STREQUAL "rdk")
+    target_link_libraries(${TARGET}
+            PRIVATE
             -lgstsvpext
             )
 endif()
