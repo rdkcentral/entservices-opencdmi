@@ -54,6 +54,9 @@ add_library(${TARGET} SHARED
         open_cdm_impl.cpp
         )
 
+# Alias so plugin/ can link against ocdm::ocdm without find_package when built together
+add_library(ocdm::ocdm ALIAS ${TARGET})
+
 set(PUBLIC_HEADERS
         open_cdm.h
         adapter/open_cdm_adapter.h
