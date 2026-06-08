@@ -31,7 +31,9 @@ elseif(PLUGIN_OPENCDMI_OUTOFPROCESS STREQUAL "false")
     unset(PLUGIN_OPENCDMI_OUTOFPROCESS CACHE)
 endif()
 
-find_package(ocdm REQUIRED)
+if(NOT TARGET ocdm::ocdm)
+    find_package(ocdm REQUIRED)
+endif()
 find_package(${NAMESPACE}Plugins REQUIRED)
 find_package(CompileSettingsDebug CONFIG REQUIRED)
 
