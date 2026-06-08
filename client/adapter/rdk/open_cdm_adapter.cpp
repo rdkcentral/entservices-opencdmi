@@ -18,6 +18,7 @@
  */
 
 #include "open_cdm_adapter.h"
+#undef EXTERNAL  // open_cdm.h defines EXTERNAL; WPEFramework Portability.h redefines it
 #include "open_cdm_impl.h"
 
 #include "Module.h"
@@ -43,7 +44,6 @@ EXTERNAL OpenCDMError opencdm_gstreamer_transform_caps(GstCaps** caps)
 
 bool swapIVBytes(uint8_t *mappedIV,uint32_t mappedIVSize)
 {
-    uint8_t buf;
     for (uint32_t i = 0; i < mappedIVSize / 2; i++) {
         uint8_t buf = mappedIV[i];
         mappedIV[i] = mappedIV[mappedIVSize - i - 1];
@@ -154,7 +154,6 @@ OpenCDMError opencdm_gstreamer_session_decrypt(struct OpenCDMSession* session, G
             uint16_t inClear = 0;
             uint32_t inEncrypted = 0;
             uint32_t totalEncrypted = 0;
-            uint32_t nCount = 0;
             for (unsigned int position = 0; position < subSampleCount; position++) {
 
                 gst_byte_reader_get_uint16_be(reader, &inClear);
