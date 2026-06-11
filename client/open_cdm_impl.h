@@ -153,7 +153,14 @@ public:
 
     virtual Exchange::OCDM_RESULT Metadata(const string& keySystem, string& metadata) const override
     {
-        return(_remote->Metadata(keySystem, metadata));
+        if (_remote == nullptr) {
+            Reconnect();
+        }
+        if (_remote == nullptr) {
+            return Exchange::OCDM_RESULT::OCDM_S_FALSE;
+        } else {
+            return(_remote->Metadata(keySystem, metadata));
+        }
     }
 
     virtual Exchange::OCDM_RESULT Metricdata(const string& keySystem, uint32_t& length, uint8_t buffer[]) const override {
