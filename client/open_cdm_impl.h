@@ -557,15 +557,19 @@ public:
     inline string Metadata() const 
     { 
         ASSERT(_session != nullptr);
-
-        return _session->Metadata();
+        if (_session != nullptr) {
+            return _session->Metadata();
+        }
+        return "";
     }
     inline uint32_t Metricdata(uint32_t& bufferSize, uint8_t buffer[])
     {
         ASSERT(_session != nullptr);
-
-        return _session->Metricdata(bufferSize, buffer);
-    } 
+        if (_session != nullptr) {
+            return _session->Metricdata(bufferSize, buffer);
+        }
+        return 1;
+    }
     inline const string& BufferId() const
     {
         static string EmptyString;
@@ -592,40 +596,46 @@ public:
     inline void Close()
     {
         ASSERT(_session != nullptr);
-
-        _session->Close();
+        if (_session != nullptr) {
+            _session->Close();
+        }
     }
     inline void ResetOutputProtection() {
         ASSERT (_session != nullptr);
-
-        _session->ResetOutputProtection();
+        if (_session != nullptr) {
+            _session->ResetOutputProtection();
+        }
     }
     inline void SetParameter(const std::string& name, const std::string& value)
     {
         ASSERT (_session != nullptr);
-
-        _session->SetParameter(name, value);
+        if (_session != nullptr) {
+            _session->SetParameter(name, value);
+        }
     }
     inline int Remove()
     {
-
         ASSERT(_session != nullptr);
-
-        return (_session->Remove() == 0);
+        if (_session != nullptr) {
+            return (_session->Remove());
+        }
+        return 1;
     }
     inline int Load()
     {
-
         ASSERT(_session != nullptr);
-
-        return (_session->Load() == 0);
+        if (_session != nullptr) {
+            return (_session->Load());
+        }
+        return 1;
     }
     inline void Update(const uint8_t* pbResponse, const uint16_t cbResponse)
     {
 
         ASSERT(_session != nullptr);
-
-        _session->Update(pbResponse, cbResponse);
+        if (_session != nullptr) {
+            _session->Update(pbResponse, cbResponse);
+        }
     }
     uint32_t Decrypt(uint8_t* encryptedData, const uint32_t encryptedDataLength,
         const ::SampleInfo* sampleInfo,
@@ -730,7 +740,9 @@ protected:
 
             ASSERT (_session != nullptr);
 
-            _session->Release();
+            if (_session != nullptr) {
+                 _session->Release();
+            }
 
             if (_sessionExt != nullptr) {
                 _sessionExt->Release();
@@ -740,7 +752,7 @@ protected:
 
         _session = session;
 
-        if (session != nullptr) {
+        if (session != nullptr && _session != nullptr) {
 
             _session->AddRef();
             _sessionExt = _session->QueryInterface<Exchange::ISessionExt>();
