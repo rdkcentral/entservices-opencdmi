@@ -446,14 +446,32 @@ OpenCDMError opencdm_gstreamer_session_decrypt_buffer(struct OpenCDMSession* ses
 
                memcpy(encryptedData, mappedData, mappedDataSize);
 
-               GstPerf* ocdm_perf = new GstPerf("opencdm_session_decrypt_v2");
-               result = opencdm_session_decrypt_v2(session,
-                                                svpData,
-                                                dataBlockSize,
-                                                &sampleInfo,
-                                                &streamProperties);
+               TokenType tokenType = TokenType::InPlace;
+               if (!gst_svp_header_get_field(session->SessionPrivateData(), svpData, SvpHeaderFieldName::Type, (uint32_t*) &tokenType))
+               {
+                  TRACE_L1("Failed to get type from SVP header");
+               }
 
-               delete ocdm_perf;
+               const bool isRevokedAllocation = needSecureMemoryPrealloc 
+                                                && tokenType != TokenType::InPlace
+                                                && tokenType != TokenType::Handle
+                                                && tokenType != TokenType::PreAllocatedHandle;
+
+               if (!isRevokedAllocation)
+               {
+                GstPerf* ocdm_perf = new GstPerf("opencdm_session_decrypt_v2");
+                result = opencdm_session_decrypt_v2(session,
+                                                    svpData,
+                                                    dataBlockSize,
+                                                    &sampleInfo,
+                                                    &streamProperties);
+                delete ocdm_perf;
+               }
+               else
+               {
+                    TRACE_L1("Skipping decrypt as resources have been revoked");
+                    result = ERROR_NONE;
+               }
 
                if(result == ERROR_NONE) {
                   GstPerf* svpTransform_perf3 = new GstPerf("opencdm_svp_transform_subsample");
