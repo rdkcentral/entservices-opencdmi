@@ -23,9 +23,13 @@
 #include "Module.h"
 #include <gst/gst.h>
 #include <gst/base/gstbytereader.h>
+#include <dlfcn.h>
 
 #include <gst_svp_meta.h>
 #include "../CapsParser.h"
+
+typedef gboolean (*svp_set_value_fn_t)(void *, const char *, void *, const size_t);
+static svp_set_value_fn_t s_svpSetValueFn = nullptr;
 
 EXTERNAL OpenCDMError opencdm_gstreamer_transform_caps(GstCaps** caps)
 {
@@ -57,6 +61,11 @@ uint32_t opencdm_construct_session_private(struct OpenCDMSession* session, void*
         char buf[25] = { 0 };
         snprintf(buf, 25, "%X", (unsigned int)session);
         session->SetParameter("rpcId", buf);
+
+        if (!s_svpSetValueFn) {
+            s_svpSetValueFn = (svp_set_value_fn_t)dlsym(RTLD_DEFAULT, "gst_svp_ext_context_process_store_set_value");
+        }
+
         return 0;
     }
     return 1;
@@ -411,10 +420,12 @@ OpenCDMError opencdm_gstreamer_session_decrypt_buffer(struct OpenCDMSession* ses
             std::string perfString(__FUNCTION__);
             //Get Stream Properties from GstCaps
             MediaProperties streamProperties = {0};
+            WPEFramework::Plugin::CapsParser capsParser;
+
+            bool isSecureMemoryDisabled = false;
             if(caps != nullptr){
                 gchar *capsStr = gst_caps_to_string (caps);
                 if (capsStr != nullptr) {
-                    WPEFramework::Plugin::CapsParser capsParser;
                     capsParser.Parse(reinterpret_cast<const uint8_t*>(capsStr), strlen(capsStr));
                     streamProperties.height = capsParser.GetHeight();
                     streamProperties.width = capsParser.GetWidth();
@@ -422,6 +433,10 @@ OpenCDMError opencdm_gstreamer_session_decrypt_buffer(struct OpenCDMSession* ses
                         case CDMi::MediaType::Video:
                             streamProperties.media_type = MediaType_Video;
                             mediaType = Video;
+                            if (capsParser.IsSecureMemoryDisabled()) {
+                                isSecureMemoryDisabled = true;
+                                TRACE_L1("Secure Memory Preallocation disabled as decrypt-to-host is set\n");
+                            }
                             perfString += "_Video";
                         break;
 
@@ -454,6 +469,18 @@ OpenCDMError opencdm_gstreamer_session_decrypt_buffer(struct OpenCDMSession* ses
                 }
             }
             RDKPerf perf(perfString.c_str());
+
+            if (s_svpSetValueFn) {
+                const gboolean decryptToHost = capsParser.IsSecureMemoryDisabled() ? TRUE : FALSE;
+                if (!s_svpSetValueFn(session->SessionPrivateData(),
+                                "decryptToHost",
+                                (void*)&decryptToHost,
+                                sizeof(decryptToHost))) {
+                    TRACE_L1("Failed to set decryptToHost=%s in SVP context\n", decryptToHost ? "true" : "false");
+                } else {
+                    TRACE_L1("Sucess to set decryptToHost=%s in SVP context\n", decryptToHost ? "true" : "false");
+                }
+            }
 
             if (subSample == nullptr && IV == nullptr && keyID == nullptr) {
             // no encrypted data, skip decryption...
@@ -521,7 +548,8 @@ OpenCDMError opencdm_gstreamer_session_decrypt_buffer(struct OpenCDMSession* ses
                uint8_t* svpData;
 
               const gboolean needSecureMemoryPrealloc = (streamProperties.media_type == MediaType_Video)
-                                                      && gst_svp_context_supports_memory_prealloc(session->SessionPrivateData());
+                                                      && gst_svp_context_supports_memory_prealloc(session->SessionPrivateData())
+                                                      && (!isSecureMemoryDisabled);
 
               uint32_t dataBlockSize = gst_svp_allocate_data_block(session->SessionPrivateData(),
                                                                    (void**) &svpData,
@@ -546,6 +574,12 @@ OpenCDMError opencdm_gstreamer_session_decrypt_buffer(struct OpenCDMSession* ses
 
                if (!isRevokedAllocation)
                {
+                if(isSecureMemoryDisabled)
+                {
+                   TRACE_L1("Secure Memory Preallocation disabled, Setting TokenType to InPlace");
+                   gst_svp_header_set_field(session->SessionPrivateData(), svpData, SvpHeaderFieldName::Type, (uint32_t)TokenType::InPlace);
+                }
+
                 GstPerf* ocdm_perf = new GstPerf("opencdm_session_decrypt_v2");
                 result = opencdm_session_decrypt_v2(session,
                                                     svpData,

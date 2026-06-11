@@ -96,11 +96,32 @@ namespace WPEFramework {
                             _height = 0;
                             TRACE(Trace::Warning, (_T("No result for height")));
                         }
+                        result = FindDecryptToHost(infoStr);
+                        bool decryptToHost = false;
+                        if (!result.empty()) {
+                            const char c = result[0];
+                            if ((c == '1') || (c == 't') || (c == 'T')) {
+                                decryptToHost = true;
+                                TRACE(Trace::Information, (_T("decrypt-to-host is set to true in caps")));
+                            }
+                        }
+                        else {
+                            TRACE(Trace::Warning, (_T("No result for decrypt-to-host")));
+                        }
+
+                        _no_secure_memory = decryptToHost;
+                        if (_no_secure_memory) {
+                            TRACE(Trace::Information, (Core::Format(_T("decrypt-to-host is set to true, width %d height %d _no_secure_memory %d"), _width, _height,_no_secure_memory)));
+                        } else {
+                            _no_secure_memory = false;
+                            TRACE(Trace::Information, (Core::Format(_T("decrypt-to-host is not set, width %d height %d _no_secure_memory %d"), _width, _height,_no_secure_memory)));
+                        }
                     }
                     else {
                         // Audio
                         _width  = 0;
                         _height = 0;
+                        _no_secure_memory = false;
                     }
                 }
             }
@@ -123,6 +144,48 @@ namespace WPEFramework {
                 }
                 retVal = data.substr(start, end - start);
                 TRACE(Trace::Information, (Core::Format(_T("Found substr <%s>"), retVal.c_str())));
+            }
+            return retVal;
+        }
+        std::string CapsParser::FindDecryptToHost(const std::string& data) const
+        {
+            std::string retVal;
+
+            // String Format expected: "decrypt-to-host=(boolean)true"
+
+            size_t found = data.find("decrypt-to-host=");
+            TRACE(Trace::Information, (Core::Format(_T("Found tag <%s> in <%s> at location %d"), "decrypt-to-host=", data.c_str(), found)));
+            if(found != ::string::npos) {
+                // Found the marker
+                // Find the start of the boolean value after "(boolean)"
+                size_t start = data.find("(boolean)", found);
+                if(start != ::string::npos) {
+                    start += 9; // step over "(boolean)"
+                } else {
+                    start = data.find('=', found);
+                    if (start == ::string::npos) {
+                        return retVal;
+                    }
+                    start += 1;
+                }
+
+                while (start < data.length() && data[start] == ' ') {
+                    ++start;
+                }
+
+                    size_t end = data.find(EndingCharacter, start);
+                    if(end == ::string::npos) {
+                        // Went past the end of the string
+                        end = data.length();
+                    }
+
+                    std::string boolStr = data.substr(start, end - start);
+                while (!boolStr.empty() && boolStr.back() == ' ') {
+                    boolStr.pop_back();
+                }
+
+                TRACE(Trace::Information, (Core::Format(_T("Found decrypt-to-host value <%s>"), boolStr.c_str())));
+                retVal = boolStr;
             }
             return retVal;
         }
