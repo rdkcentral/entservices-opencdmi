@@ -44,6 +44,7 @@ add_library(${TARGET} SHARED
         CapsParser.cpp
         open_cdm.cpp
         open_cdm_ext.cpp
+        open_cdm_impl.cpp
         )
 
 # Alias so plugin/ can link against ocdm::ocdm without find_package when built together
@@ -127,6 +128,13 @@ if (${CDMI_ADAPTER_IMPLEMENTATION} STREQUAL "broadcom-svp-secbuf")
     target_link_libraries(${TARGET}
             PRIVATE
             -lb_secbuf
+            -lgstsvpext
+            )
+endif()
+
+if (${CDMI_ADAPTER_IMPLEMENTATION} STREQUAL "rdk")
+    target_link_libraries(${TARGET}
+            PRIVATE
             -lgstsvpext
             )
 endif()

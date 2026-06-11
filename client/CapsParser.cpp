@@ -63,7 +63,16 @@ namespace WPEFramework {
                         }
                     }
                     else {
-                        TRACE(Trace::Warning, (_T("No result for media type")));
+                        if(strcasestr((const char*)info, "audio") != NULL) {
+                            _mediaType = CDMi::Audio;
+                        }
+                        else if(strcasestr((const char*)info, "video") != NULL) {
+                            _mediaType = CDMi::Video;
+                        }
+                        else
+                        {
+                            TRACE(Trace::Warning, (_T("No result for media type")));
+                        }
                     }
 
                     if(_mediaType == CDMi::Video) {
@@ -102,7 +111,7 @@ namespace WPEFramework {
             std::string retVal;
 
             size_t found = data.find(tag);
-            TRACE(Trace::Warning, (Core::Format(_T("Found tag <%s> in <%s> at location %d"), tag, data.c_str(), found)));
+            TRACE(Trace::Information, (Core::Format(_T("Found tag <%s> in <%s> at location %d"), tag, data.c_str(), found)));
             if(found != ::string::npos) {
                 // Found the marker
                 // Find the end of the gst caps type identifier
@@ -113,7 +122,7 @@ namespace WPEFramework {
                     end = data.length();
                 }
                 retVal = data.substr(start, end - start);
-                TRACE(Trace::Warning, (Core::Format(_T("Found substr <%s>"), retVal.c_str())));
+                TRACE(Trace::Information, (Core::Format(_T("Found substr <%s>"), retVal.c_str())));
             }
             return retVal;
         }

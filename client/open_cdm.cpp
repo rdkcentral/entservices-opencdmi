@@ -283,6 +283,47 @@ OpenCDMError opencdm_system_set_server_certificate(struct OpenCDMSystem* system,
 }
 
 /**
+ * \brief Create DRM session (for actual decrypting of data).
+ *
+ * Creates an instance of \ref OpenCDMSession using initialization data.
+ * \param keySystem DRM system to create the session for.
+ * \param licenseType DRM specifc signed integer selecting License Type (e.g.
+ * "Limited Duration" for PlayReady).
+ * \param initDataType Type of data passed in \ref initData.
+ * \param initData Initialization data.
+ * \param initDataLength Length (in bytes) of initialization data.
+ * \param CDMData CDM data.
+ * \param CDMDataLength Length (in bytes) of \ref CDMData.
+ * \param session Output parameter that will contain pointer to instance of \ref
+ * OpenCDMSession.
+ * \return Zero on success, non-zero on error.
+ */
+OpenCDMError
+opencdm_construct_session(struct OpenCDMSystem* system,
+    const LicenseType licenseType, const char initDataType[],
+    const uint8_t initData[], const uint16_t initDataLength,
+    const uint8_t CDMData[], const uint16_t CDMDataLength,
+    OpenCDMSessionCallbacks* callbacks, void* userData,
+    struct OpenCDMSession** session)
+{
+    ASSERT(system != nullptr);
+    OpenCDMError result(OpenCDMError::ERROR_INVALID_SESSION);
+
+    TRACE_L1("Creating a Session for %s", system->keySystem().c_str());
+
+    result = OpenCDMSession::CreateSession(system,
+                                            licenseType,
+                                            initDataType,
+                                            initData, initDataLength,
+                                            CDMData, CDMDataLength,
+                                            callbacks, userData,
+                                            session
+    );
+
+    TRACE_L1("Created a Session, result %p, %d", *session, result);
+    return result;
+}
+/**
  * Destructs an \ref OpenCDMSession instance.
  * \param system \ref OpenCDMSession instance to desctruct.
  * \return Zero on success, non-zero on error.
@@ -474,6 +515,25 @@ OpenCDMError opencdm_session_remove(struct OpenCDMSession* session)
 
     if (session != nullptr) {
         result = static_cast<OpenCDMError>(session->Remove());
+    }
+
+    return (result);
+}
+
+/**
+ * Set a name/value pair into the CDM
+ * \param session \ref OpenCDMSession instance.
+ * \return Zero on success, non-zero on error.
+ */
+OpenCDMError opencdm_session_set_parameter(struct OpenCDMSession* session,
+    const std::string& name,
+    const std::string& value)
+{
+    OpenCDMError result(ERROR_INVALID_SESSION);
+
+    if (session != nullptr) {
+        session->SetParameter(name, value);
+        result = OpenCDMError::ERROR_NONE;
     }
 
     return (result);
