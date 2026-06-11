@@ -81,6 +81,7 @@ protected:
             ASSERT(_remote != nullptr);
 
             if (_remote == nullptr) {
+                TRACE_L1("Failed to open a channel to OCDM implementation");
                 if (_client.IsValid()) {
                   _client.Release();
                 }
@@ -164,7 +165,12 @@ public:
     }
 
     virtual Exchange::OCDM_RESULT Metricdata(const string& keySystem, uint32_t& length, uint8_t buffer[]) const override {
-        return(_remote->Metricdata(keySystem, length, buffer));
+        Exchange::OCDM_RESULT result = Exchange::OCDM_INVALID_ACCESSOR;
+ 
+        if (_remote != nullptr) {
+            return(_remote->Metricdata(keySystem, length, buffer));
+        }
+        return (result);
     }
 
     // Create a MediaKeySession using the supplied init data and CDM data.
@@ -176,9 +182,13 @@ public:
         Exchange::ISession::ICallback* callback, std::string& sessionId, 
         Exchange::ISession*& session) override
     {
-        return (_remote->CreateSession(
-            keySystem, licenseType, initDataType, initData, initDataLength, CDMData,
-            CDMDataLength, callback, sessionId, session));
+        Exchange::OCDM_RESULT result = Exchange::OCDM_INVALID_ACCESSOR;
+
+        if (_remote != nullptr) {
+            result = _remote->CreateSession(keySystem, licenseType, initDataType, initData, initDataLength, CDMData,
+                        CDMDataLength, callback, sessionId, session);
+        }
+        return (result);
     }
 
     // Set Server Certificate
@@ -186,8 +196,12 @@ public:
     SetServerCertificate(const string& keySystem, const uint8_t* serverCertificate,
         const uint16_t serverCertificateLength) override
     {
-        return (_remote->SetServerCertificate(keySystem, serverCertificate,
-            serverCertificateLength));
+        Exchange::OCDM_RESULT result = Exchange::OCDM_INVALID_ACCESSOR;
+
+        if (_remote != nullptr) {
+            result = _remote->SetServerCertificate(keySystem, serverCertificate, serverCertificateLength);
+        }
+        return (result);
     }
 
     OpenCDMSession* Session(const std::string& sessionId);
@@ -213,46 +227,74 @@ public:
 
     uint64_t GetDrmSystemTime(const std::string& keySystem) const override
     {
-        ASSERT(_remote && "This method only works on IAccessorOCDM implementations.");
-        return _remote->GetDrmSystemTime(keySystem);
+        uint64_t result = 0;
+
+        if (_remote != nullptr) {
+            result = _remote->GetDrmSystemTime(keySystem);
+        }
+        return (result);
     }
 
     std::string GetVersionExt(const std::string& keySystem) const override
     {
-        ASSERT(_remote && "This method only works on IAccessorOCDM implementations.");
-        return _remote->GetVersionExt(keySystem);
+        std::string result;
+
+        if (_remote != nullptr) {
+            result = _remote->GetVersionExt(keySystem);
+        }
+        return (result);
     }
 
     uint32_t GetLdlSessionLimit(const std::string& keySystem) const override
     {
-        ASSERT(_remote && "This method only works on IAccessorOCDM implementations.");
-        return _remote->GetLdlSessionLimit(keySystem);
+        uint32_t result = 0;
+
+        if (_remote != nullptr) {
+            result = _remote->GetLdlSessionLimit(keySystem);
+        }
+        return (result);
     }
 
     bool IsSecureStopEnabled(const std::string& keySystem) override
     {
-        ASSERT(_remote && "This method only works on IAccessorOCDM implementations.");
-        return _remote->IsSecureStopEnabled(keySystem);
+        bool result = false;
+
+        if (_remote != nullptr) {
+            result = _remote->IsSecureStopEnabled(keySystem);
+        }
+        return (result);
     }
 
     Exchange::OCDM_RESULT EnableSecureStop(const std::string& keySystem, bool enable) override
     {
-        ASSERT(_remote && "This method only works on IAccessorOCDM implementations.");
-        return _remote->EnableSecureStop(keySystem, enable);
-    }
+        Exchange::OCDM_RESULT result = Exchange::OCDM_INVALID_ACCESSOR;
+
+        if (_remote != nullptr) {
+            result = _remote->EnableSecureStop(keySystem, enable);
+        }
+        return (result);
+   	}
 
     uint32_t ResetSecureStops(const std::string& keySystem) override
     {
-        ASSERT(_remote && "This method only works on IAccessorOCDM implementations.");
-        return _remote->ResetSecureStops(keySystem);
+        uint32_t result = 0;
+
+        if (_remote != nullptr) {
+            result = _remote->ResetSecureStops(keySystem);
+        }
+        return (result);
     }
 
     Exchange::OCDM_RESULT GetSecureStopIds(const std::string& keySystem,
         uint8_t ids[], uint16_t idsLength,
         uint32_t& count) override
     {
-        ASSERT(_remote && "This method only works on IAccessorOCDM implementations.");
-        return _remote->GetSecureStopIds(keySystem, ids, idsLength, count);
+        Exchange::OCDM_RESULT result = Exchange::OCDM_INVALID_ACCESSOR;
+
+        if (_remote != nullptr) {
+            result = _remote->GetSecureStopIds(keySystem, ids, idsLength, count);
+        }
+        return (result);
     }
 
     Exchange::OCDM_RESULT GetSecureStop(const std::string& keySystem,
@@ -261,9 +303,12 @@ public:
         uint8_t rawData[],
         uint16_t& rawSize) override
     {
-        ASSERT(_remote && "This method only works on IAccessorOCDM implementations.");
-        return _remote->GetSecureStop(keySystem, sessionID, sessionIDLength,
-            rawData, rawSize);
+        Exchange::OCDM_RESULT result = Exchange::OCDM_INVALID_ACCESSOR;
+
+        if (_remote != nullptr) {
+            result = _remote->GetSecureStop(keySystem, sessionID, sessionIDLength, rawData, rawSize);
+        }
+        return (result); 
     }
 
     Exchange::OCDM_RESULT
@@ -271,41 +316,58 @@ public:
         uint16_t sessionIDLength, const uint8_t serverResponse[],
         uint16_t serverResponseLength) override
     {
-        ASSERT(_remote && "This method only works on IAccessorOCDM implementations.");
-        return _remote->CommitSecureStop(keySystem, sessionID, sessionIDLength,
-            serverResponse, serverResponseLength);
+        Exchange::OCDM_RESULT result = Exchange::OCDM_INVALID_ACCESSOR;
+
+        if (_remote != nullptr) {
+            result = _remote->CommitSecureStop(keySystem, sessionID, sessionIDLength, serverResponse, serverResponseLength);
+        }
+        return (result);    
     }
 
     Exchange::OCDM_RESULT
     DeleteKeyStore(const std::string& keySystem) override
     {
-        ASSERT(_remote && "This method only works on IAccessorOCDM implementations.");
-        return _remote->DeleteKeyStore(keySystem);
+        Exchange::OCDM_RESULT result = Exchange::OCDM_INVALID_ACCESSOR;
+
+        if (_remote != nullptr) {
+            result = _remote->DeleteKeyStore(keySystem);
+        }
+        return (result);    
     }
 
     Exchange::OCDM_RESULT
     DeleteSecureStore(const std::string& keySystem) override
     {
-        ASSERT(_remote && "This method only works on IAccessorOCDM implementations.");
-        return _remote->DeleteSecureStore(keySystem);
+        Exchange::OCDM_RESULT result = Exchange::OCDM_INVALID_ACCESSOR;
+
+        if (_remote != nullptr) {
+            result = _remote->DeleteSecureStore(keySystem);
+        }
+        return (result);    
     }
 
     Exchange::OCDM_RESULT
     GetKeyStoreHash(const std::string& keySystem, uint8_t keyStoreHash[],
         uint16_t keyStoreHashLength) override
     {
-        ASSERT(_remote && "This method only works on IAccessorOCDM implementations.");
-        return _remote->GetKeyStoreHash(keySystem, keyStoreHash,
-            keyStoreHashLength);
+        Exchange::OCDM_RESULT result = Exchange::OCDM_INVALID_ACCESSOR;
+
+        if (_remote != nullptr) {
+            result = _remote->GetKeyStoreHash(keySystem, keyStoreHash, keyStoreHashLength);
+        }
+        return (result);
     }
 
     Exchange::OCDM_RESULT
     GetSecureStoreHash(const std::string& keySystem, uint8_t secureStoreHash[],
         uint16_t secureStoreHashLength) override
     {
-        ASSERT(_remote && "This method only works on IAccessorOCDM implementations.");
-        return _remote->GetSecureStoreHash(keySystem, secureStoreHash,
-            secureStoreHashLength);
+        Exchange::OCDM_RESULT result = Exchange::OCDM_INVALID_ACCESSOR;
+
+        if (_remote != nullptr) {
+            result = _remote->GetSecureStoreHash(keySystem, secureStoreHash, secureStoreHashLength);
+        }
+        return (result);    
     }
 
     void SystemBeingDestructed(OpenCDMSystem* system);
@@ -517,6 +579,7 @@ PUSH_WARNING(DISABLE_WARNING_THIS_IN_MEMBER_INITIALIZER_LIST)
         std::string bufferId;
         Exchange::ISession* realSession = nullptr;
 
+        ASSERT(system != nullptr);
         accessor->CreateSession(system->keySystem(), licenseType, initDataType, pbInitData,
             cbInitData, pbCustomData, cbCustomData, &_sink,
             _sessionId, realSession);
@@ -765,6 +828,7 @@ protected:
             _decryptSession = nullptr;
         } else {
             std::string bufferid;
+            ASSERT(_session != nullptr);
             uint32_t result = _session->CreateSessionBuffer(bufferid);
 
             if( result == 0 ) {

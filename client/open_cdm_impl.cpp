@@ -83,7 +83,9 @@ static SessionPrivate SessionPvt;
 {
     OpenCDMError result(ERROR_INVALID_ACCESSOR);
 
-    if (system != nullptr) {
+    ASSERT(system != nullptr);
+    ASSERT(session != nullptr);
+    if ((system != nullptr) && (session != nullptr)) {
         *session = new OpenCDMSession(system, std::string(initDataType),
                             initData, initDataLength, CDMData,
                             CDMDataLength, licenseType, callbacks, userData);
