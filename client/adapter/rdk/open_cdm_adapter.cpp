@@ -161,7 +161,7 @@ OpenCDMError opencdm_gstreamer_session_decrypt(struct OpenCDMSession* session, G
                 gsize dataBlockSize = gst_svp_allocate_data_block(session->SessionPrivateData(), (void**) &svpData, totalEncrypted, totalEncrypted);
 
                 uint8_t* encryptedDataIter = reinterpret_cast<uint8_t *>(gst_svp_header_get_start_of_data(session->SessionPrivateData(), svpData));
-                
+
                 uint32_t index = 0;
                 for (unsigned int position = 0; position < subSampleCount; position++) {
 
@@ -432,7 +432,15 @@ OpenCDMError opencdm_gstreamer_session_decrypt_buffer(struct OpenCDMSession* ses
 
             if(total_encrypted_bytes > 0) {
                uint8_t* svpData;
-               uint32_t dataBlockSize = gst_svp_allocate_data_block(session->SessionPrivateData(), (void**) &svpData, mappedDataSize, mappedDataSize);
+
+              const gboolean needSecureMemoryPrealloc = (streamProperties.media_type == MediaType_Video)
+                                                      && gst_svp_context_supports_memory_prealloc(session->SessionPrivateData());
+
+              uint32_t dataBlockSize = gst_svp_allocate_data_block(session->SessionPrivateData(),
+                                                                   (void**) &svpData,
+                                                                   mappedDataSize,
+                                                                   mappedDataSize,
+                                                                   needSecureMemoryPrealloc);
 
                void * encryptedData = reinterpret_cast<uint8_t *>(gst_svp_header_get_start_of_data(session->SessionPrivateData(), svpData));
 
