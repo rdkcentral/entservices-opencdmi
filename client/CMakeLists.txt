@@ -34,6 +34,13 @@ find_package(${NAMESPACE}Core REQUIRED)
 find_package(${NAMESPACE}COM REQUIRED)
 find_package(${NAMESPACE}Messaging REQUIRED)
 
+if (ENABLE_FANDANGO_WORKAROUND STREQUAL "1")
+    add_definitions(-DENABLE_FANDANGO_WORKAROUND)
+endif()
+if (ENABLE_AMAZON_WORKAROUND STREQUAL "1")
+    add_definitions(-DENABLE_AMAZON_WORKAROUND)
+endif()
+
 find_package(GSTREAMER REQUIRED)
 find_package(GSTREAMER_BASE REQUIRED)
 

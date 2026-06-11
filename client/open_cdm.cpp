@@ -20,6 +20,8 @@
 #include <interfaces/IOCDM.h>
 #include "open_cdm_impl.h"
 
+OpenCDMError opencdm_parse_keysystem(std::string& keySystemDomain);
+
 MODULE_NAME_DECLARATION(BUILD_REFERENCE)
 
 using namespace WPEFramework;
@@ -156,8 +158,10 @@ OpenCDMError opencdm_is_type_supported(const char keySystem[],
 {
     OpenCDMAccessor * accessor = OpenCDMAccessor::Instance();
     OpenCDMError result(OpenCDMError::ERROR_KEYSYSTEM_NOT_SUPPORTED);
-
-    if ((accessor != nullptr) && (accessor->IsTypeSupported(std::string(keySystem), std::string(mimeType)) == true)) {
+    
+       std::string parsedKeysystem = std::string(keySystem);
+       opencdm_parse_keysystem(parsedKeysystem);
+       if ((accessor != nullptr) && (accessor->IsTypeSupported(parsedKeysystem, std::string(mimeType)) == true)) {
         result = OpenCDMError::ERROR_NONE;
     }
     return (result);

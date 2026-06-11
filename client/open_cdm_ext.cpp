@@ -21,6 +21,23 @@
 #include "open_cdm_ext.h"
 
 #include "open_cdm_impl.h"
+#include <map>
+#include <string>
+#define KEYSYSTEM_DOMAIN_SEPERATOR ";origin="
+typedef std::map<const std::string, const std::string> domainKeysystemMap;
+
+static domainKeysystemMap domainMap =  {
+#ifdef ENABLE_FANDANGO_WORKAROUND
+    {"www-xfinityflex.mgo.com", "com.widevine.fandango"},
+#endif
+#ifdef ENABLE_AMAZON_WORKAROUND
+    {"xfinity.ccast.api.amazonvideo.com", "com.amazon.playready"},
+    {"rogers.ccast.api.amazonvideo.com", "com.amazon.playready"},
+    {"cox.ccast.api.amazonvideo.com", "com.amazon.playready"},
+    {"shaw.ccast.api.amazonvideo.com", "com.amazon.playready"},
+    {"videotron.ccast.api.amazonvideo.com", "com.amazon.playready"},
+#endif
+    };
 
 #define ASSERT_NOT_EXECUTED()                                         \
     {                                                                 \
@@ -28,6 +45,26 @@
             __PRETTY_FUNCTION__, __FILE__, __LINE__);                 \
         abort();                                                      \
     }
+
+OpenCDMError opencdm_parse_keysystem(std::string& keySystemDomain)
+{
+    OpenCDMError result = ERROR_NONE;
+
+    std::size_t pos = keySystemDomain.find(KEYSYSTEM_DOMAIN_SEPERATOR);
+    if (pos!=std::string::npos){
+        std::string keySystemStr = keySystemDomain.substr(0, pos);
+        std::string domainStr = keySystemDomain.substr(pos + sizeof(KEYSYSTEM_DOMAIN_SEPERATOR)-1);
+
+        domainKeysystemMap::iterator index = domainMap.find(domainStr);
+
+        if(index != domainMap.end()){
+            keySystemDomain.assign(index->second);
+        }else{
+            keySystemDomain.assign(keySystemStr);
+        }
+    }
+    return result;
+}
 
 DEPRECATED struct OpenCDMSystem* opencdm_create_system(const char keySystem[])
 {
@@ -44,11 +81,12 @@ OpenCDMError opencdm_create_system_extended(const char keySystem[], struct OpenC
     if(!accessor)
         return ERROR_INVALID_ACCESSOR;
 
+    std::string parsedKeysystem = std::string(keySystem);
+    opencdm_parse_keysystem(parsedKeysystem);
     std::string metadata;
-    OpenCDMError result = static_cast<OpenCDMError>(accessor->Metadata(std::string(keySystem), metadata));
+    OpenCDMError result = static_cast<OpenCDMError>(accessor->Metadata(parsedKeysystem, metadata));
     if( result == OpenCDMError::ERROR_NONE )
-        *system = new OpenCDMSystem(keySystem, metadata);
-
+        *system = new OpenCDMSystem(parsedKeysystem.c_str(), metadata);
     return result;
 }
 
