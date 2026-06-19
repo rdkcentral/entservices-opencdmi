@@ -348,7 +348,7 @@ namespace Plugin {
                                         &clearContentSize,
                                         const_cast<CDMi::SampleInfo *>(&sampleInfo),
                                         dynamic_cast<const CDMi::IStreamProperties *>(&streamProperties));
-                                
+
                                 if ((cr == 0) && (clearContentSize != 0)) {
                                     if (clearContentSize != BytesWritten()) {
                                         TRACE(Trace::Information, (_T("Returned clear sample size (%d) differs from encrypted buffer size (%d)"), clearContentSize, BytesWritten()));
