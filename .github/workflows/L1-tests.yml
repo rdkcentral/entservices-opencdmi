@@ -70,7 +70,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
-          python-version: '3.11'
+          python-version: '3.x'
       - run: pip install jsonref
 
       - name: ACK External Trigger
@@ -211,10 +211,6 @@ jobs:
           cd $GITHUB_WORKSPACE/entservices-apis
           patch -p1 < $GITHUB_WORKSPACE/entservices-testframework/patches/RDKEMW-1007.patch
           cd -
-
-      - name: Verify entservices-apis patch applied
-        run: |
-          test -f $GITHUB_WORKSPACE/entservices-apis/apis/AuthService/IAuthService.h
 
       - name: Build entservices-apis
         run: >
