@@ -70,7 +70,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
-          python-version: '3.x'
+          python-version: '3.11'
       - run: pip install jsonref
 
       - name: ACK External Trigger
@@ -205,8 +205,10 @@ jobs:
           path: entservices-apis
           ref: ${{env.INTERFACES_REF}}
           token : ${{ secrets.RDKCM_RDKE }}
-          run: rm -rf $GITHUB_WORKSPACE/entservices-apis/jsonrpc/DTV.json
-          
+
+      - name: Remove DTV.json
+        run: rm -rf $GITHUB_WORKSPACE/entservices-apis/jsonrpc/DTV.json
+
       - name: Build entservices-apis
         run: >
           cmake -G Ninja
