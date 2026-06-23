@@ -20,13 +20,6 @@
 
 #include "Module.h"
 
-#include <cstring>
-#include <list>
-#include <map>
-#include <string>
-#include <type_traits>
-#include <utility>
-
 namespace WPEFramework {
 
 namespace Protobuf {
@@ -257,10 +250,8 @@ namespace Protobuf {
             if ((result != 0) && (size.IsSet() == true) && (size.Value() != 0) && (size.Value() <= length)) {
                 ptr += result;
                 if ((ptr + size.Value()) <= (data + length)) {
-                    ValueElementType<type>::Value().clear();
                     ValueElementType<type>::Value().append(reinterpret_cast<const T*>(ptr), size.Value());
                     result += size.Value();
-                    ValueElementType<type>::Set(true);
                 }
             }
             return (result);
@@ -386,7 +377,7 @@ namespace Protobuf {
         void Clear() {
             _elements.clear();
         }
-        void Add(const uint32_t index, IElement* element, bool required = false)
+        void Add(const uint8_t index, IElement* element, bool required = false)
         {
             ASSERT(index != 0); // 0 is not allowed as key
             ASSERT(element != nullptr);
@@ -512,7 +503,7 @@ namespace Protobuf {
         }
 
     private:
-        std::map<uint32_t, Entry> _elements;
+        std::map<uint8_t, Entry> _elements;
     }; // class Message
 
     using Bytes = BytesType<uint8_t>;

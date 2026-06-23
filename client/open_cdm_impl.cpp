@@ -59,7 +59,7 @@ class SessionPrivate {
 
     private:
         void Load() {
-            Core::Library library(Core::System::MODULE_NAME);
+            Core::Library library(&Core::System::MODULE_NAME);
             if (library.IsLoaded() == true) {
                 _constructSessionPvt = reinterpret_cast<ConstructSessionPrivate>(library.LoadFunction(_T("opencdm_construct_session_private")));
                 _destructSessionPvt = reinterpret_cast<DestructSessionPrivate>(library.LoadFunction(_T("opencdm_destruct_session_private")));

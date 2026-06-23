@@ -43,19 +43,10 @@ add_library(${MODULE_NAME} SHARED
         OCDMJsonRpc.cpp
         Module.cpp)
 
-set(OCDM_IMPLEMENTATION_SOURCES
+add_library(${PLUGIN_OCDM_IMPLEMENTATION} SHARED
         CENCParser.cpp
         FrameworkRPC.cpp
         Module.cpp)
-
-foreach(src IN LISTS OCDM_IMPLEMENTATION_SOURCES)
-    if(NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/${src}")
-        message(FATAL_ERROR "Missing source file: ${CMAKE_CURRENT_SOURCE_DIR}/${src}")
-    endif()
-endforeach()
-
-add_library(${PLUGIN_OCDM_IMPLEMENTATION} SHARED
-        ${OCDM_IMPLEMENTATION_SOURCES})
 
 add_dependencies(${MODULE_NAME} ${PLUGIN_OCDM_IMPLEMENTATION})
 
