@@ -55,12 +55,26 @@ git clone --branch main https://github.com/rdkcentral/entservices-apis.git
 
 git clone --branch 1.0.1 https://github.com/rdkcentral/entservices-testframework.git
 
+apply_patch_safely() {
+    local patch_file="$1"
+
+    if patch -p1 --dry-run --forward < "$patch_file" > /dev/null 2>&1; then
+        patch -p1 --forward < "$patch_file"
+    elif patch -p1 --dry-run -R < "$patch_file" > /dev/null 2>&1; then
+        echo "Patch already applied, skipping: $patch_file"
+    else
+        echo "ERROR: Failed to apply patch: $patch_file"
+        patch -p1 --dry-run --forward < "$patch_file"
+        return 1
+    fi
+}
+
 ############################
 # Build Thunder-Tools
 echo "======================================================================================"
 echo "buliding thunderTools"
 cd ThunderTools
-patch -p1 < $GITHUB_WORKSPACE/entservices-testframework/patches/00010-R4.4-Add-support-for-project-dir.patch
+apply_patch_safely "$GITHUB_WORKSPACE/entservices-testframework/patches/00010-R4.4-Add-support-for-project-dir.patch"
 cd -
 
 
@@ -79,10 +93,10 @@ echo "==========================================================================
 echo "buliding thunder"
 
 cd Thunder
-patch -p1 < $GITHUB_WORKSPACE/entservices-testframework/patches/Use_Legact_Alt_Based_On_ThunderTools_R4.4.3.patch
-patch -p1 < $GITHUB_WORKSPACE/entservices-testframework/patches/error_code_R4_4.patch
-patch -p1 < $GITHUB_WORKSPACE/entservices-testframework/patches/1004-Add-support-for-project-dir.patch
-patch -p1 < $GITHUB_WORKSPACE/entservices-testframework/patches/RDKEMW-733-Add-ENTOS-IDS.patch
+apply_patch_safely "$GITHUB_WORKSPACE/entservices-testframework/patches/Use_Legact_Alt_Based_On_ThunderTools_R4.4.3.patch"
+apply_patch_safely "$GITHUB_WORKSPACE/entservices-testframework/patches/error_code_R4_4.patch"
+apply_patch_safely "$GITHUB_WORKSPACE/entservices-testframework/patches/1004-Add-support-for-project-dir.patch"
+apply_patch_safely "$GITHUB_WORKSPACE/entservices-testframework/patches/RDKEMW-733-Add-ENTOS-IDS.patch"
 cd -
 
 cmake -G Ninja -S Thunder -B build/Thunder \

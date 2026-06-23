@@ -74,13 +74,7 @@ OpenCDMError StringToAllocatedBuffer(const std::string& source, char* destinatio
             Core::SingletonType<OpenCDMAccessor>::Create(connector.c_str());
         }
         ~TheOne() {
-
-            if( Core::SingletonType<OpenCDMAccessor>::Dispose() == true ) {
-                // if the accessor was disposed here because the destructor of the static instance was called there
-                // was no proper dispose before (opencdm_dispose and/or Singleton::Dispose). 
-                // The static dispose might be incomplete or have side effects (e.g. Threads could already be killed)
-                TRACE_L1(_T("OpenCDM Accessor was not disposed properly"));
-            }
+            Core::SingletonType<OpenCDMAccessor>::Dispose();
         }
 
     public:
