@@ -767,6 +767,28 @@ namespace Plugin {
                 return _defaultSize;
             }
 
+            Exchange::OCDM_RESULT GetSupportedRobustness(const std::string& keySystem, RPC::IStringIterator*& robustness) const override {
+                robustness = nullptr;
+                Exchange::OCDM_RESULT result = Exchange::OCDM_INTERFACE_NOT_IMPLEMENTED;
+
+                CDMi::IMediaKeys* system = _parent.KeySystem(keySystem);
+                if (system != nullptr) {
+                    CDMi::IRobustnessExtension* extension = dynamic_cast<CDMi::IRobustnessExtension*>(system);
+
+                    if (extension != nullptr) {
+                        std::list<std::string> levels;
+                        TRACE(Trace::Information, ("Get Supported Robustness()"));
+                        result = static_cast<Exchange::OCDM_RESULT>(extension->GetSupportedRobustness(levels));
+
+                       if (result == Exchange::OCDM_RESULT::OCDM_SUCCESS && !levels.empty()) {
+                           robustness = Core::Service<RPC::StringIterator>::Create<RPC::IStringIterator>(levels);
+                       }
+                    }
+                 }
+
+                 return result;
+            }
+
             // Create a MediaKeySession using the supplied init data and CDM data.
             virtual OCDM::OCDM_RESULT CreateSession(
                 const std::string& keySystem,
