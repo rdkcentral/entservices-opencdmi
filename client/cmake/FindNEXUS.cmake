@@ -3,7 +3,7 @@
 #  NEXUS_FOUND  - System has Nexus
 #  NEXUS::NEXUS - The Nexus library
 #
-# Copyright 2020 RDK Management.
+# Copyright (C) 2019 Metrological B.V
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions
