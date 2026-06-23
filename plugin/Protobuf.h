@@ -100,7 +100,7 @@ namespace Protobuf {
             return (WireType::VARINT);
         }
 
-    protected:
+    private:
         static uint8_t ReadVarint(const uint8_t data[], const uint32_t length, T& out)
         {
             ASSERT(data != nullptr);
@@ -108,7 +108,7 @@ namespace Protobuf {
             const uint8_t* ptr = data;
             uint8_t shift = 0;
             uint64_t value = 0;
-            uint8_t size = 10; // protobuf varints for 64-bit values can take up to 10 bytes
+            uint8_t size = sizeof(value);
             while (size-- && (ptr < (data + length))) {
                 value |= (static_cast<uint64_t>(*ptr & 0x7F) << shift);
                 if (((*ptr++) & 0x80) == 0) {
@@ -128,7 +128,7 @@ namespace Protobuf {
 
     public:
         ZigzagVarintType()
-            : VarintType<T>()
+            : ValueElementType<T>()
         { }
         ZigzagVarintType(const ZigzagVarintType<T>&) = default;
         ZigzagVarintType<T>& operator=(const ZigzagVarintType<T>&) = default;
@@ -138,7 +138,8 @@ namespace Protobuf {
         uint32_t Deserialize(const uint8_t data[], const uint32_t length) override
         {
             ASSERT(data != nullptr);
-            uint32_t result = VarintType<T>::Deserialize(data, length);
+            uint32_t result = 0;
+            result = VarintType<T>::ReadVarint(data, length, ValueElementType<T>::Value());
             if (result != 0) {
                 T& value = ValueElementType<T>::Value();
                 // unzigzag the value...
@@ -147,6 +148,7 @@ namespace Protobuf {
                 }
                 value >>= 1;
             }
+            ValueElementType<T>::Set(result != 0);
             return (result);
         }
     }; // class ZigzagVarintType
