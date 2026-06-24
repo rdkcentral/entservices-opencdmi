@@ -69,6 +69,7 @@ cmake -G Ninja -S ThunderTools -B build/ThunderTools \
     -DCMAKE_INSTALL_PREFIX="$GITHUB_WORKSPACE/install/usr" \
     -DCMAKE_MODULE_PATH="$GITHUB_WORKSPACE/install/tools/cmake" \
     -DGENERIC_CMAKE_MODULE_PATH="$GITHUB_WORKSPACE/install/tools/cmake" \
+    -DCMAKE_PREFIX_PATH="$GITHUB_WORKSPACE/install/usr" \
 
 cmake --build build/ThunderTools --target install
 
@@ -90,6 +91,7 @@ cmake -G Ninja -S Thunder -B build/Thunder \
     -DCMAKE_INSTALL_PREFIX="$GITHUB_WORKSPACE/install/usr" \
     -DCMAKE_MODULE_PATH="$GITHUB_WORKSPACE/install/tools/cmake" \
     -DGENERIC_CMAKE_MODULE_PATH="$GITHUB_WORKSPACE/install/tools/cmake" \
+    -DCMAKE_PREFIX_PATH="$GITHUB_WORKSPACE/install/usr" \
     -DBUILD_TYPE=Debug \
     -DBINDING=127.0.0.1 \
     -DPORT=55555 \
@@ -109,6 +111,7 @@ cmake -G Ninja -S entservices-apis  -B build/entservices-apis \
     -DEXCEPTIONS_ENABLE=ON \
     -DCMAKE_INSTALL_PREFIX="$GITHUB_WORKSPACE/install/usr" \
     -DCMAKE_MODULE_PATH="$GITHUB_WORKSPACE/install/tools/cmake" \
+    -DCMAKE_PREFIX_PATH="$GITHUB_WORKSPACE/install/usr" \
 
 cmake --build build/entservices-apis --target install
 
