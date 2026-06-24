@@ -20,6 +20,8 @@
 #include "OCDM.h"
 #include <interfaces/IDRM.h>
 
+#include <telemetry_busmessage_sender.h>
+
 #define API_VERSION_NUMBER_MAJOR 1
 #define API_VERSION_NUMBER_MINOR 0
 #define API_VERSION_NUMBER_PATCH 4
@@ -130,6 +132,9 @@ namespace Plugin {
 
         if (_opencdmi == nullptr) {
             message = _T("OCDM could not be instantiated.");
+
+			t2_event_d("DRM_ERR_OCDMInitFail", 1);
+			
             _service->Unregister(&_notification);
             _service = nullptr;
         } else {
