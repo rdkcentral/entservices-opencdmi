@@ -56,6 +56,44 @@ git clone --branch main https://github.com/rdkcentral/entservices-apis.git
 git clone --branch 1.0.14 https://github.com/rdkcentral/entservices-testframework.git
 
 ############################
+# Patch ThunderClientLibraries for IOCDM interface compatibility
+echo "======================================================================================"
+echo "patching ThunderClientLibraries open_cdm_impl.h"
+cd ThunderClientLibraries
+if ! grep -q "GetSupportedRobustness(const string& keySystem" Source/ocdm/open_cdm_impl.h; then
+patch -p1 <<'EOF'
+diff --git a/Source/ocdm/open_cdm_impl.h b/Source/ocdm/open_cdm_impl.h
+--- a/Source/ocdm/open_cdm_impl.h
++++ b/Source/ocdm/open_cdm_impl.h
+@@
+     virtual Exchange::OCDM_RESULT Metricdata(const string& keySystem, uint32_t& length, uint8_t buffer[]) const override {
+         Exchange::OCDM_RESULT result = Exchange::OCDM_INVALID_ACCESSOR;
+ 
+         if (_remote != nullptr) {
+             return(_remote->Metricdata(keySystem, length, buffer));
+         }
+         return (result);
+     }
++
++    Exchange::OCDM_RESULT GetSupportedRobustness(const string& keySystem, RPC::IStringIterator*& robustness) const override
++    {
++        Exchange::OCDM_RESULT result = Exchange::OCDM_INVALID_ACCESSOR;
++        robustness = nullptr;
++
++        if (_remote != nullptr) {
++            result = _remote->GetSupportedRobustness(keySystem, robustness);
++        }
++
++        return (result);
++    }
+ 
+     // Create a MediaKeySession using the supplied init data and CDM data.
+     virtual Exchange::OCDM_RESULT
+EOF
+fi
+cd -
+
+############################
 # Build Thunder-Tools
 echo "======================================================================================"
 echo "buliding thunderTools"
