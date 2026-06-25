@@ -173,7 +173,7 @@ public:
         return (result);
     }
 
-    Exchange::OCDM_RESULT GetSupportedRobustness(const std::string& keySystem, RPC::IStringIterator*& robustness) const override
+    Exchange::OCDM_RESULT GetSupportedRobustness(const string& keySystem, RPC::IStringIterator*& robustness) const override
     {
         Exchange::OCDM_RESULT result = Exchange::OCDM_INVALID_ACCESSOR;
         robustness = nullptr;
