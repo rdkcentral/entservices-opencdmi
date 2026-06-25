@@ -45,11 +45,11 @@ cd ..
 # Clone the required repositories
 
 
-git clone --branch R4.4.6 https://github.com/rdkcentral/ThunderTools.git
+git clone --branch R4_4 https://github.com/rdkcentral/ThunderTools.git
 
-git clone --branch R4.4.6 https://github.com/rdkcentral/Thunder.git
+git clone --branch R4_4 https://github.com/rdkcentral/Thunder.git
 
-git clone --branch R4.4.2 https://github.com/rdkcentral/ThunderClientLibraries.git
+git clone --branch R4_4 https://github.com/rdkcentral/ThunderClientLibraries.git
 
 git clone --branch main https://github.com/rdkcentral/entservices-apis.git
 
@@ -69,7 +69,7 @@ cmake -G Ninja -S ThunderTools -B build/ThunderTools \
     -DCMAKE_INSTALL_PREFIX="$GITHUB_WORKSPACE/install/usr" \
     -DCMAKE_MODULE_PATH="$GITHUB_WORKSPACE/install/tools/cmake" \
     -DGENERIC_CMAKE_MODULE_PATH="$GITHUB_WORKSPACE/install/tools/cmake" \
-    -DCMAKE_PREFIX_PATH="$GITHUB_WORKSPACE/install/usr" \
+    -DCMAKE_PREFIX_PATH="$GITHUB_WORKSPACE/install/usr"
 
 cmake --build build/ThunderTools --target install
 
@@ -95,7 +95,7 @@ cmake -G Ninja -S Thunder -B build/Thunder \
     -DBUILD_TYPE=Debug \
     -DBINDING=127.0.0.1 \
     -DPORT=55555 \
-    -DEXCEPTIONS_ENABLE=ON \
+    -DEXCEPTIONS_ENABLE=ON
 
 cmake --build build/Thunder --target install
 
@@ -105,13 +105,14 @@ echo "==========================================================================
 echo "buliding entservices-apis"
 cd entservices-apis
 rm -rf jsonrpc/DTV.json
+patch -p1 < $GITHUB_WORKSPACE/entservices-testframework/patches/RDKEMW-1007.patch
 cd ..
 
 cmake -G Ninja -S entservices-apis  -B build/entservices-apis \
     -DEXCEPTIONS_ENABLE=ON \
     -DCMAKE_INSTALL_PREFIX="$GITHUB_WORKSPACE/install/usr" \
     -DCMAKE_MODULE_PATH="$GITHUB_WORKSPACE/install/tools/cmake" \
-    -DCMAKE_PREFIX_PATH="$GITHUB_WORKSPACE/install/usr" \
+    -DCMAKE_PREFIX_PATH="$GITHUB_WORKSPACE/install/usr"
 
 cmake --build build/entservices-apis --target install
 
