@@ -45,15 +45,15 @@ cd ..
 # Clone the required repositories
 
 
-git clone --branch R4_4 https://github.com/rdkcentral/ThunderTools.git
+git clone --branch R4.4.3 https://github.com/rdkcentral/ThunderTools.git
 
-git clone --branch R4_4 https://github.com/rdkcentral/Thunder.git
+git clone --branch R4.4.1 https://github.com/rdkcentral/Thunder.git
 
 git clone --branch R4_4 https://github.com/rdkcentral/ThunderClientLibraries.git
 
-git clone --branch main https://github.com/rdkcentral/entservices-apis.git
+git clone --branch develop https://github.com/rdkcentral/entservices-apis.git
 
-git clone --branch 1.0.1 https://github.com/rdkcentral/entservices-testframework.git
+git clone --branch 1.0.14 https://github.com/rdkcentral/entservices-testframework.git
 
 ############################
 # Build Thunder-Tools
@@ -80,10 +80,10 @@ echo "==========================================================================
 echo "buliding thunder"
 
 cd Thunder
-#patch -p1 < $GITHUB_WORKSPACE/entservices-testframework/patches/Use_Legact_Alt_Based_On_ThunderTools_R4.4.3.patch
-#patch -p1 < $GITHUB_WORKSPACE/entservices-testframework/patches/error_code_R4_4.patch
-#patch -p1 < $GITHUB_WORKSPACE/entservices-testframework/patches/1004-Add-support-for-project-dir.patch
-#patch -p1 < $GITHUB_WORKSPACE/entservices-testframework/patches/RDKEMW-733-Add-ENTOS-IDS.patch
+patch -p1 < $GITHUB_WORKSPACE/entservices-testframework/patches/Use_Legact_Alt_Based_On_ThunderTools_R4.4.3.patch
+patch -p1 < $GITHUB_WORKSPACE/entservices-testframework/patches/error_code_R4_4.patch
+patch -p1 < $GITHUB_WORKSPACE/entservices-testframework/patches/1004-Add-support-for-project-dir.patch
+patch -p1 < $GITHUB_WORKSPACE/entservices-testframework/patches/RDKEMW-733-Add-ENTOS-IDS.patch
 cd -
 
 cmake -G Ninja -S Thunder -B build/Thunder \
@@ -105,7 +105,6 @@ echo "==========================================================================
 echo "buliding entservices-apis"
 cd entservices-apis
 rm -rf jsonrpc/DTV.json
-patch -p1 < $GITHUB_WORKSPACE/entservices-testframework/patches/RDKEMW-1007.patch
 cd ..
 
 cmake -G Ninja -S entservices-apis  -B build/entservices-apis \
