@@ -114,7 +114,7 @@ public:
         std::string& sessionId, OpenCDMSystem* system = nullptr) const;
 
 public:
-    void AddRef() const override
+    uint32_t AddRef() const override
     {
         Core::InterlockedIncrement(_refCount);
     }
