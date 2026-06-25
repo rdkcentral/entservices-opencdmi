@@ -46,8 +46,14 @@ cd ..
 
 
 git clone --branch R4_4 https://github.com/rdkcentral/ThunderTools.git
+cd ThunderTools
+git checkout b6789ca88b1e6c56942d9858d6d4411eae389ddc
+cd ..
 
 git clone --branch R4_4 https://github.com/rdkcentral/Thunder.git
+cd Thunder
+git checkout 19100433e5517c743738bb2a9ed8ce2f79c10eaf
+cd ..
 
 git clone --branch R4_4 https://github.com/rdkcentral/ThunderClientLibraries.git
 
