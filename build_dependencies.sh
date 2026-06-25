@@ -51,7 +51,7 @@ git clone --branch R4.4.2 https://github.com/rdkcentral/Thunder.git
 
 git clone --branch R4_4 https://github.com/rdkcentral/ThunderClientLibraries.git
 
-git clone --branch develop https://github.com/rdkcentral/entservices-apis.git
+git clone --branch 3.8.1 https://github.com/rdkcentral/entservices-apis.git
 
 git clone --branch 1.0.14 https://github.com/rdkcentral/entservices-testframework.git
 
