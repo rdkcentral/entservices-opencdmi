@@ -61,35 +61,40 @@ echo "==========================================================================
 echo "patching ThunderClientLibraries open_cdm_impl.h"
 cd ThunderClientLibraries
 if ! grep -q "GetSupportedRobustness(const string& keySystem" Source/ocdm/open_cdm_impl.h; then
-patch -p1 <<'EOF'
-diff --git a/Source/ocdm/open_cdm_impl.h b/Source/ocdm/open_cdm_impl.h
---- a/Source/ocdm/open_cdm_impl.h
-+++ b/Source/ocdm/open_cdm_impl.h
-@@
-     virtual Exchange::OCDM_RESULT Metricdata(const string& keySystem, uint32_t& length, uint8_t buffer[]) const override {
-         Exchange::OCDM_RESULT result = Exchange::OCDM_INVALID_ACCESSOR;
- 
-         if (_remote != nullptr) {
-             return(_remote->Metricdata(keySystem, length, buffer));
-         }
-         return (result);
-     }
-+
-+    Exchange::OCDM_RESULT GetSupportedRobustness(const string& keySystem, RPC::IStringIterator*& robustness) const override
-+    {
-+        Exchange::OCDM_RESULT result = Exchange::OCDM_INVALID_ACCESSOR;
-+        robustness = nullptr;
-+
-+        if (_remote != nullptr) {
-+            result = _remote->GetSupportedRobustness(keySystem, robustness);
-+        }
-+
-+        return (result);
-+    }
- 
-     // Create a MediaKeySession using the supplied init data and CDM data.
-     virtual Exchange::OCDM_RESULT
-EOF
+target_file="Source/ocdm/open_cdm_impl.h"
+tmp_file=$(mktemp)
+
+awk '
+BEGIN { inserted = 0 }
+/^[[:space:]]*\/\/ Create a MediaKeySession using the supplied init data and CDM data\./ && inserted == 0 {
+    print "    Exchange::OCDM_RESULT GetSupportedRobustness(const string& keySystem, RPC::IStringIterator*& robustness) const override"
+    print "    {"
+    print "        Exchange::OCDM_RESULT result = Exchange::OCDM_INVALID_ACCESSOR;"
+    print "        robustness = nullptr;"
+    print ""
+    print "        if (_remote != nullptr) {"
+    print "            result = _remote->GetSupportedRobustness(keySystem, robustness);"
+    print "        }"
+    print ""
+    print "        return (result);"
+    print "    }"
+    print ""
+    inserted = 1
+}
+{ print }
+END {
+    if (inserted == 0) {
+        exit 1
+    }
+}
+' "$target_file" > "$tmp_file"
+
+mv "$tmp_file" "$target_file"
+fi
+
+if ! grep -q "GetSupportedRobustness(const string& keySystem" Source/ocdm/open_cdm_impl.h; then
+    echo "Failed to patch ThunderClientLibraries: GetSupportedRobustness not found"
+    exit 1
 fi
 cd -
 
