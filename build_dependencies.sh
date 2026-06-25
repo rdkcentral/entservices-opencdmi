@@ -49,8 +49,7 @@ git clone --branch R4.4.3 https://github.com/rdkcentral/ThunderTools.git
 
 git clone --branch R4.4.2 https://github.com/rdkcentral/Thunder.git
 
-#git clone --branch R4_4 https://github.com/rdkcentral/ThunderClientLibraries.git
-git clone --branch R4.4.2 https://github.com/rdkcentral/ThunderClientLibraries.git
+git clone --branch R4_4 https://github.com/rdkcentral/ThunderClientLibraries.git
 
 git clone --branch main https://github.com/rdkcentral/entservices-apis.git
 
@@ -61,42 +60,42 @@ git clone --branch 1.0.14 https://github.com/rdkcentral/entservices-testframewor
 echo "======================================================================================"
 echo "patching ThunderClientLibraries open_cdm_impl.h"
 cd ThunderClientLibraries
-#if ! grep -q "GetSupportedRobustness(const string& keySystem" Source/ocdm/open_cdm_impl.h; then
-#target_file="Source/ocdm/open_cdm_impl.h"
-#tmp_file=$(mktemp)
-#
-#awk '
-#BEGIN { inserted = 0 }
-#/^[[:space:]]*\/\/ Create a MediaKeySession using the supplied init data and CDM data\./ && inserted == 0 {
-#    print "    Exchange::OCDM_RESULT GetSupportedRobustness(const string& keySystem, RPC::IStringIterator*& robustness) const override"
-#    print "    {"
-#    print "        Exchange::OCDM_RESULT result = Exchange::OCDM_INVALID_ACCESSOR;"
-#    print "        robustness = nullptr;"
-#    print ""
-#    print "        if (_remote != nullptr) {"
-#    print "            result = _remote->GetSupportedRobustness(keySystem, robustness);"
-#    print "        }"
-#    print ""
-#    print "        return (result);"
-#    print "    }"
-#    print ""
-#    inserted = 1
-#}
-#{ print }
-#END {
-#    if (inserted == 0) {
-#        exit 1
-#    }
-#}
-#' "$target_file" > "$tmp_file"
-#
-#mv "$tmp_file" "$target_file"
-#fi
-#
-#if ! grep -q "GetSupportedRobustness(const string& keySystem" Source/ocdm/open_cdm_impl.h; then
-#    echo "Failed to patch ThunderClientLibraries: GetSupportedRobustness not found"
-#    exit 1
-#fi
+if ! grep -q "GetSupportedRobustness(const string& keySystem" Source/ocdm/open_cdm_impl.h; then
+target_file="Source/ocdm/open_cdm_impl.h"
+tmp_file=$(mktemp)
+
+awk '
+BEGIN { inserted = 0 }
+/^[[:space:]]*\/\/ Create a MediaKeySession using the supplied init data and CDM data\./ && inserted == 0 {
+    print "    Exchange::OCDM_RESULT GetSupportedRobustness(const string& keySystem, RPC::IStringIterator*& robustness) const override"
+    print "    {"
+    print "        Exchange::OCDM_RESULT result = Exchange::OCDM_INVALID_ACCESSOR;"
+    print "        robustness = nullptr;"
+    print ""
+    print "        if (_remote != nullptr) {"
+    print "            result = _remote->GetSupportedRobustness(keySystem, robustness);"
+    print "        }"
+    print ""
+    print "        return (result);"
+    print "    }"
+    print ""
+    inserted = 1
+}
+{ print }
+END {
+    if (inserted == 0) {
+        exit 1
+    }
+}
+' "$target_file" > "$tmp_file"
+
+mv "$tmp_file" "$target_file"
+fi
+
+if ! grep -q "GetSupportedRobustness(const string& keySystem" Source/ocdm/open_cdm_impl.h; then
+    echo "Failed to patch ThunderClientLibraries: GetSupportedRobustness not found"
+    exit 1
+fi
 cd -
 
 ############################
