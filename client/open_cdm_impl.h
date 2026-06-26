@@ -173,18 +173,6 @@ public:
         return (result);
     }
 
-  Exchange::OCDM_RESULT GetSupportedRobustness(const string& keySystem, RPC::IStringIterator*& robustness) const override
-    {
-        Exchange::OCDM_RESULT result = Exchange::OCDM_INVALID_ACCESSOR;
-        robustness = nullptr;
-
-        if (_remote != nullptr) {
-            result = _remote->GetSupportedRobustness(keySystem, robustness);
-        }
-
-        return (result);
-    }
-
     // Create a MediaKeySession using the supplied init data and CDM data.
     virtual Exchange::OCDM_RESULT
     CreateSession(const string& keySystem, const int32_t licenseType,
