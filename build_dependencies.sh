@@ -117,9 +117,20 @@ cmake --build build/entservices-apis --target install
 
 
 ############################
-# Build ThunderClientLibraries (OCDM)
+# Clone meta-rdk-video for ThunderClientLibraries patch
 echo "======================================================================================"
-echo "building ThunderClientLibraries"
+echo "Cloning meta-rdk-video for ThunderClientLibraries patch"
+if [ ! -d "meta-rdk-video" ]; then
+    git clone --depth 1 https://github.com/rdkcentral/meta-rdk-video.git
+fi
+
+############################
+# Patch and build ThunderClientLibraries (OCDM)
+echo "======================================================================================"
+echo "Applying robustness patch to ThunderClientLibraries"
+cd ThunderClientLibraries
+patch -p1 < ${GITHUB_WORKSPACE}/meta-rdk-video/recipes-extended/wpe-framework/wpeframework-clientlibraries/r4.4/0001-implement-api-to-get-supported-robustness.patch
+cd -
 
 cmake -G Ninja -S ThunderClientLibraries -B build/ThunderClientLibraries \
     -DCDMI=ON \
