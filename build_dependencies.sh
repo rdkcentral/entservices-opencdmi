@@ -123,6 +123,7 @@ cmake -G Ninja -S ThunderClientLibraries -B build/ThunderClientLibraries \
     -DCMAKE_INSTALL_PREFIX="$GITHUB_WORKSPACE/install/usr" \
     -DCMAKE_MODULE_PATH="$GITHUB_WORKSPACE/install/tools/cmake" \
     -DCMAKE_PREFIX_PATH="$GITHUB_WORKSPACE/install/usr"
-cmake --build build/ThunderClientLibraries --target install
+
+cmake --build build/ThunderClientLibraries
 
 ls -la ${GITHUB_WORKSPACE}
