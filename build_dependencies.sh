@@ -49,7 +49,7 @@ git clone --branch R4.4.3 https://github.com/rdkcentral/ThunderTools.git
 
 git clone --branch R4.4.2 https://github.com/rdkcentral/Thunder.git
 
-git clone --branch R4_4 https://github.com/rdkcentral/ThunderClientLibraries.git
+git clone --branch R4.4.1 https://github.com/rdkcentral/ThunderClientLibraries.git
 
 git clone --branch main https://github.com/rdkcentral/entservices-apis.git
 
@@ -116,25 +116,10 @@ cmake -G Ninja -S entservices-apis  -B build/entservices-apis \
 cmake --build build/entservices-apis --target install
 
 
-############################
-# Clone meta-rdk-video for ThunderClientLibraries patch
-echo "======================================================================================"
-echo "Cloning meta-rdk-video for ThunderClientLibraries patch"
-if [ ! -d "meta-rdk-video" ]; then
-    git clone --depth 1 https://github.com/rdkcentral/meta-rdk-video.git
-fi
-
-############################
-# Patch and build ThunderClientLibraries (OCDM)
-echo "======================================================================================"
-echo "Applying robustness patch to ThunderClientLibraries"
-cd ThunderClientLibraries
-patch -p1 < ${GITHUB_WORKSPACE}/meta-rdk-video/recipes-extended/wpe-framework/wpeframework-clientlibraries/r4.4/0001-implement-api-to-get-supported-robustness.patch
-cd -
+#############################
+# Build Thunder-clientlibraries
 
 cmake -G Ninja -S ThunderClientLibraries -B build/ThunderClientLibraries \
-    -DCDMI=ON \
-    -DCDMI_ADAPTER_IMPLEMENTATION=gstreamer \
     -DCMAKE_INSTALL_PREFIX="$GITHUB_WORKSPACE/install/usr" \
     -DCMAKE_MODULE_PATH="$GITHUB_WORKSPACE/install/tools/cmake" \
     -DCMAKE_PREFIX_PATH="$GITHUB_WORKSPACE/install/usr"

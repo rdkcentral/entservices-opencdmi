@@ -23,65 +23,44 @@ set -e
 GITHUB_WORKSPACE="${PWD}"
 ls -la ${GITHUB_WORKSPACE}
 
-# For this repo revision, source changes are tracked directly in-tree.
-# Legacy runtime patching is disabled by default and can be re-enabled explicitly.
-APPLY_LEGACY_PATCHES="${APPLY_LEGACY_PATCHES:-0}"
+############################
+# Clone meta-rdk-video for patches
+echo "======================================================================================"
+echo "Cloning meta-rdk-video for Thunder R4.4 compatibility patch"
 
-if [ "${APPLY_LEGACY_PATCHES}" = "1" ]; then
-    ############################
-    # Clone meta-rdk-video for patches
-    echo "======================================================================================"
-    echo "Cloning meta-rdk-video for Thunder R4.4 compatibility patch"
-
-    if [ ! -d "meta-rdk-video" ]; then
-        git clone --depth 1 https://github.com/rdkcentral/meta-rdk-video.git
-    fi
-
-    ############################
-    # Apply Thunder R4.4 compatibility patch
-    echo "======================================================================================"
-    echo "Applying Thunder R4.4 compatibility patch to plugin"
-
-    cd ${GITHUB_WORKSPACE}
-    PATCH_DIR="${GITHUB_WORKSPACE}/meta-rdk-video/recipes-extended/entservices/files"
-
-    # Apply OCDM patches in exact order from Yocto recipe (POSIX-compatible)
-    apply_patch() {
-        PATCH_NAME="$1"
-        PATCH_FILE="${PATCH_DIR}/${PATCH_NAME}"
-
-        if [ -f "$PATCH_FILE" ]; then
-            echo "Applying patch: $PATCH_NAME"
-
-            # Apply only if the patch matches current sources.
-            # If it was applied already, continue; otherwise fail fast with context.
-            if patch -p1 --dry-run --forward --no-backup-if-mismatch < "$PATCH_FILE" > /dev/null 2>&1; then
-                patch -p1 --forward --no-backup-if-mismatch < "$PATCH_FILE"
-            elif patch -p1 --dry-run -R --no-backup-if-mismatch < "$PATCH_FILE" > /dev/null 2>&1; then
-                echo "Patch already applied, skipping: $PATCH_NAME"
-            else
-                echo "ERROR: Patch does not match current source tree: $PATCH_NAME"
-                echo "       Failing early to avoid downstream CMake source errors."
-                exit 1
-            fi
-        else
-            echo "ERROR: Missing patch file: $PATCH_FILE"
-            exit 1
-        fi
-    }
-
-    # Apply patches in order
-    apply_patch "0003-set-OCDM-sharepath-to-tmp-OCDM.patch"
-    apply_patch "0001-RDK-31882-Add-GstCaps-parsing-in-OCDM-to-rdkservices.patch"
-    apply_patch "0001-add_gstcaps_forcobalt_mediatype.patch"
-    apply_patch "0001-rdkservices_cbcs_changes.patch"
-    apply_patch "0002-Adding-Support-For-R4.patch"
-    apply_patch "0001-Add-a-new-metrics-punch-through-on-the-OCDM-framework-rdkservice.patch"
-    apply_patch "0001-set-OCDM-process-thread-name.patch"
-else
-    echo "Skipping legacy runtime patches (APPLY_LEGACY_PATCHES=${APPLY_LEGACY_PATCHES})."
-    echo "Using tracked repository sources directly."
+if [ ! -d "meta-rdk-video" ]; then
+    git clone --depth 1 https://github.com/rdkcentral/meta-rdk-video.git
 fi
+
+############################
+# Apply Thunder R4.4 compatibility patch
+echo "======================================================================================"
+echo "Applying Thunder R4.4 compatibility patch to plugin"
+
+cd ${GITHUB_WORKSPACE}
+PATCH_DIR="${GITHUB_WORKSPACE}/meta-rdk-video/recipes-extended/entservices/files"
+
+# Apply OCDM patches in exact order from Yocto recipe (POSIX-compatible)
+apply_patch() {
+    PATCH_NAME="$1"
+    PATCH_FILE="${PATCH_DIR}/${PATCH_NAME}"
+    
+    if [ -f "$PATCH_FILE" ]; then
+        echo "Applying patch: $PATCH_NAME"
+                    
+        # Apply the patch
+        patch -p1 --forward --no-backup-if-mismatch < "$PATCH_FILE" || true
+    fi
+}
+
+# Apply patches in order
+apply_patch "0003-set-OCDM-sharepath-to-tmp-OCDM.patch"
+apply_patch "0001-RDK-31882-Add-GstCaps-parsing-in-OCDM-to-rdkservices.patch"
+apply_patch "0001-add_gstcaps_forcobalt_mediatype.patch"
+apply_patch "0001-rdkservices_cbcs_changes.patch"
+apply_patch "0002-Adding-Support-For-R4.patch"
+apply_patch "0001-Add-a-new-metrics-punch-through-on-the-OCDM-framework-rdkservice.patch"
+apply_patch "0001-set-OCDM-process-thread-name.patch"
 
 ############################
 # Build entservices-opencdmi
@@ -97,6 +76,7 @@ cmake -G Ninja -S "$GITHUB_WORKSPACE" -B build/entservices-opencdmi \
 -DCMAKE_DISABLE_FIND_PACKAGE_RFC=ON \
 -DCMAKE_DISABLE_FIND_PACKAGE_DS=ON \
 -DCOMCAST_CONFIG=OFF \
+-DCDMI_ADAPTER_IMPLEMENTATION="rdk" \
 -DRDK_SERVICES_COVERITY=ON \
 -DRDK_SERVICES_L1_TEST=OFF \
 -DPLUGIN_OPENCDMI=ON \

@@ -20,13 +20,6 @@
 
 #include "Module.h"
 
-#include <cstring>
-#include <list>
-#include <map>
-#include <string>
-#include <type_traits>
-#include <utility>
-
 namespace WPEFramework {
 
 namespace Protobuf {
@@ -107,7 +100,7 @@ namespace Protobuf {
             return (WireType::VARINT);
         }
 
-    protected:
+    private:
         static uint8_t ReadVarint(const uint8_t data[], const uint32_t length, T& out)
         {
             ASSERT(data != nullptr);
@@ -115,7 +108,7 @@ namespace Protobuf {
             const uint8_t* ptr = data;
             uint8_t shift = 0;
             uint64_t value = 0;
-            uint8_t size = 10; // protobuf varints for 64-bit values can take up to 10 bytes
+	    uint8_t size = sizeof(value);
             while (size-- && (ptr < (data + length))) {
                 value |= (static_cast<uint64_t>(*ptr & 0x7F) << shift);
                 if (((*ptr++) & 0x80) == 0) {
@@ -135,7 +128,7 @@ namespace Protobuf {
 
     public:
         ZigzagVarintType()
-            : VarintType<T>()
+            : ValueElementType<T>()
         { }
         ZigzagVarintType(const ZigzagVarintType<T>&) = default;
         ZigzagVarintType<T>& operator=(const ZigzagVarintType<T>&) = default;
@@ -145,7 +138,8 @@ namespace Protobuf {
         uint32_t Deserialize(const uint8_t data[], const uint32_t length) override
         {
             ASSERT(data != nullptr);
-            uint32_t result = VarintType<T>::Deserialize(data, length);
+            uint32_t result = 0;
+            result = VarintType<T>::ReadVarint(data, length, ValueElementType<T>::Value());
             if (result != 0) {
                 T& value = ValueElementType<T>::Value();
                 // unzigzag the value...
@@ -257,10 +251,8 @@ namespace Protobuf {
             if ((result != 0) && (size.IsSet() == true) && (size.Value() != 0) && (size.Value() <= length)) {
                 ptr += result;
                 if ((ptr + size.Value()) <= (data + length)) {
-                    ValueElementType<type>::Value().clear();
                     ValueElementType<type>::Value().append(reinterpret_cast<const T*>(ptr), size.Value());
                     result += size.Value();
-                    ValueElementType<type>::Set(true);
                 }
             }
             return (result);
@@ -386,7 +378,7 @@ namespace Protobuf {
         void Clear() {
             _elements.clear();
         }
-        void Add(const uint32_t index, IElement* element, bool required = false)
+        void Add(const uint8_t index, IElement* element, bool required = false)
         {
             ASSERT(index != 0); // 0 is not allowed as key
             ASSERT(element != nullptr);
@@ -512,7 +504,7 @@ namespace Protobuf {
         }
 
     private:
-        std::map<uint32_t, Entry> _elements;
+        std::map<uint8_t, Entry> _elements;
     }; // class Message
 
     using Bytes = BytesType<uint8_t>;
