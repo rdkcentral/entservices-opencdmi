@@ -46,6 +46,7 @@ find_package(GSTREAMER_BASE REQUIRED)
 
 option(CDMI_ADAPTER_IMPLEMENTATION "Defines which implementation is used." "None")
 
+
 add_library(${TARGET} SHARED
         CapsParser.cpp
         open_cdm.cpp

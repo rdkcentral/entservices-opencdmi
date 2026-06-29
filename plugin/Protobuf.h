@@ -148,6 +148,7 @@ namespace Protobuf {
                 }
                 value >>= 1;
             }
+            ValueElementType<T>::Set(result != 0);
             return (result);
         }
     }; // class ZigzagVarintType
