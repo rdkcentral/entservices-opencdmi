@@ -116,18 +116,12 @@ EXTERNAL uint32_t opencdm_destruct_session_private(struct OpenCDMSession* sessio
  /**
  * \brief Performs decryption based on adapter implementation.
  *
- * This method accepts encrypted data and will typically decrypt it out-of-process (for security reasons). The actual data copying is performed
- * using a memory-mapped file (for performance reasons). If the DRM system allows access to decrypted data (i.e. decrypting is not
- * performed in a TEE), the decryption is performed in-place.
+ * This method accepts a GstBuffer that has the required DRM metadata attached via GstProtectionMeta
+ * (for example: "iv", "kid", "subsample_count", "subsamples", and optionally CBCS-related fields)
+ * and performs a single decryption attempt (no retry logic).
  * \param session \ref OpenCDMSession instance.
- * \param buffer Gstreamer buffer containing encrypted data and related meta data. If applicable, decrypted data will be stored here after this call returns.
- * \param subSample Gstreamer buffer containing subsamples size which has been parsed from protection meta data.
- * \param subSampleCount count of subsamples
- * \param IV Gstreamer buffer containing initial vector (IV) used during decryption.
- * \param keyID Gstreamer buffer containing keyID to use for decryption
- *
- * This method handles the Subsample mapping by consolidating all the encrypted data into one buffer before decrypting. This means the Subsample mappings are
- * not passed on to the DRM implementation side.
+ * \param buffer Gstreamer buffer containing encrypted data and required protection metadata.
+ * \param caps Optional GstCaps used to derive stream properties (e.g., width/height, secure-memory flags).
  *
  * For CBCS support, EncryptionScheme and EncryptionPattern information can be added as part of the ProtectionMeta in the given format below
  *      "cipher-mode"         G_TYPE_STRING   (One of the Four Character Code (FOURCC) Protection schemes as defined in https://www.iso.org/obp/ui/#iso:std:iso-iec:23001:-7:ed-3:v1:en)
