@@ -59,6 +59,7 @@ OpenCDMError opencdm_gstreamer_session_decrypt(struct OpenCDMSession* session, G
         uint32_t mappedKeyIDSize = 0;
 
         GstMapInfo keyIDMap;
+	gst_map_info_init(&keyIDMap);
         if (keyID != nullptr) {
            if (gst_buffer_map(keyID, &keyIDMap, (GstMapFlags) GST_MAP_READ) == false) {
                gst_buffer_unmap(buffer, &dataMap);
@@ -95,6 +96,7 @@ OpenCDMError opencdm_gstreamer_session_decrypt(struct OpenCDMSession* session, G
         uint32_t mappedIVSize = static_cast<uint32_t >(ivMap.size);
         if (subSampleBuffer != nullptr) {
             GstMapInfo sampleMap;
+	    gst_map_info_init(&sampleMap);
             if (gst_buffer_map(subSampleBuffer, &sampleMap, GST_MAP_READ) == false) {
                 TRACE_L1(_T("Invalid subsample buffer."));
                 if (keyID != nullptr) {
