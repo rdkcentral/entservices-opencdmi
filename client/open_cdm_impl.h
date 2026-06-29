@@ -114,9 +114,10 @@ public:
         std::string& sessionId, OpenCDMSystem* system = nullptr) const;
 
 public:
-    void AddRef() const override
+    uint32_t AddRef() const override
     {
         Core::InterlockedIncrement(_refCount);
+        return (Core::ERROR_NONE);
     }
     uint32_t Release() const override
     {
@@ -168,6 +169,15 @@ public:
  
         if (_remote != nullptr) {
             return(_remote->Metricdata(keySystem, length, buffer));
+        }
+        return (result);
+    }
+
+    virtual Exchange::OCDM_RESULT GetSupportedRobustness(const string& keySystem,RPC::IStringIterator*& robustness) const override {
+    Exchange::OCDM_RESULT result = Exchange::OCDM_INVALID_ACCESSOR;
+
+        if (_remote != nullptr) {
+            return(_remote->GetSupportedRobustness(keySystem,robustness));
         }
         return (result);
     }

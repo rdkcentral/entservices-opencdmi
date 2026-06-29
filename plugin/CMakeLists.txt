@@ -43,19 +43,10 @@ add_library(${MODULE_NAME} SHARED
         OCDMJsonRpc.cpp
         Module.cpp)
 
-set(OCDM_IMPLEMENTATION_SOURCES
+add_library(${PLUGIN_OCDM_IMPLEMENTATION} SHARED
         CENCParser.cpp
         FrameworkRPC.cpp
         Module.cpp)
-
-foreach(src IN LISTS OCDM_IMPLEMENTATION_SOURCES)
-    if(NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/${src}")
-        message(FATAL_ERROR "Missing source file: ${CMAKE_CURRENT_SOURCE_DIR}/${src}")
-    endif()
-endforeach()
-
-add_library(${PLUGIN_OCDM_IMPLEMENTATION} SHARED
-        ${OCDM_IMPLEMENTATION_SOURCES})
 
 add_dependencies(${MODULE_NAME} ${PLUGIN_OCDM_IMPLEMENTATION})
 
@@ -88,13 +79,7 @@ install(TARGETS ${MODULE_NAME}
 install(TARGETS ${PLUGIN_OCDM_IMPLEMENTATION}
         DESTINATION ${CMAKE_INSTALL_PREFIX}/lib/${STORAGE_DIRECTORY}/plugins)
 
-if("${CMAKE_FIND_ROOT_PATH}" STREQUAL "")
-   # Desktop case: not cross compiling
-   target_link_libraries(${MODULE_NAME} PRIVATE "${CMAKE_INSTALL_PREFIX}/lib/libocdm.so")
-else()
-   # Cross compiling: buildroot
-   target_link_libraries(${MODULE_NAME} PRIVATE ${PLUGINS_LIBRARIES} ${OCDM_LIBRARIES})
-endif()
+target_link_libraries(${MODULE_NAME} PRIVATE ${PLUGINS_LIBRARIES} ${OCDM_LIBRARIES})
 
 # Library installation section
 string(TOLOWER ${NAMESPACE} STORAGENAME)

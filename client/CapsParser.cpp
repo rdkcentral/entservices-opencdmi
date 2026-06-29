@@ -32,8 +32,7 @@ namespace WPEFramework {
             : _lastHash(0)
             , _mediaType(CDMi::Unknown)
             , _width(0)
-            , _height(0)
-            , _no_secure_memory(false) {
+            , _height(0) {
         }
 
         CapsParser::~CapsParser() {
@@ -64,10 +63,10 @@ namespace WPEFramework {
                         }
                     }
                     else {
-                        if(strcasestr(infoStr.c_str(), "audio") != NULL) {
+			if(strcasestr((const char*)info, "audio") != NULL) {
                             _mediaType = CDMi::Audio;
                         }
-                        else if(strcasestr(infoStr.c_str(), "video") != NULL) {
+			else if(strcasestr((const char*)info, "video") != NULL) {
                             _mediaType = CDMi::Video;
                         }
                         else

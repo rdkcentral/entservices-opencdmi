@@ -45,11 +45,11 @@ cd ..
 # Clone the required repositories
 
 
-git clone --branch R4.4.6 https://github.com/rdkcentral/ThunderTools.git
+git clone --branch R4.4.3 https://github.com/rdkcentral/ThunderTools.git
 
-git clone --branch R4.4.6 https://github.com/rdkcentral/Thunder.git
+git clone --branch R4.4.2 https://github.com/rdkcentral/Thunder.git
 
-git clone --branch R4.4.2 https://github.com/rdkcentral/ThunderClientLibraries.git
+git clone --branch R4.4.1 https://github.com/rdkcentral/ThunderClientLibraries.git
 
 git clone --branch main https://github.com/rdkcentral/entservices-apis.git
 
@@ -60,7 +60,7 @@ git clone --branch 1.0.14 https://github.com/rdkcentral/entservices-testframewor
 echo "======================================================================================"
 echo "buliding thunderTools"
 cd ThunderTools
-#patch -p1 < $GITHUB_WORKSPACE/entservices-testframework/patches/00010-R4.4-Add-support-for-project-dir.patch
+patch -p1 < $GITHUB_WORKSPACE/entservices-testframework/patches/00010-R4.4-Add-support-for-project-dir.patch
 cd -
 
 
@@ -69,7 +69,7 @@ cmake -G Ninja -S ThunderTools -B build/ThunderTools \
     -DCMAKE_INSTALL_PREFIX="$GITHUB_WORKSPACE/install/usr" \
     -DCMAKE_MODULE_PATH="$GITHUB_WORKSPACE/install/tools/cmake" \
     -DGENERIC_CMAKE_MODULE_PATH="$GITHUB_WORKSPACE/install/tools/cmake" \
-    -DCMAKE_PREFIX_PATH="$GITHUB_WORKSPACE/install/usr" \
+    -DCMAKE_PREFIX_PATH="$GITHUB_WORKSPACE/install/usr"
 
 cmake --build build/ThunderTools --target install
 
@@ -80,10 +80,9 @@ echo "==========================================================================
 echo "buliding thunder"
 
 cd Thunder
-#patch -p1 < $GITHUB_WORKSPACE/entservices-testframework/patches/Use_Legact_Alt_Based_On_ThunderTools_R4.4.3.patch
-#patch -p1 < $GITHUB_WORKSPACE/entservices-testframework/patches/error_code_R4_4.patch
-#patch -p1 < $GITHUB_WORKSPACE/entservices-testframework/patches/1004-Add-support-for-project-dir.patch
-#patch -p1 < $GITHUB_WORKSPACE/entservices-testframework/patches/RDKEMW-733-Add-ENTOS-IDS.patch
+patch -p1 < $GITHUB_WORKSPACE/entservices-testframework/patches/Use_Legact_Alt_Based_On_ThunderTools_R4.4.3.patch
+patch -p1 < $GITHUB_WORKSPACE/entservices-testframework/patches/1004-Add-support-for-project-dir.patch
+patch -p1 < $GITHUB_WORKSPACE/entservices-testframework/patches/RDKEMW-733-Add-ENTOS-IDS.patch
 cd -
 
 cmake -G Ninja -S Thunder -B build/Thunder \
@@ -95,7 +94,7 @@ cmake -G Ninja -S Thunder -B build/Thunder \
     -DBUILD_TYPE=Debug \
     -DBINDING=127.0.0.1 \
     -DPORT=55555 \
-    -DEXCEPTIONS_ENABLE=ON \
+    -DEXCEPTIONS_ENABLE=ON
 
 cmake --build build/Thunder --target install
 
@@ -111,22 +110,19 @@ cmake -G Ninja -S entservices-apis  -B build/entservices-apis \
     -DEXCEPTIONS_ENABLE=ON \
     -DCMAKE_INSTALL_PREFIX="$GITHUB_WORKSPACE/install/usr" \
     -DCMAKE_MODULE_PATH="$GITHUB_WORKSPACE/install/tools/cmake" \
-    -DCMAKE_PREFIX_PATH="$GITHUB_WORKSPACE/install/usr" \
+    -DCMAKE_PREFIX_PATH="$GITHUB_WORKSPACE/install/usr"
 
 cmake --build build/entservices-apis --target install
 
 
-############################
-# Build ThunderClientLibraries (OCDM)
-echo "======================================================================================"
-echo "building ThunderClientLibraries"
+#############################
+# Build Thunder-clientlibraries
 
 cmake -G Ninja -S ThunderClientLibraries -B build/ThunderClientLibraries \
-    -DCDMI=ON \
-    -DCDMI_ADAPTER_IMPLEMENTATION=gstreamer \
     -DCMAKE_INSTALL_PREFIX="$GITHUB_WORKSPACE/install/usr" \
     -DCMAKE_MODULE_PATH="$GITHUB_WORKSPACE/install/tools/cmake" \
     -DCMAKE_PREFIX_PATH="$GITHUB_WORKSPACE/install/usr"
-cmake --build build/ThunderClientLibraries --target install
+
+cmake --build build/ThunderClientLibraries
 
 ls -la ${GITHUB_WORKSPACE}

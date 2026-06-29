@@ -44,7 +44,7 @@ endif()
 find_package(GSTREAMER REQUIRED)
 find_package(GSTREAMER_BASE REQUIRED)
 
-set(CDMI_ADAPTER_IMPLEMENTATION "gstreamer" CACHE STRING "Defines which implementation is used.")
+option(CDMI_ADAPTER_IMPLEMENTATION "Defines which implementation is used." "None")
 
 
 add_library(${TARGET} SHARED

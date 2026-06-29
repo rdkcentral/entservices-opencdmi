@@ -74,7 +74,13 @@ OpenCDMError StringToAllocatedBuffer(const std::string& source, char* destinatio
             Core::SingletonType<OpenCDMAccessor>::Create(connector.c_str());
         }
         ~TheOne() {
-            Core::SingletonType<OpenCDMAccessor>::Dispose();
+
+	   if( Core::SingletonType<OpenCDMAccessor>::Dispose() == true ) {
+                // if the accessor was disposed here because the destructor of the static instance was called there
+                // was no proper dispose before (opencdm_dispose and/or Singleton::Dispose). 
+                // The static dispose might be incomplete or have side effects (e.g. Threads could already be killed)
+                TRACE_L1(_T("OpenCDM Accessor was not disposed properly"));
+            }
         }
 
     public:
@@ -135,6 +141,52 @@ OpenCDMError opencdm_destruct_system(struct OpenCDMSystem* system)
        result = OpenCDMError::ERROR_NONE;
     }
  
+    return (result);
+}
+
+/**
+ * Gets the robustness levels supported by underlying CDM system.
+ *
+ * \param system \ref OpenCDMAccessor instance
+ * \param[out] robustness On sucess,set supported robustness levels(e.g:"SW_SECURE_DECODE,SW_SECURE_CRYPTO").
+ *     caller must free this bufferSet to NULL if the CDM reports no robustness levels.
+ * \param[out] count On success,return the length of the returned buffer.Set to 0 of no robustness
+ *     levels are reported.
+ */
+OpenCDMError opencdm_system_supported_robustness(struct OpenCDMSystem* system,
+     char*** robustness, uint16_t* count)
+{
+    assert(system != nullptr);
+    OpenCDMError result(OpenCDMError::ERROR_INVALID_ARG);
+
+    if (system == nullptr || robustness == nullptr || count == nullptr)
+        return (result);
+
+    OpenCDMAccessor* accessor = OpenCDMAccessor::Instance();
+    *robustness = nullptr;
+    *count = 0;
+
+    if (accessor != nullptr) {
+       RPC::IStringIterator* iterator = nullptr;
+       result = static_cast<OpenCDMError>(accessor->GetSupportedRobustness(system->keySystem(),iterator));
+
+       if (result == ERROR_NONE && iterator != nullptr) {
+	   uint16_t size = iterator->Count();
+	   if (size > 0) {
+	       char** results = static_cast<char**>(calloc(size,sizeof(char*)));
+	       std::string entry;
+	       for (uint16_t i = 0; i < size && iterator->Next(entry); ++i) {
+                   results[i] = strdup(entry.c_str());
+	       }
+	       *robustness = results;
+	       *count = size;
+           }
+           iterator->Release();
+       }
+    } else {
+       return OpenCDMError::ERROR_INVALID_ACCESSOR;
+    }
+
     return (result);
 }
 
