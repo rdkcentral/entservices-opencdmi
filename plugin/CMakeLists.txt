@@ -79,13 +79,7 @@ install(TARGETS ${MODULE_NAME}
 install(TARGETS ${PLUGIN_OCDM_IMPLEMENTATION}
         DESTINATION ${CMAKE_INSTALL_PREFIX}/lib/${STORAGE_DIRECTORY}/plugins)
 
-if("${CMAKE_FIND_ROOT_PATH}" STREQUAL "")
-   # Desktop case: not cross compiling
-   target_link_libraries(${MODULE_NAME} PRIVATE "${CMAKE_INSTALL_PREFIX}/lib/libocdm.so")
-else()
-   # Cross compiling: buildroot
-   target_link_libraries(${MODULE_NAME} PRIVATE ${PLUGINS_LIBRARIES} ${OCDM_LIBRARIES})
-endif()
+target_link_libraries(${MODULE_NAME} PRIVATE ${PLUGINS_LIBRARIES} ${OCDM_LIBRARIES})
 
 # Library installation section
 string(TOLOWER ${NAMESPACE} STORAGENAME)
