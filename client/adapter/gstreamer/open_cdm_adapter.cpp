@@ -23,6 +23,7 @@
 #include "open_cdm_adapter.h"
 #include <stdlib.h>
 #include <gst/gst.h>
+#include <gst/gstmap.h>
 #include <gst/base/gstbytereader.h>
 #include "../CapsParser.h"
 
