@@ -27,7 +27,11 @@
 #include <com/com.h>
 
 #if defined(__WINDOWS__) && defined(OCDM_EXPORTS)
+#ifndef EXTERNAL
+#define EXTERNAL EXTERNAL_EXPORT
+#elif EXTERNAL != EXTERNAL_EXPORT
 #undef EXTERNAL
 #define EXTERNAL EXTERNAL_EXPORT
+#endif
 #endif
 

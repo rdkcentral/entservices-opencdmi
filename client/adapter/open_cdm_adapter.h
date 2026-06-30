@@ -113,6 +113,26 @@ EXTERNAL uint32_t opencdm_destruct_session_private(struct OpenCDMSession* sessio
     
     EXTERNAL OpenCDMError opencdm_gstreamer_session_decrypt_buffer(struct OpenCDMSession* session, GstBuffer* buffer, GstCaps* caps);
 
+ /**
+ * \brief Performs decryption based on adapter implementation.
+ *
+ * This method accepts a GstBuffer that has the required DRM metadata attached via GstProtectionMeta
+ * (for example: "iv", "kid", "subsample_count", "subsamples", and optionally CBCS-related fields)
+ * and performs a single decryption attempt (no retry logic).
+ * \param session \ref OpenCDMSession instance.
+ * \param buffer Gstreamer buffer containing encrypted data and required protection metadata.
+ * \param caps Optional GstCaps used to derive stream properties (e.g., width/height, secure-memory flags).
+ *
+ * For CBCS support, EncryptionScheme and EncryptionPattern information can be added as part of the ProtectionMeta in the given format below
+ *      "cipher-mode"         G_TYPE_STRING   (One of the Four Character Code (FOURCC) Protection schemes as defined in https://www.iso.org/obp/ui/#iso:std:iso-iec:23001:-7:ed-3:v1:en)
+ *      "crypt_byte_block"    G_TYPE_UINT     (Present only if cipher-mode is "cbcs")
+ *      "skip_byte_block"     G_TYPE_UINT     (Present only cipher-mode is "cbcs")
+
+ * \return Zero on success, non-zero on error.
+ */
+    EXTERNAL OpenCDMError opencdm_gstreamer_session_decrypt_buffer_once(struct OpenCDMSession* session, GstBuffer* buffer,
+                                                           GstCaps* caps);
+
 /**
  * \brief adds SVP related features to the caps structure (only if needed by the platform)
  *
