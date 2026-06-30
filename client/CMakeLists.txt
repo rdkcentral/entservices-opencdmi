@@ -105,6 +105,10 @@ if(("${CDMI_ADAPTER_IMPLEMENTATION}" STREQUAL "broadcom-svp") OR ("${CDMI_ADAPTE
             target_sources(${TARGET} PRIVATE adapter/broadcom-svp/open_cdm_adapter-secbuf.cpp)
         endif()
     endif()
+elseif("${CDMI_ADAPTER_IMPLEMENTATION}" STREQUAL "rdk")
+    target_sources(${TARGET} PRIVATE
+        adapter/${CDMI_ADAPTER_IMPLEMENTATION}/open_cdm_adapter.cpp
+        adapter/${CDMI_ADAPTER_IMPLEMENTATION}/open_cdm_decrypt.cpp)
 else()
     target_sources(${TARGET} PRIVATE adapter/${CDMI_ADAPTER_IMPLEMENTATION}/open_cdm_adapter.cpp)
 endif()

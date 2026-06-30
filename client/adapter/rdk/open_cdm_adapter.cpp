@@ -26,11 +26,32 @@
 #include <gst/base/gstbytereader.h>
 #include <dlfcn.h>
 
+#include <cstdint>
+#include <cstring>
+
 #include <gst_svp_meta.h>
 #include "../CapsParser.h"
 
 typedef gboolean (*svp_set_value_fn_t)(void *, const char *, void *, const size_t);
 static svp_set_value_fn_t s_svpSetValueFn = nullptr;
+
+namespace
+{
+constexpr uint32_t kMaxIvSize = 16;
+
+bool copyIvToStack(uint8_t* mappedIV, uint32_t mappedIVSize, uint8_t (&ivCopy)[kMaxIvSize])
+{
+    // CENC/CBCS IVs are bounded to 16 bytes. Reject anything larger before copying
+    // to the fixed stack buffer.
+    if ((mappedIV == nullptr) || (mappedIVSize == 0) || (mappedIVSize > kMaxIvSize)) {
+        return false;
+    }
+
+    memcpy(ivCopy, mappedIV, mappedIVSize);
+    return true;
+}
+} // namespace
+
 
 EXTERNAL OpenCDMError opencdm_gstreamer_transform_caps(GstCaps** caps)
 {
@@ -77,13 +98,13 @@ uint32_t opencdm_destruct_session_private(struct OpenCDMSession* session, void* 
     return (success ? 0 : 1);
 }
 
-OpenCDMError opencdm_gstreamer_session_decrypt(struct OpenCDMSession* session, GstBuffer* buffer, GstBuffer* subSample, const uint32_t subSampleCount,
-                                                GstBuffer* IV, GstBuffer* keyID, uint32_t initWithLast15)
+OpenCDMError opencdm_gstreamer_session_decrypt_once(struct OpenCDMSession* session, GstBuffer* buffer, GstBuffer* subSample, const uint32_t subSampleCount,
+                                                     GstBuffer* IV, GstBuffer* keyID, uint32_t initWithLast15)
 {
     OpenCDMError result (ERROR_INVALID_SESSION);
 
     if (session != nullptr) {
-        GstMapInfo dataMap;
+        GstMapInfo dataMap = { 0 };
         if (gst_buffer_map(buffer, &dataMap, (GstMapFlags) GST_MAP_READWRITE) == false) {
             fprintf(stderr, "Invalid buffer.\n");
             return (ERROR_INVALID_DECRYPT_BUFFER);
@@ -99,14 +120,29 @@ OpenCDMError opencdm_gstreamer_session_decrypt(struct OpenCDMSession* session, G
             return(ERROR_NONE);
         }
 
-        GstMapInfo ivMap;
+        GstMapInfo ivMap = { 0 };
+
+       if (IV == nullptr) {
+            gst_buffer_unmap(buffer, &dataMap);
+            fprintf(stderr, "Missing IV buffer.\n");
+            return (ERROR_INVALID_DECRYPT_BUFFER);
+        }
+
         if (gst_buffer_map(IV, &ivMap, (GstMapFlags) GST_MAP_READ) == false) {
             gst_buffer_unmap(buffer, &dataMap);
             fprintf(stderr, "Invalid IV buffer.\n");
             return (ERROR_INVALID_DECRYPT_BUFFER);
         }
 
-        GstMapInfo keyIDMap;
+        GstMapInfo keyIDMap = { 0 };
+
+        if (keyID == nullptr) {
+            gst_buffer_unmap(IV, &ivMap);
+            gst_buffer_unmap(buffer, &dataMap);
+            fprintf(stderr, "Missing keyID buffer.\n");
+            return (ERROR_INVALID_DECRYPT_BUFFER);
+        }
+
         if (gst_buffer_map(keyID, &keyIDMap, (GstMapFlags) GST_MAP_READ) == false) {
             gst_buffer_unmap(buffer, &dataMap);
             gst_buffer_unmap(IV, &ivMap);
@@ -134,11 +170,21 @@ OpenCDMError opencdm_gstreamer_session_decrypt(struct OpenCDMSession* session, G
         uint32_t mappedDataSize = static_cast<uint32_t >(dataMap.size);
         uint8_t *mappedIV = reinterpret_cast<uint8_t* >(ivMap.data);
         uint32_t mappedIVSize = static_cast<uint32_t >(ivMap.size);
+
+        uint8_t ivCopy[kMaxIvSize] = {0};
+        if (!copyIvToStack(mappedIV, mappedIVSize, ivCopy)) {
+            gst_buffer_unmap(keyID, &keyIDMap);
+            gst_buffer_unmap(IV, &ivMap);
+            gst_buffer_unmap(buffer, &dataMap);
+            fprintf(stderr, "Invalid IV buffer size.\n");
+            return (ERROR_INVALID_DECRYPT_BUFFER);
+        }
+
         uint8_t *mappedKeyID = reinterpret_cast<uint8_t* >(keyIDMap.data);
         uint32_t mappedKeyIDSize = static_cast<uint32_t >(keyIDMap.size);
 
         if (subSample != nullptr) {
-            GstMapInfo sampleMap;
+            GstMapInfo sampleMap = { 0 };
 
             if (gst_buffer_map(subSample, &sampleMap, GST_MAP_READ) == false) {
                 fprintf(stderr, "Invalid subsample buffer.\n");
@@ -183,7 +229,7 @@ OpenCDMError opencdm_gstreamer_session_decrypt(struct OpenCDMSession* session, G
                 gst_byte_reader_set_pos(reader, 0);
 
                 GstPerf* ocdm_perf = new GstPerf("opencdm_session_decrypt_subsample");
-                result = opencdm_session_decrypt(session, svpData, dataBlockSize, encScheme, pattern, mappedIV, mappedIVSize,
+		result = opencdm_session_decrypt(session, svpData, dataBlockSize, encScheme, pattern, ivCopy, mappedIVSize,
                                                  mappedKeyID, mappedKeyIDSize, initWithLast15);
                 delete ocdm_perf;
 
@@ -213,7 +259,7 @@ OpenCDMError opencdm_gstreamer_session_decrypt(struct OpenCDMSession* session, G
             memcpy(encryptedData, mappedData, mappedDataSize);
 
             GstPerf* ocdm_perf = new GstPerf("opencdm_session_decrypt_no_subsample");
-            result = opencdm_session_decrypt(session, svpData, dataBlockSize, encScheme, pattern, mappedIV, mappedIVSize,
+            result = opencdm_session_decrypt(session, svpData, dataBlockSize, encScheme, pattern, ivCopy, mappedIVSize,
                                              mappedKeyID, mappedKeyIDSize, initWithLast15);
             delete ocdm_perf;
 
@@ -308,13 +354,13 @@ OpenCDMError validate_subsample_map(SubSampleInfo** subSampleInfoPtr, unsigned i
     return retVal;
 }
 
-OpenCDMError opencdm_gstreamer_session_decrypt_buffer(struct OpenCDMSession* session, GstBuffer* buffer, GstCaps* caps) {
+OpenCDMError opencdm_gstreamer_session_decrypt_buffer_once(struct OpenCDMSession* session, GstBuffer* buffer, GstCaps* caps) {
 
     OpenCDMError result (ERROR_INVALID_SESSION);
 
     if (session != nullptr) {
 
-        GstMapInfo dataMap;
+        GstMapInfo dataMap = { 0 };
         if (gst_buffer_map(buffer, &dataMap, (GstMapFlags) GST_MAP_READWRITE) == false) {
 
             TRACE_L1("opencdm_gstreamer_session_decrypt_buffer: Invalid buffer.");
@@ -338,7 +384,7 @@ OpenCDMError opencdm_gstreamer_session_decrypt_buffer(struct OpenCDMSession* ses
             }
 
             GstBuffer* subSample = nullptr;
-            GstMapInfo sampleMap;
+            GstMapInfo sampleMap = { 0 };
             uint8_t *mappedSubSample = nullptr;
             uint32_t mappedSubSampleSize = 0;
             if (subSampleCount > 0) {
@@ -371,8 +417,17 @@ OpenCDMError opencdm_gstreamer_session_decrypt_buffer(struct OpenCDMSession* ses
                 goto exit;
             }
             GstBuffer* IV = gst_value_get_buffer(value);
-            GstMapInfo ivMap;
-            if (IV != nullptr && gst_buffer_map(IV, &ivMap, (GstMapFlags) GST_MAP_READ) == false) {
+
+            if (IV == nullptr) {
+                TRACE_L1("opencdm_gstreamer_session_decrypt_buffer: Missing IV buffer.");
+                gst_buffer_unmap(buffer, &dataMap);
+                gst_buffer_unmap(subSample, &sampleMap);
+                result = ERROR_INVALID_DECRYPT_BUFFER;
+                goto exit;
+            }
+	    
+            GstMapInfo ivMap = { 0 };
+            if (gst_buffer_map(IV, &ivMap, (GstMapFlags) GST_MAP_READ) == false) {
                 TRACE_L1("opencdm_gstreamer_session_decrypt_buffer: Invalid IV buffer.");
                 gst_buffer_unmap(buffer, &dataMap);
                 gst_buffer_unmap(subSample, &sampleMap);
@@ -382,12 +437,22 @@ OpenCDMError opencdm_gstreamer_session_decrypt_buffer(struct OpenCDMSession* ses
             uint8_t *mappedIV = reinterpret_cast<uint8_t* >(ivMap.data);
             uint32_t mappedIVSize = static_cast<uint32_t >(ivMap.size);
 
+            uint8_t ivCopy[kMaxIvSize] = {0};
+            if (!copyIvToStack(mappedIV, mappedIVSize, ivCopy)) {
+                TRACE_L1("opencdm_gstreamer_session_decrypt_buffer: Invalid IV buffer size.");
+                gst_buffer_unmap(buffer, &dataMap);
+                gst_buffer_unmap(subSample, &sampleMap);
+                gst_buffer_unmap(IV, &ivMap);
+                result = ERROR_INVALID_DECRYPT_BUFFER;
+                goto exit;
+            }
+
             unsigned InitWithLast15 = 0;
             if (!gst_structure_get_uint(protectionMeta->info, "initWithLast15", &InitWithLast15)) {
                 TRACE_L3("opencdm_gstreamer_session_decrypt_buffer: Missing initWithLast15 value.");
             }
             if (InitWithLast15 == 1) {
-                swapIVBytes(mappedIV,mappedIVSize);
+                swapIVBytes(ivCopy,mappedIVSize);
             }
 
             //Get Key ID
@@ -402,10 +467,20 @@ OpenCDMError opencdm_gstreamer_session_decrypt_buffer(struct OpenCDMSession* ses
             }
 
             GstBuffer* keyID = gst_value_get_buffer(value);
+
+            if (keyID == nullptr) {
+                TRACE_L1("opencdm_gstreamer_session_decrypt_buffer: Missing KeyId buffer.");
+                gst_buffer_unmap(buffer, &dataMap);
+                gst_buffer_unmap(subSample, &sampleMap);
+                gst_buffer_unmap(IV, &ivMap);
+                result = ERROR_INVALID_DECRYPT_BUFFER;
+                goto exit;
+            }
+
             uint8_t *mappedKeyID = nullptr;
             uint32_t mappedKeyIDSize = 0;
-            GstMapInfo keyIDMap;
-            if (keyID != nullptr && gst_buffer_map(keyID, &keyIDMap, (GstMapFlags) GST_MAP_READ) == false) {
+            GstMapInfo keyIDMap = { 0 };
+            if (gst_buffer_map(keyID, &keyIDMap, (GstMapFlags) GST_MAP_READ) == false) {
                 TRACE_L1("Invalid keyID buffer.");
                 gst_buffer_unmap(buffer, &dataMap);
                 gst_buffer_unmap(subSample, &sampleMap);
@@ -538,7 +613,7 @@ OpenCDMError opencdm_gstreamer_session_decrypt_buffer(struct OpenCDMSession* ses
             sampleInfo.scheme = encScheme;
             sampleInfo.pattern.clear_blocks = pattern.clear_blocks;
             sampleInfo.pattern.encrypted_blocks = pattern.encrypted_blocks;
-            sampleInfo.iv = mappedIV;
+            sampleInfo.iv = ivCopy;
             sampleInfo.ivLength = mappedIVSize;
             sampleInfo.keyId = mappedKeyID;
             sampleInfo.keyIdLength = mappedKeyIDSize;
