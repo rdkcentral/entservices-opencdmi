@@ -49,6 +49,7 @@ if(RDK_SERVICES_L1_TEST)
 endif()
 
 if(PLUGIN_OPENCDMI)
+    add_subdirectory(client)
     add_subdirectory(plugin)
 endif()
 
