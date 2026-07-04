@@ -1038,6 +1038,7 @@ namespace Plugin {
 
                 if (mediaKeySession != nullptr) {
 
+                    mediaKeySession->Close();
                     mediaKeySession->Run(nullptr);
 
                     CDMi::IMediaKeys* system = _parent.KeySystem(keySystem);
