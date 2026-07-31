@@ -583,6 +583,8 @@ PUSH_WARNING(DISABLE_WARNING_THIS_IN_MEMBER_INITIALIZER_LIST)
         , _sysError(Exchange::OCDM_RESULT::OCDM_SUCCESS)
         , _system(system)
         , _pvtData(nullptr)
+        , _decryptToHostSet(false)
+        , _decryptToHost(false)
     {
         OpenCDMAccessor* accessor = OpenCDMAccessor::Instance();
         std::string bufferId;
@@ -741,6 +743,16 @@ public:
     void* SessionPrivateData() const
     {
         return _pvtData;
+    }
+
+    bool NeedsDecryptToHostUpdate(bool decryptToHost)
+    {
+        if (_decryptToHostSet && (_decryptToHost == decryptToHost)) {
+            return false;
+        }
+        _decryptToHostSet = true;
+        _decryptToHost = decryptToHost;
+        return true;
     }
 
     uint32_t SessionIdExt() const
@@ -921,5 +933,7 @@ private:
     Exchange::OCDM_RESULT _sysError;
     OpenCDMSystem* _system;
     void* _pvtData;
+    bool _decryptToHostSet;
+    bool _decryptToHost;
 };
 
