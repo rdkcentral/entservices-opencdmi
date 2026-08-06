@@ -471,7 +471,7 @@ private:
 
     public:
         uint32_t Decrypt(uint8_t* encryptedData, uint32_t encryptedDataLength,
-            const ::SampleInfo* sampleInfo,
+            const ::SampleInfo* sampleInfo, const uint32_t sampleInfoLength,
             uint32_t initWithLast15,
             const ::MediaProperties* properties)
         {
@@ -491,33 +491,17 @@ private:
 
             if (RequestProduce(Core::infinite) == Core::ERROR_NONE) {
 
-                CDMi::SubSampleInfo* subSample = nullptr;
-                uint8_t subSampleCount = 0;
-                CDMi::EncryptionScheme encScheme = CDMi::EncryptionScheme::AesCtr_Cenc;
-                CDMi::EncryptionPattern pattern = {0 , 0};
-                uint8_t* ivData = nullptr;
-                uint8_t ivDataLength = 0;
-                uint8_t* keyId = nullptr;
-                uint8_t keyIdLength = 0;
-
                 if(sampleInfo != nullptr) {
-                    subSample = reinterpret_cast<CDMi::SubSampleInfo*>(sampleInfo->subSample);
-                    subSampleCount = sampleInfo->subSampleCount;
-                    ivData = sampleInfo->iv;
-                    ivDataLength = sampleInfo->ivLength;
-                    keyId = sampleInfo->keyId;
-                    keyIdLength = sampleInfo->keyIdLength;
-                    encScheme = static_cast<CDMi::EncryptionScheme>(sampleInfo->scheme);
-                    pattern.clear_blocks = sampleInfo->pattern.clear_blocks;
-                    pattern.encrypted_blocks = sampleInfo->pattern.encrypted_blocks;
+                    //Here there is translation of ::SampleInfo into CDMi::SampleInfo.
+                    //A cast is used since the definitions of those structures are exactly the same.
+                    //This applies to sub-structures, data types used, enumerations, order of fields, etc.
+                    //In case this is not satisfied - cast may give unexpected results and e.g. decryption may fail with
+                    //difficult to identify reasons.
+                    //When extending any of the structures consider extending the other or introduce some kind of translation between them.
+                    const CDMi::SampleInfo* samples = reinterpret_cast<const CDMi::SampleInfo *>(sampleInfo);
+                    SetSamples(sampleInfoLength, samples);
                 }
 
-                SetIV(static_cast<uint8_t>(ivDataLength), ivData);
-                KeyId(static_cast<uint8_t>(keyIdLength), keyId);
-                SubSample(subSampleCount, subSample);
-                SetEncScheme(static_cast<uint8_t>(encScheme));
-                SetEncPattern(pattern.encrypted_blocks,pattern.clear_blocks);
-                InitWithLast15(initWithLast15);
                 if(properties != nullptr) {
                     SetMediaProperties(properties->height, properties->width, properties->media_type);
                 }
@@ -712,7 +696,7 @@ public:
         }
     }
     uint32_t Decrypt(uint8_t* encryptedData, const uint32_t encryptedDataLength,
-        const ::SampleInfo* sampleInfo,
+        const ::SampleInfo* sampleInfo, const uint32_t sampleInfoLength,
         uint32_t initWithLast15,
         const ::MediaProperties* properties)
     {
@@ -728,7 +712,7 @@ public:
 
         if (decryptSession != nullptr) {
             result = decryptSession->Decrypt(encryptedData, encryptedDataLength, 
-                sampleInfo,
+                sampleInfo, sampleInfoLength,
                 initWithLast15,
                 properties);
             if(result)
