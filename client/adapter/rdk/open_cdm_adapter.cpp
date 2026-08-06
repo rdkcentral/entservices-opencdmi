@@ -484,15 +484,13 @@ OpenCDMError opencdm_gstreamer_session_decrypt_buffer_once(struct OpenCDMSession
             }
             RDKPerf perf(perfString.c_str());
 
-            if (s_svpSetValueFn) {
+            if (s_svpSetValueFn && session->NeedsDecryptToHostUpdate(capsParser.IsSecureMemoryDisabled())) {
                 const gboolean decryptToHost = capsParser.IsSecureMemoryDisabled() ? TRUE : FALSE;
                 if (!s_svpSetValueFn(session->SessionPrivateData(),
                                 "decryptToHost",
                                 (void*)&decryptToHost,
                                 sizeof(decryptToHost))) {
                     TRACE_L1("Failed to set decryptToHost=%s in SVP context\n", decryptToHost ? "true" : "false");
-                } else {
-                    TRACE_L1("Sucess to set decryptToHost=%s in SVP context\n", decryptToHost ? "true" : "false");
                 }
             }
 
