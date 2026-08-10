@@ -253,6 +253,10 @@ namespace Plugin {
 
         void Parse(const uint8_t data[], const uint16_t length)
         {
+            if ((data == nullptr) || (length == 0)) {
+                return;
+            }
+
             uint16_t offset = 0;
 
             do {

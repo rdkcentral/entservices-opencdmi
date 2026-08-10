@@ -16,22 +16,42 @@
 # limitations under the License.
 
 cmake_minimum_required(VERSION 3.8)
-set(PLUGIN_NAME L1TestsMD)
-set(MODULE_NAME ${NAMESPACE}${PLUGIN_NAME})
+project(OpenCDMIL1Tests)
 
 set(CMAKE_CXX_STANDARD 14)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
+include(CTest)
+enable_testing()
+
 find_package(${NAMESPACE}Plugins REQUIRED)
+find_package(GTest REQUIRED)
 
 set (TEST_SRC
+    tests/ClientCapsParserL1Tests.cpp
+    tests/ClientOpenCdmExtL1Tests.cpp
+    tests/PluginOcdmJsonRpcInterfaceL1Tests.cpp
+    tests/PluginCencParserL1Tests.cpp
+    tests/mocks/ClientModule.cpp
+    tests/mocks/FakeServerInterfaces.cpp
+    ../../client/CapsParser.cpp
+    ../../client/open_cdm_ext.cpp
+    ../../plugin/CENCParser.cpp
+    ../../plugin/Module.cpp
+    ../../plugin/OCDM.cpp
+    ../../plugin/OCDMJsonRpc.cpp
 )
 
 set (TEST_LIB
     ${NAMESPACE}Plugins::${NAMESPACE}Plugins
 )
 
-set (TEST_INC ../../helpers)
+set (TEST_INC
+    ../../helpers
+    ../../client
+    ../../plugin
+    tests/mocks
+)
 
 #########################################################################################
 # add_plugin_test_ex: Macro to add plugin tests, it will append to TEST_SRC, TEST_INC,
@@ -100,15 +120,19 @@ macro(add_plugin_test plugin_name test_files)
     add_plugin_test_ex(${plugin_opt} "${test_files}" "../../${plugin_name}" "${NAMESPACE}${plugin_name}")
 endmacro()
 
-add_library(${MODULE_NAME} SHARED ${TEST_SRC})
+add_executable(${PROJECT_NAME} ${TEST_SRC})
 
 include_directories(${TEST_INC})
 
-target_link_directories(${MODULE_NAME} PUBLIC ${CMAKE_INSTALL_PREFIX}/lib ${CMAKE_INSTALL_PREFIX}/lib/wpeframework/plugins)
+target_link_directories(${PROJECT_NAME} PUBLIC ${CMAKE_INSTALL_PREFIX}/lib ${CMAKE_INSTALL_PREFIX}/lib/wpeframework/plugins)
 
-target_link_libraries(${MODULE_NAME} ${TEST_LIB})
+target_link_libraries(${PROJECT_NAME}
+    GTest::gtest_main
+    GTest::gmock
+    GTest::gtest
+    ${TEST_LIB})
 
-target_include_directories(${MODULE_NAME}
+target_include_directories(${PROJECT_NAME}
         PUBLIC
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
         $<INSTALL_INTERFACE:include>
@@ -118,7 +142,9 @@ target_include_directories(${MODULE_NAME}
         ${CMAKE_SOURCE_DIR}/../Thunder/Source/plugins
         )
 
-install(TARGETS ${MODULE_NAME} DESTINATION lib)
-write_config(${PLUGIN_NAME})
+include(GoogleTest)
+gtest_discover_tests(${PROJECT_NAME} DISCOVERY_MODE PRE_TEST)
+
+install(TARGETS ${PROJECT_NAME} DESTINATION bin)
 
 
