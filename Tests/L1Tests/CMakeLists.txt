@@ -145,6 +145,37 @@ target_include_directories(${PROJECT_NAME}
 include(GoogleTest)
 gtest_discover_tests(${PROJECT_NAME} DISCOVERY_MODE PRE_TEST)
 
+set (CLIENT_CORE_TEST_SRC
+    tests/ClientOpenCdmCoreApiL1Tests.cpp
+    ../../client/open_cdm.cpp
+    ../../client/open_cdm_ext.cpp
+    ../../client/open_cdm_impl.cpp
+)
+
+add_executable(OpenCDMIClientCoreL1Tests ${CLIENT_CORE_TEST_SRC})
+
+target_include_directories(OpenCDMIClientCoreL1Tests
+    PUBLIC
+    ${TEST_INC}
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
+    $<INSTALL_INTERFACE:include>
+    ${CMAKE_SOURCE_DIR}/../entservices-testframework/Tests/mocks
+    ${CMAKE_SOURCE_DIR}/../entservices-testframework/Tests/mocks/devicesettings
+    ${CMAKE_SOURCE_DIR}/../entservices-testframework/Tests/mocks/thunder
+    ${CMAKE_SOURCE_DIR}/../Thunder/Source/plugins
+)
+
+target_link_directories(OpenCDMIClientCoreL1Tests PUBLIC ${CMAKE_INSTALL_PREFIX}/lib ${CMAKE_INSTALL_PREFIX}/lib/wpeframework/plugins)
+
+target_link_libraries(OpenCDMIClientCoreL1Tests
+    GTest::gtest_main
+    GTest::gmock
+    GTest::gtest
+    ${TEST_LIB})
+
+gtest_discover_tests(OpenCDMIClientCoreL1Tests DISCOVERY_MODE PRE_TEST)
+
 install(TARGETS ${PROJECT_NAME} DESTINATION bin)
+install(TARGETS OpenCDMIClientCoreL1Tests DESTINATION bin)
 
 

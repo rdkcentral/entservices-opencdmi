@@ -29,8 +29,6 @@
 
 using WPEFramework::Core::JSON::ArrayType;
 using WPEFramework::Core::JSON::String;
-using WPEFramework::Core::ERROR_BAD_REQUEST;
-using WPEFramework::Core::ERROR_NONE;
 using WPEFramework::JsonData::OCDM::DrmData;
 using WPEFramework::Plugin::FakeContentDecryption;
 using WPEFramework::Plugin::OCDM;
@@ -72,13 +70,53 @@ TEST(PluginOcdmJsonRpcInterfaceL1Tests, GetDrmsReturnsSystemsAndDesignators)
     ArrayType<DrmData> response;
     const uint32_t rc = plugin.get_drms(response);
 
-    EXPECT_EQ(ERROR_NONE, rc);
+    EXPECT_EQ(WPEFramework::Core::ERROR_NONE, rc);
     EXPECT_EQ(2u, response.Length());
 
     auto it = response.Elements();
     ASSERT_TRUE(it.Next());
     EXPECT_EQ("widevine", it.Current().Name.Value());
     ASSERT_TRUE(it.Current().Keysystems.Elements().Next());
+
+    fake->Release();
+    plugin._opencdmi = nullptr;
+}
+
+TEST(PluginOcdmJsonRpcInterfaceL1Tests, GetDrmsReturnsEmptyListWhenNoSystemsAvailable)
+{
+    TestOCDM plugin;
+    auto* fake = new FakeContentDecryption();
+
+    plugin._opencdmi = fake;
+
+    ArrayType<DrmData> response;
+    const uint32_t rc = plugin.get_drms(response);
+
+    EXPECT_EQ(WPEFramework::Core::ERROR_NONE, rc);
+    EXPECT_EQ(0u, response.Length());
+
+    fake->Release();
+    plugin._opencdmi = nullptr;
+}
+
+TEST(PluginOcdmJsonRpcInterfaceL1Tests, GetDrmsKeepsSystemWhenDesignatorsUnavailable)
+{
+    TestOCDM plugin;
+    auto* fake = new FakeContentDecryption();
+    fake->SetSystems({"widevine"});
+
+    plugin._opencdmi = fake;
+
+    ArrayType<DrmData> response;
+    const uint32_t rc = plugin.get_drms(response);
+
+    EXPECT_EQ(WPEFramework::Core::ERROR_NONE, rc);
+    ASSERT_EQ(1u, response.Length());
+
+    auto it = response.Elements();
+    ASSERT_TRUE(it.Next());
+    EXPECT_EQ("widevine", it.Current().Name.Value());
+    EXPECT_EQ(0u, it.Current().Keysystems.Length());
 
     fake->Release();
     plugin._opencdmi = nullptr;
@@ -95,7 +133,7 @@ TEST(PluginOcdmJsonRpcInterfaceL1Tests, GetKeysystemsForKnownSystemReturnsList)
     ArrayType<String> response;
     const uint32_t rc = plugin.get_keysystems("widevine", response);
 
-    EXPECT_EQ(ERROR_NONE, rc);
+    EXPECT_EQ(WPEFramework::Core::ERROR_NONE, rc);
     EXPECT_EQ(2u, response.Length());
 
     fake->Release();
@@ -112,7 +150,25 @@ TEST(PluginOcdmJsonRpcInterfaceL1Tests, GetKeysystemsForUnknownSystemReturnsBadR
     ArrayType<String> response;
     const uint32_t rc = plugin.get_keysystems("unknown", response);
 
-    EXPECT_EQ(ERROR_BAD_REQUEST, rc);
+    EXPECT_EQ(WPEFramework::Core::ERROR_BAD_REQUEST, rc);
+    EXPECT_EQ(0u, response.Length());
+
+    fake->Release();
+    plugin._opencdmi = nullptr;
+}
+
+TEST(PluginOcdmJsonRpcInterfaceL1Tests, GetKeysystemsForKnownSystemCanReturnEmptyList)
+{
+    TestOCDM plugin;
+    auto* fake = new FakeContentDecryption();
+    fake->SetDesignators("playready", {});
+
+    plugin._opencdmi = fake;
+
+    ArrayType<String> response;
+    const uint32_t rc = plugin.get_keysystems("playready", response);
+
+    EXPECT_EQ(WPEFramework::Core::ERROR_NONE, rc);
     EXPECT_EQ(0u, response.Length());
 
     fake->Release();
