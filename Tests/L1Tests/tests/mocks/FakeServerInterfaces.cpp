@@ -40,7 +40,11 @@ FakeOpenCDMAccessor::FakeOpenCDMAccessor()
     , drmSystemTime(1234)
     , ldlSessionLimit(2)
     , secureStopEnabled(true)
+    , isTypeSupportedValue(true)
     , enableSecureStopResult(Exchange::OCDM_RESULT::OCDM_SUCCESS)
+    , metricSystemDataResult(Exchange::OCDM_RESULT::OCDM_SUCCESS)
+    , serverCertificateResult(Exchange::OCDM_RESULT::OCDM_SUCCESS)
+    , supportedRobustnessResult(Exchange::OCDM_RESULT::OCDM_SUCCESS)
     , resetSecureStopsValue(1)
     , secureStopIdsResult(Exchange::OCDM_RESULT::OCDM_SUCCESS)
     , secureStopCount(0)
@@ -54,6 +58,7 @@ FakeOpenCDMAccessor::FakeOpenCDMAccessor()
     , keyStoreHashPattern(0xAA)
     , secureStoreHashPattern(0x55)
     , sessionToCreate(nullptr)
+    , lastCreateSessionCallback(nullptr)
     , lastCreateSessionLicenseType(0)
 {
 }
@@ -61,7 +66,34 @@ FakeOpenCDMAccessor::FakeOpenCDMAccessor()
 bool FakeOpenCDMAccessor::IsTypeSupported(const std::string&,
                                           const std::string&) const
 {
-    return true;
+    return isTypeSupportedValue;
+}
+
+Exchange::OCDM_RESULT FakeOpenCDMAccessor::Metricdata(const std::string&,
+                                                       uint32_t& length,
+                                                       uint8_t buffer[]) const
+{
+    const uint32_t requiredLength = static_cast<uint32_t>(metricSystemData.size());
+    const uint32_t copyLength = std::min(length, requiredLength);
+
+    if ((buffer != nullptr) && (copyLength > 0)) {
+        std::memcpy(buffer, metricSystemData.data(), copyLength);
+    }
+    length = requiredLength;
+    return metricSystemDataResult;
+}
+
+Exchange::OCDM_RESULT FakeOpenCDMAccessor::GetSupportedRobustness(
+    const std::string&,
+    RPC::IStringIterator*& robustness) const
+{
+    robustness = nullptr;
+
+    if (supportedRobustnessResult == Exchange::OCDM_RESULT::OCDM_SUCCESS) {
+        robustness = new WPEFramework::Plugin::FakeStringIterator(
+            supportedRobustnessValues);
+    }
+    return supportedRobustnessResult;
 }
 
 Exchange::OCDM_RESULT FakeOpenCDMAccessor::Metadata(const std::string& keySystem,
@@ -70,6 +102,19 @@ Exchange::OCDM_RESULT FakeOpenCDMAccessor::Metadata(const std::string& keySystem
     lastMetadataKeySystem = keySystem;
     metadata = metadataValue;
     return metadataResult;
+}
+
+Exchange::OCDM_RESULT FakeOpenCDMAccessor::SetServerCertificate(
+    const std::string&,
+    const uint8_t* serverCertificate,
+    const uint16_t serverCertificateLength)
+{
+    lastServerCertificate.clear();
+    if ((serverCertificate != nullptr) && (serverCertificateLength > 0)) {
+        lastServerCertificate.assign(serverCertificate,
+                                     serverCertificate + serverCertificateLength);
+    }
+    return serverCertificateResult;
 }
 
 uint64_t FakeOpenCDMAccessor::GetDrmSystemTime(const std::string&) const
@@ -179,15 +224,22 @@ Exchange::OCDM_RESULT FakeOpenCDMAccessor::CreateSession(const std::string& keyS
                                                          const uint16_t initDataLength,
                                                          const uint8_t* CDMData,
                                                          const uint16_t CDMDataLength,
-                                                         Exchange::ISession::ICallback*,
+                                                         Exchange::ISession::ICallback* callback,
                                                          std::string& sessionId,
                                                          Exchange::ISession*& session)
 {
     lastCreateSessionKeySystem = keySystem;
     lastCreateSessionLicenseType = licenseType;
     lastCreateSessionInitDataType = initDataType;
-    lastCreateSessionInitData.assign(initData, initData + initDataLength);
-    lastCreateSessionCdmData.assign(CDMData, CDMData + CDMDataLength);
+    lastCreateSessionInitData.clear();
+    if ((initData != nullptr) && (initDataLength > 0)) {
+        lastCreateSessionInitData.assign(initData, initData + initDataLength);
+    }
+    lastCreateSessionCdmData.clear();
+    if ((CDMData != nullptr) && (CDMDataLength > 0)) {
+        lastCreateSessionCdmData.assign(CDMData, CDMData + CDMDataLength);
+    }
+    lastCreateSessionCallback = callback;
 
     if (sessionToCreate == nullptr) {
         sessionToCreate = new FakeSession();
@@ -197,6 +249,45 @@ Exchange::OCDM_RESULT FakeOpenCDMAccessor::CreateSession(const std::string& keyS
     session = sessionToCreate;
     session->AddRef();
     return Exchange::OCDM_RESULT::OCDM_SUCCESS;
+}
+
+void FakeOpenCDMAccessor::FireOnKeyMessage(const std::vector<uint8_t>& keyMessage,
+                                           const std::string& url) const
+{
+    if (lastCreateSessionCallback != nullptr) {
+        lastCreateSessionCallback->OnKeyMessage(
+            keyMessage.empty() ? nullptr : keyMessage.data(),
+            static_cast<uint16_t>(keyMessage.size()),
+            url);
+    }
+}
+
+void FakeOpenCDMAccessor::FireOnError(int16_t error,
+                                      Exchange::OCDM_RESULT sysError,
+                                      const std::string& errorMessage) const
+{
+    if (lastCreateSessionCallback != nullptr) {
+        lastCreateSessionCallback->OnError(error, sysError, errorMessage);
+    }
+}
+
+void FakeOpenCDMAccessor::FireOnKeyStatusUpdate(
+    const std::vector<uint8_t>& keyId,
+    Exchange::ISession::KeyStatus status) const
+{
+    if (lastCreateSessionCallback != nullptr) {
+        lastCreateSessionCallback->OnKeyStatusUpdate(
+            keyId.empty() ? nullptr : keyId.data(),
+            static_cast<uint8_t>(keyId.size()),
+            status);
+    }
+}
+
+void FakeOpenCDMAccessor::FireOnKeyStatusesUpdated() const
+{
+    if (lastCreateSessionCallback != nullptr) {
+        lastCreateSessionCallback->OnKeyStatusesUpdated();
+    }
 }
 
 FakeOpenCDMAccessor::FakeSession::FakeSession()
@@ -214,6 +305,14 @@ FakeOpenCDMAccessor::FakeSession::FakeSession()
     , revokeCalled(false)
     , closeCalled(false)
     , resetOutputProtectionCalled(false)
+    , loadCalled(false)
+    , updateCalled(false)
+    , loadResult(Exchange::OCDM_RESULT::OCDM_SUCCESS)
+    , removeResult(Exchange::OCDM_RESULT::OCDM_SUCCESS)
+    , metricResult(Exchange::OCDM_RESULT::OCDM_SUCCESS)
+    , statusValue(Exchange::ISession::Usable)
+    , statusByKeyValue(Exchange::ISession::Usable)
+    , metricSizeOut(0)
     , sessionIdValue("fake-session")
     , metadataValue("fake-session-metadata")
     , _refCount(1)
@@ -253,16 +352,23 @@ void* FakeOpenCDMAccessor::FakeSession::QueryInterface(const uint32_t interfaceN
 
 Exchange::OCDM_RESULT FakeOpenCDMAccessor::FakeSession::Load()
 {
-    return Exchange::OCDM_RESULT::OCDM_SUCCESS;
+    loadCalled = true;
+    return loadResult;
 }
 
-void FakeOpenCDMAccessor::FakeSession::Update(const uint8_t*, const uint16_t)
+void FakeOpenCDMAccessor::FakeSession::Update(const uint8_t* keyMessage,
+                                              const uint16_t keyLength)
 {
+    updateCalled = true;
+    lastUpdatedKeyMessage.clear();
+    if ((keyMessage != nullptr) && (keyLength > 0)) {
+        lastUpdatedKeyMessage.assign(keyMessage, keyMessage + keyLength);
+    }
 }
 
 Exchange::OCDM_RESULT FakeOpenCDMAccessor::FakeSession::Remove()
 {
-    return Exchange::OCDM_RESULT::OCDM_SUCCESS;
+    return removeResult;
 }
 
 std::string FakeOpenCDMAccessor::FakeSession::Metadata() const
@@ -270,19 +376,26 @@ std::string FakeOpenCDMAccessor::FakeSession::Metadata() const
     return metadataValue;
 }
 
-Exchange::OCDM_RESULT FakeOpenCDMAccessor::FakeSession::Metricdata(uint32_t&, uint8_t[]) const
+Exchange::OCDM_RESULT FakeOpenCDMAccessor::FakeSession::Metricdata(uint32_t& bufferSize,
+                                                                    uint8_t buffer[]) const
 {
-    return Exchange::OCDM_RESULT::OCDM_SUCCESS;
+    const uint32_t requiredLength = static_cast<uint32_t>(metricData.size());
+    const uint32_t copyLength = std::min(bufferSize, requiredLength);
+    if ((buffer != nullptr) && (copyLength > 0)) {
+        std::memcpy(buffer, metricData.data(), copyLength);
+    }
+    bufferSize = (metricSizeOut != 0) ? metricSizeOut : requiredLength;
+    return metricResult;
 }
 
 Exchange::ISession::KeyStatus FakeOpenCDMAccessor::FakeSession::Status() const
 {
-    return Exchange::ISession::Usable;
+    return statusValue;
 }
 
 Exchange::ISession::KeyStatus FakeOpenCDMAccessor::FakeSession::Status(const uint8_t[], const uint8_t) const
 {
-    return Exchange::ISession::Usable;
+    return statusByKeyValue;
 }
 
 Exchange::OCDM_RESULT FakeOpenCDMAccessor::FakeSession::CreateSessionBuffer(std::string& bufferID)

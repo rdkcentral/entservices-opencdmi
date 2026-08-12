@@ -44,8 +44,12 @@ public:
     uint64_t drmSystemTime;
     uint32_t ldlSessionLimit;
     bool secureStopEnabled;
+    bool isTypeSupportedValue;
 
     Exchange::OCDM_RESULT enableSecureStopResult;
+    Exchange::OCDM_RESULT metricSystemDataResult;
+    Exchange::OCDM_RESULT serverCertificateResult;
+    Exchange::OCDM_RESULT supportedRobustnessResult;
     uint32_t resetSecureStopsValue;
     Exchange::OCDM_RESULT secureStopIdsResult;
     uint32_t secureStopCount;
@@ -60,20 +64,34 @@ public:
 
     uint8_t keyStoreHashPattern;
     uint8_t secureStoreHashPattern;
+    std::vector<std::string> supportedRobustnessValues;
+    std::vector<uint8_t> metricSystemData;
     std::vector<uint8_t> secureStopIdsData;
     std::vector<uint8_t> secureStopRawData;
     FakeSession* sessionToCreate;
+    Exchange::ISession::ICallback* lastCreateSessionCallback;
 
     std::string lastCreateSessionKeySystem;
     int32_t lastCreateSessionLicenseType;
     std::string lastCreateSessionInitDataType;
     std::vector<uint8_t> lastCreateSessionInitData;
     std::vector<uint8_t> lastCreateSessionCdmData;
+    std::vector<uint8_t> lastServerCertificate;
 
     bool IsTypeSupported(const std::string& keySystem,
                          const std::string& mimeType) const override;
+    Exchange::OCDM_RESULT Metricdata(const std::string& keySystem,
+                                     uint32_t& length,
+                                     uint8_t buffer[]) const override;
+    Exchange::OCDM_RESULT GetSupportedRobustness(
+        const std::string& keySystem,
+        RPC::IStringIterator*& robustness) const override;
     Exchange::OCDM_RESULT Metadata(const std::string& keySystem,
                                    std::string& metadata) const override;
+    Exchange::OCDM_RESULT SetServerCertificate(
+        const std::string& keySystem,
+        const uint8_t* serverCertificate,
+        const uint16_t serverCertificateLength) override;
     uint64_t GetDrmSystemTime(const std::string& keySystem) const override;
     std::string GetVersionExt(const std::string& keySystem) const override;
     uint32_t GetLdlSessionLimit(const std::string& keySystem) const override;
@@ -113,6 +131,15 @@ public:
                                         Exchange::ISession::ICallback* callback,
                                         std::string& sessionId,
                                         Exchange::ISession*& session) override;
+
+    void FireOnKeyMessage(const std::vector<uint8_t>& keyMessage,
+                          const std::string& url) const;
+    void FireOnError(int16_t error,
+                     Exchange::OCDM_RESULT sysError,
+                     const std::string& errorMessage) const;
+    void FireOnKeyStatusUpdate(const std::vector<uint8_t>& keyId,
+                               Exchange::ISession::KeyStatus status) const;
+    void FireOnKeyStatusesUpdated() const;
 };
 
 class FakeOpenCDMAccessor::FakeSession
@@ -141,6 +168,16 @@ public:
     bool revokeCalled;
     bool closeCalled;
     bool resetOutputProtectionCalled;
+    bool loadCalled;
+    bool updateCalled;
+    Exchange::OCDM_RESULT loadResult;
+    Exchange::OCDM_RESULT removeResult;
+    Exchange::OCDM_RESULT metricResult;
+    Exchange::ISession::KeyStatus statusValue;
+    Exchange::ISession::KeyStatus statusByKeyValue;
+    std::vector<uint8_t> metricData;
+    uint32_t metricSizeOut;
+    std::vector<uint8_t> lastUpdatedKeyMessage;
     std::vector<std::pair<std::string, std::string>> parameters;
     std::string sessionIdValue;
     std::string metadataValue;

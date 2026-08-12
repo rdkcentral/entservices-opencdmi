@@ -20,6 +20,7 @@
 #include <gtest/gtest.h>
 
 #include <cstdint>
+#include <cstdlib>
 #include <limits>
 #include <new>
 #include <string>
@@ -135,6 +136,127 @@ public:
     }
 };
 
+class FakeCoreSession : public Exchange::ISession {
+public:
+    Exchange::OCDM_RESULT loadResult = Exchange::OCDM_RESULT::OCDM_SUCCESS;
+    Exchange::OCDM_RESULT removeResult = Exchange::OCDM_RESULT::OCDM_SUCCESS;
+    Exchange::OCDM_RESULT metricResult = Exchange::OCDM_RESULT::OCDM_SUCCESS;
+    Exchange::ISession::KeyStatus statusResult = Exchange::ISession::Usable;
+    bool loadCalled = false;
+    bool updateCalled = false;
+    bool removeCalled = false;
+    bool closeCalled = false;
+    bool resetOutputProtectionCalled = false;
+    std::vector<uint8_t> lastUpdateMessage;
+    std::vector<uint8_t> metricData;
+    std::string metadataValue = "core-session-meta";
+    std::vector<std::pair<std::string, std::string>> parameters;
+
+    uint32_t AddRef() const override
+    {
+        return Core::ERROR_NONE;
+    }
+
+    uint32_t Release() const override
+    {
+        return Core::ERROR_NONE;
+    }
+
+    void* QueryInterface(const uint32_t interfaceNumber) override
+    {
+        if ((interfaceNumber == Exchange::ISession::ID) ||
+            (interfaceNumber == Core::IUnknown::ID)) {
+            return static_cast<Exchange::ISession*>(this);
+        }
+        return nullptr;
+    }
+
+    Exchange::OCDM_RESULT Load() override
+    {
+        loadCalled = true;
+        return loadResult;
+    }
+
+    void Update(const uint8_t* keyMessage, const uint16_t keyLength) override
+    {
+        updateCalled = true;
+        lastUpdateMessage.clear();
+        if ((keyMessage != nullptr) && (keyLength > 0)) {
+            lastUpdateMessage.assign(keyMessage, keyMessage + keyLength);
+        }
+    }
+
+    Exchange::OCDM_RESULT Remove() override
+    {
+        removeCalled = true;
+        return removeResult;
+    }
+
+    std::string Metadata() const override
+    {
+        return metadataValue;
+    }
+
+    Exchange::OCDM_RESULT Metricdata(uint32_t& bufferSize,
+                                     uint8_t buffer[]) const override
+    {
+        const uint32_t copyLength = std::min(bufferSize,
+            static_cast<uint32_t>(metricData.size()));
+        if ((buffer != nullptr) && (copyLength > 0)) {
+            std::copy(metricData.begin(), metricData.begin() + copyLength,
+                      buffer);
+        }
+        bufferSize = static_cast<uint32_t>(metricData.size());
+        return metricResult;
+    }
+
+    Exchange::ISession::KeyStatus Status() const override
+    {
+        return statusResult;
+    }
+
+    Exchange::ISession::KeyStatus Status(const uint8_t[],
+                                         const uint8_t) const override
+    {
+        return statusResult;
+    }
+
+    Exchange::OCDM_RESULT CreateSessionBuffer(std::string& bufferID) override
+    {
+        bufferID = "core-buffer";
+        return Exchange::OCDM_RESULT::OCDM_SUCCESS;
+    }
+
+    std::string BufferId() const override
+    {
+        return "core-buffer";
+    }
+
+    std::string SessionId() const override
+    {
+        return "core-session";
+    }
+
+    void Close() override
+    {
+        closeCalled = true;
+    }
+
+    void ResetOutputProtection() override
+    {
+        resetOutputProtectionCalled = true;
+    }
+
+    void SetParameter(const std::string& name, const std::string& value) override
+    {
+        parameters.emplace_back(name, value);
+    }
+
+    void Revoke(Exchange::ISession::ICallback*) override
+    {
+    }
+};
+
 TEST(ClientOpenCdmCoreApiL1Tests, DestructSystemRejectsNull)
 {
     EXPECT_EQ(ERROR_INVALID_ARG, opencdm_destruct_system(nullptr));
@@ -191,6 +313,7 @@ TEST(ClientOpenCdmCoreApiL1Tests, MetricSystemDataRejectsNullInputs)
     EXPECT_EQ(ERROR_INVALID_ARG,
               opencdm_get_metric_system_data(nullptr, &length, nullptr));
 }
+
 
 TEST(ClientOpenCdmCoreApiL1Tests, SessionLookupFallbacks)
 {
@@ -305,6 +428,73 @@ TEST(ClientOpenCdmCoreApiL1Tests, DisposeCanBeCalled)
 {
     opencdm_dispose();
     SUCCEED();
+}
+
+TEST(ClientOpenCdmCoreApiL1Tests, SessionCoreApisForwardToSessionInterface)
+{
+    auto* fakeCoreSession = new FakeCoreSession();
+    fakeCoreSession->loadResult = Exchange::OCDM_RESULT::OCDM_SUCCESS;
+    fakeCoreSession->removeResult = Exchange::OCDM_RESULT::OCDM_S_FALSE;
+    fakeCoreSession->metricResult = Exchange::OCDM_RESULT::OCDM_SUCCESS;
+    fakeCoreSession->metricData = {0xD1, 0xD2};
+    fakeCoreSession->metadataValue = "session-meta";
+
+    auto* sessionStorage = ::operator new(sizeof(OpenCDMSession));
+    auto* session = static_cast<OpenCDMSession*>(sessionStorage);
+    session->_session = fakeCoreSession;
+    session->_sessionExt = nullptr;
+    session->_refCount = 2;
+    session->_sysError = Exchange::OCDM_RESULT::OCDM_BUSY_CANNOT_INITIALIZE;
+    session->_errorCode = 77;
+
+    EXPECT_EQ(ERROR_NONE, opencdm_session_load(session));
+    EXPECT_TRUE(fakeCoreSession->loadCalled);
+
+    const uint8_t updateMessage[2] = {0xAA, 0xAB};
+    EXPECT_EQ(ERROR_NONE,
+              opencdm_session_update(session, updateMessage,
+                                     sizeof(updateMessage)));
+    EXPECT_TRUE(fakeCoreSession->updateCalled);
+    ASSERT_EQ(sizeof(updateMessage), fakeCoreSession->lastUpdateMessage.size());
+    EXPECT_EQ(updateMessage[0], fakeCoreSession->lastUpdateMessage[0]);
+
+    EXPECT_EQ(ERROR_NONE,
+              opencdm_session_set_parameter(session, "quality", "uhd"));
+    ASSERT_EQ(1u, fakeCoreSession->parameters.size());
+    EXPECT_EQ("quality", fakeCoreSession->parameters[0].first);
+    EXPECT_EQ("uhd", fakeCoreSession->parameters[0].second);
+
+    EXPECT_EQ(ERROR_NONE, opencdm_session_resetoutputprotection(session));
+    EXPECT_TRUE(fakeCoreSession->resetOutputProtectionCalled);
+    EXPECT_EQ(ERROR_NONE, opencdm_session_close(session));
+    EXPECT_TRUE(fakeCoreSession->closeCalled);
+
+    uint8_t metric[4] = {0};
+    uint32_t metricLength = sizeof(metric);
+    EXPECT_EQ(ERROR_NONE,
+              opencdm_get_metric_session_data(session, &metricLength, metric));
+    EXPECT_EQ(2u, metricLength);
+    EXPECT_EQ(0xD1, metric[0]);
+    EXPECT_EQ(0xD2, metric[1]);
+
+    char metadata[32] = {0};
+    uint16_t metadataSize = sizeof(metadata);
+    EXPECT_EQ(ERROR_NONE,
+              opencdm_session_metadata(session, metadata, &metadataSize));
+    EXPECT_STREQ("session-meta", metadata);
+
+    const uint8_t keyId[2] = {0x41, 0x42};
+    EXPECT_EQ(static_cast<uint32_t>(Exchange::OCDM_RESULT::OCDM_BUSY_CANNOT_INITIALIZE),
+              opencdm_session_error(session, keyId, sizeof(keyId)));
+    EXPECT_EQ(static_cast<OpenCDMError>(77),
+              opencdm_session_system_error(session));
+
+    EXPECT_EQ(static_cast<OpenCDMError>(Exchange::OCDM_RESULT::OCDM_S_FALSE),
+              opencdm_session_remove(session));
+    EXPECT_TRUE(fakeCoreSession->removeCalled);
+
+    delete fakeCoreSession;
+    ::operator delete(sessionStorage);
 }
 
 TEST(ClientOpenCdmCoreApiL1Tests, SessionExtensionApisForwardToSessionExt)
