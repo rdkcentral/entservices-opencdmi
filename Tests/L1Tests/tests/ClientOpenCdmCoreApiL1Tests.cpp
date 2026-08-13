@@ -582,6 +582,106 @@ TEST(ClientOpenCdmCoreApiL1Tests, SessionExtensionChallengeDataSupportsSizeProbe
     ::operator delete(sessionStorage);
 }
 
+TEST(ClientOpenCdmCoreApiL1Tests, SessionHasKeyIdReturnsTrueForPresentKey)
+{
+    const uint8_t keyData[16] = {
+        0xA1, 0xA2, 0xA3, 0xA4, 0xA5, 0xA6, 0xA7, 0xA8,
+        0xA9, 0xAA, 0xAB, 0xAC, 0xAD, 0xAE, 0xAF, 0xB0
+    };
+    const uint8_t absentKey[16] = {
+        0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
+        0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF
+    };
+
+    auto* sessionStorage = ::operator new(sizeof(OpenCDMSession));
+    auto* session = static_cast<OpenCDMSession*>(sessionStorage);
+    new (&session->_keyStatuses) std::list<Exchange::KeyId>();
+    session->_keyStatuses.emplace_back(keyData, static_cast<uint8_t>(sizeof(keyData)));
+
+    EXPECT_EQ(1u, opencdm_session_has_key_id(session, sizeof(keyData), keyData));
+    EXPECT_EQ(0u, opencdm_session_has_key_id(session, sizeof(absentKey), absentKey));
+
+    session->_keyStatuses.~list();
+    ::operator delete(sessionStorage);
+}
+
+TEST(ClientOpenCdmCoreApiL1Tests, SessionStatusReturnsPendingForKeyInList)
+{
+    const uint8_t keyData[16] = {
+        0xC1, 0xC2, 0xC3, 0xC4, 0xC5, 0xC6, 0xC7, 0xC8,
+        0xC9, 0xCA, 0xCB, 0xCC, 0xCD, 0xCE, 0xCF, 0xD0
+    };
+
+    auto* sessionStorage = ::operator new(sizeof(OpenCDMSession));
+    auto* session = static_cast<OpenCDMSession*>(sessionStorage);
+    new (&session->_keyStatuses) std::list<Exchange::KeyId>();
+    session->_keyStatuses.emplace_back(keyData, static_cast<uint8_t>(sizeof(keyData)));
+
+    // A key in the list with default status returns StatusPending via CDMState conversion
+    const KeyStatus status = opencdm_session_status(session, keyData, sizeof(keyData));
+    EXPECT_NE(KeyStatus::InternalError, status);
+
+    session->_keyStatuses.~list();
+    ::operator delete(sessionStorage);
+}
+
+TEST(ClientOpenCdmCoreApiL1Tests, SessionIdReturnsStoredSessionId)
+{
+    auto* sessionStorage = ::operator new(sizeof(OpenCDMSession));
+    auto* session = static_cast<OpenCDMSession*>(sessionStorage);
+    new (&session->_sessionId) std::string("my-drm-session-001");
+
+    EXPECT_STREQ("my-drm-session-001", opencdm_session_id(session));
+
+    session->_sessionId.~basic_string();
+    ::operator delete(sessionStorage);
+}
+
+TEST(ClientOpenCdmCoreApiL1Tests, SystemGetMetadataRejectsNullSystem)
+{
+    uint16_t size = 8;
+    EXPECT_EQ(ERROR_INVALID_ARG,
+              opencdm_system_get_metadata(nullptr, nullptr, &size));
+}
+
+TEST(ClientOpenCdmCoreApiL1Tests, SystemGetMetadataRejectsNullMetadataSize)
+{
+    OpenCDMSystem system("com.widevine.alpha", "meta");
+    EXPECT_EQ(ERROR_INVALID_ARG,
+              opencdm_system_get_metadata(&system, nullptr, nullptr));
+}
+
+TEST(ClientOpenCdmCoreApiL1Tests, SessionMetadataRejectsNullMetadataSize)
+{
+    auto* sessionStorage = ::operator new(sizeof(OpenCDMSession));
+    auto* session = static_cast<OpenCDMSession*>(sessionStorage);
+
+    EXPECT_EQ(ERROR_INVALID_ARG,
+              opencdm_session_metadata(session, nullptr, nullptr));
+
+    ::operator delete(sessionStorage);
+}
+
+TEST(ClientOpenCdmCoreApiL1Tests, MetricSystemDataRejectsNullBufferLength)
+{
+    OpenCDMSystem system("com.widevine.alpha", "meta");
+    EXPECT_EQ(ERROR_INVALID_ARG,
+              opencdm_get_metric_system_data(&system, nullptr, nullptr));
+}
+
+TEST(ClientOpenCdmCoreApiL1Tests, SessionHasKeyIdWithZeroKeyLengthReturnsFalse)
+{
+    auto* sessionStorage = ::operator new(sizeof(OpenCDMSession));
+    auto* session = static_cast<OpenCDMSession*>(sessionStorage);
+    new (&session->_keyStatuses) std::list<Exchange::KeyId>();
+
+    const uint8_t keyData[4] = {0x01, 0x02, 0x03, 0x04};
+    EXPECT_EQ(0u, opencdm_session_has_key_id(session, 0, keyData));
+
+    session->_keyStatuses.~list();
+    ::operator delete(sessionStorage);
+}
+
 TEST(ClientOpenCdmCoreApiL1Tests, SessionExtensionApisHandleZeroOrShortInputs)
 {
     auto* fakeSession = new FakeSessionExt();

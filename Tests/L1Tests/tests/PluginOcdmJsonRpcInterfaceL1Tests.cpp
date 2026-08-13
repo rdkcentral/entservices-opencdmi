@@ -175,4 +175,27 @@ TEST(PluginOcdmJsonRpcInterfaceL1Tests, GetKeysystemsForKnownSystemCanReturnEmpt
     plugin._opencdmi = nullptr;
 }
 
+TEST(PluginOcdmJsonRpcInterfaceL1Tests, InformationReturnsEmptyString)
+{
+    TestOCDM plugin;
+    EXPECT_TRUE(plugin.Information().empty());
+}
+
+TEST(PluginOcdmJsonRpcInterfaceL1Tests, GetKeysystemsWithEmptySystemNameReturnsBadRequest)
+{
+    TestOCDM plugin;
+    auto* fake = new FakeContentDecryption();
+
+    plugin._opencdmi = fake;
+
+    ArrayType<String> response;
+    const uint32_t rc = plugin.get_keysystems("", response);
+
+    EXPECT_EQ(WPEFramework::Core::ERROR_BAD_REQUEST, rc);
+    EXPECT_EQ(0u, response.Length());
+
+    fake->Release();
+    plugin._opencdmi = nullptr;
+}
+
 } // namespace

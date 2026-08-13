@@ -175,7 +175,47 @@ target_link_libraries(OpenCDMIClientCoreL1Tests
 
 gtest_discover_tests(OpenCDMIClientCoreL1Tests DISCOVERY_MODE PRE_TEST)
 
+# RDK adapter tests: compile open_cdm_decrypt.cpp with GStreamer stubs so
+# the pure-logic paths (null checks, key-status branching, retry flow) can
+# be exercised without GStreamer or SVP hardware being present.
+set(ADAPTER_RDK_TEST_SRC
+    tests/AdapterRdkL1Tests.cpp
+    tests/mocks/AdapterMocks.cpp
+    ../../client/adapter/rdk/open_cdm_decrypt.cpp
+)
+
+add_executable(OpenCDMIAdapterRdkL1Tests ${ADAPTER_RDK_TEST_SRC})
+
+# tests/mocks MUST come first so our gst/gst.h and gst_svp_meta.h stubs
+# shadow any real GStreamer headers that may be installed on the build host.
+target_include_directories(OpenCDMIAdapterRdkL1Tests
+    BEFORE PUBLIC
+        ${CMAKE_CURRENT_SOURCE_DIR}/tests/mocks
+    PUBLIC
+        ../../client
+        ../../client/adapter
+        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
+        $<INSTALL_INTERFACE:include>
+        ${CMAKE_SOURCE_DIR}/../entservices-testframework/Tests/mocks/thunder
+        ${CMAKE_SOURCE_DIR}/../Thunder/Source/plugins
+)
+
+target_link_directories(OpenCDMIAdapterRdkL1Tests
+    PUBLIC
+    ${CMAKE_INSTALL_PREFIX}/lib
+    ${CMAKE_INSTALL_PREFIX}/lib/wpeframework/plugins
+)
+
+target_link_libraries(OpenCDMIAdapterRdkL1Tests
+    GTest::gtest_main
+    GTest::gmock
+    GTest::gtest
+)
+
+gtest_discover_tests(OpenCDMIAdapterRdkL1Tests DISCOVERY_MODE PRE_TEST)
+
 install(TARGETS ${PROJECT_NAME} DESTINATION bin)
 install(TARGETS OpenCDMIClientCoreL1Tests DESTINATION bin)
+install(TARGETS OpenCDMIAdapterRdkL1Tests DESTINATION bin)
 
 
