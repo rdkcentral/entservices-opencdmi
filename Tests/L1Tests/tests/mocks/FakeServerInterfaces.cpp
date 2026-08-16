@@ -26,12 +26,6 @@
 
 Core::CriticalSection _systemLock;
 
-namespace {
-
-OpenCDMAccessor* g_fakeAccessor = nullptr;
-
-} // namespace
-
 FakeOpenCDMAccessor::FakeOpenCDMAccessor()
     : OpenCDMAccessor(_T("MockOpenCDM"))
     , metadataResult(Exchange::OCDM_RESULT::OCDM_SUCCESS)
@@ -493,19 +487,4 @@ Exchange::OCDM_RESULT FakeOpenCDMAccessor::FakeSession::SelectKeyId(const uint8_
 Exchange::OCDM_RESULT FakeOpenCDMAccessor::FakeSession::CleanDecryptContext()
 {
     return cleanDecryptContextResult;
-}
-
-void InstallFakeAccessor(OpenCDMAccessor* accessor)
-{
-    g_fakeAccessor = accessor;
-}
-
-void UninstallFakeAccessor()
-{
-    g_fakeAccessor = nullptr;
-}
-
-OpenCDMAccessor* OpenCDMAccessor::Instance()
-{
-    return g_fakeAccessor;
 }

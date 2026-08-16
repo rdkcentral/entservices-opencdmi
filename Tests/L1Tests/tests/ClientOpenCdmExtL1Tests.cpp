@@ -570,6 +570,18 @@ TEST(ClientOpenCdmExtL1Tests, MockAccessorVersionCanBeEmptyString)
     EXPECT_STREQ("", version);
 }
 
+TEST(ClientOpenCdmExtL1Tests, GetVersionExtReturnsAccessorValue)
+{
+    ScopedFakeAccessor scoped;
+    scoped.accessor.versionValue = "7.3.1";
+
+    OpenCDMSystem system("com.widevine.alpha", "meta");
+    char version[32] = {0};
+
+    EXPECT_EQ(ERROR_NONE, opencdm_system_get_version(&system, version));
+    EXPECT_STREQ("7.3.1", version);
+}
+
 TEST(ClientOpenCdmExtL1Tests, MockAccessorDrmTimeZeroValueIsReturned)
 {
     ScopedFakeAccessor scoped;
@@ -580,6 +592,18 @@ TEST(ClientOpenCdmExtL1Tests, MockAccessorDrmTimeZeroValueIsReturned)
 
     EXPECT_EQ(ERROR_NONE, opencdm_system_get_drm_time(&system, &drmTime));
     EXPECT_EQ(0u, drmTime);
+}
+
+TEST(ClientOpenCdmExtL1Tests, GetDrmSystemTimeReturnsAccessorValue)
+{
+    ScopedFakeAccessor scoped;
+    scoped.accessor.drmSystemTime = 987654321ull;
+
+    OpenCDMSystem system("com.widevine.alpha", "meta");
+    uint64_t drmTime = 0;
+
+    EXPECT_EQ(ERROR_NONE, opencdm_system_get_drm_time(&system, &drmTime));
+    EXPECT_EQ(987654321ull, drmTime);
 }
 
 TEST(ClientOpenCdmExtL1Tests, MockAccessorLdlSessionLimitHighValueIsReturned)
@@ -595,6 +619,19 @@ TEST(ClientOpenCdmExtL1Tests, MockAccessorLdlSessionLimitHighValueIsReturned)
     EXPECT_EQ(255u, ldlLimit);
 }
 
+TEST(ClientOpenCdmExtL1Tests, GetLdlSessionLimitReturnsAccessorValue)
+{
+    ScopedFakeAccessor scoped;
+    scoped.accessor.ldlSessionLimit = 12;
+
+    OpenCDMSystem system("com.widevine.alpha", "meta");
+    uint32_t ldlLimit = 0;
+
+    EXPECT_EQ(ERROR_NONE,
+              opencdm_system_ext_get_ldl_session_limit(&system, &ldlLimit));
+    EXPECT_EQ(12u, ldlLimit);
+}
+
 TEST(ClientOpenCdmExtL1Tests, MockAccessorSecureStopEnabledFalseIsReturned)
 {
     ScopedFakeAccessor scoped;
@@ -603,6 +640,16 @@ TEST(ClientOpenCdmExtL1Tests, MockAccessorSecureStopEnabledFalseIsReturned)
     OpenCDMSystem system("com.widevine.alpha", "meta");
 
     EXPECT_EQ(0u, opencdm_system_ext_is_secure_stop_enabled(&system));
+}
+
+TEST(ClientOpenCdmExtL1Tests, IsSecureStopEnabledReturnsAccessorValue)
+{
+    ScopedFakeAccessor scoped;
+    scoped.accessor.secureStopEnabled = true;
+
+    OpenCDMSystem system("com.widevine.alpha", "meta");
+
+    EXPECT_EQ(1u, opencdm_system_ext_is_secure_stop_enabled(&system));
 }
 
 TEST(ClientOpenCdmExtL1Tests, MockAccessorEnableSecureStopPropagatesFailure)
@@ -732,6 +779,18 @@ TEST(ClientOpenCdmExtL1Tests, MockAccessorCommitSecureStopPropagatesFailure)
                                                     sizeof(response)));
 }
 
+TEST(ClientOpenCdmExtL1Tests, MockAccessorCommitSecureStopAllowsNullPayloadWhenLengthZero)
+{
+    ScopedFakeAccessor scoped;
+    scoped.accessor.commitSecureStopResult = Exchange::OCDM_RESULT::OCDM_SUCCESS;
+
+    OpenCDMSystem system("com.widevine.alpha", "meta");
+
+    EXPECT_EQ(ERROR_NONE,
+              opencdm_system_ext_commit_secure_stop(&system, nullptr, 0,
+                                                    nullptr, 0));
+}
+
 TEST(ClientOpenCdmExtL1Tests, MockAccessorDeleteKeyStorePropagatesFailure)
 {
     ScopedFakeAccessor scoped;
@@ -794,6 +853,17 @@ TEST(ClientOpenCdmExtL1Tests, MockAccessorGetKeyStoreHashPropagatesFailure)
               opencdm_get_key_store_hash_ext(&system, hash, sizeof(hash)));
 }
 
+TEST(ClientOpenCdmExtL1Tests, MockAccessorGetKeyStoreHashAcceptsNullBufferWhenLengthZero)
+{
+    ScopedFakeAccessor scoped;
+    scoped.accessor.keyStoreHashResult = Exchange::OCDM_RESULT::OCDM_SUCCESS;
+
+    OpenCDMSystem system("com.widevine.alpha", "meta");
+
+    EXPECT_EQ(ERROR_NONE,
+              opencdm_get_key_store_hash_ext(&system, nullptr, 0));
+}
+
 TEST(ClientOpenCdmExtL1Tests, MockAccessorGetSecureStoreHashPropagatesFailure)
 {
     ScopedFakeAccessor scoped;
@@ -804,6 +874,17 @@ TEST(ClientOpenCdmExtL1Tests, MockAccessorGetSecureStoreHashPropagatesFailure)
 
     EXPECT_EQ(static_cast<OpenCDMError>(Exchange::OCDM_RESULT::OCDM_FAIL),
               opencdm_get_secure_store_hash_ext(&system, hash, sizeof(hash)));
+}
+
+TEST(ClientOpenCdmExtL1Tests, MockAccessorGetSecureStoreHashAcceptsNullBufferWhenLengthZero)
+{
+    ScopedFakeAccessor scoped;
+    scoped.accessor.secureStoreHashResult = Exchange::OCDM_RESULT::OCDM_SUCCESS;
+
+    OpenCDMSystem system("com.widevine.alpha", "meta");
+
+    EXPECT_EQ(ERROR_NONE,
+              opencdm_get_secure_store_hash_ext(&system, nullptr, 0));
 }
 
 TEST(ClientOpenCdmExtL1Tests, MockAccessorCreateSystemExtendedUsesReturnedMetadata)

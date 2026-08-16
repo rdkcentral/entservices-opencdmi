@@ -33,7 +33,8 @@ set (TEST_SRC
     tests/PluginOcdmJsonRpcInterfaceL1Tests.cpp
     tests/PluginCencParserL1Tests.cpp
     tests/mocks/ClientModule.cpp
-    tests/mocks/FakeServerInterfaces.cpp
+    tests/mocks/FakeServerInterfacesCommon.cpp
+    tests/mocks/FakeServerInterfacesStandaloneAccessor.cpp
     ../../client/CapsParser.cpp
     ../../client/open_cdm_ext.cpp
     ../../plugin/CENCParser.cpp
@@ -147,6 +148,8 @@ gtest_discover_tests(${PROJECT_NAME} DISCOVERY_MODE PRE_TEST)
 
 set (CLIENT_CORE_TEST_SRC
     tests/ClientOpenCdmCoreApiL1Tests.cpp
+    tests/mocks/FakeServerInterfacesCommon.cpp
+    tests/mocks/FakeServerInterfacesCoreAccessor.cpp
     ../../client/open_cdm.cpp
     ../../client/open_cdm_ext.cpp
     ../../client/open_cdm_impl.cpp

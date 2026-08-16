@@ -198,4 +198,27 @@ TEST(PluginOcdmJsonRpcInterfaceL1Tests, GetKeysystemsWithEmptySystemNameReturnsB
     plugin._opencdmi = nullptr;
 }
 
+TEST(PluginOcdmJsonRpcInterfaceL1Tests, FakeContentDecryptionInitializeResetAndDeinitialize)
+{
+    auto* fake = new FakeContentDecryption();
+
+    EXPECT_EQ(WPEFramework::Core::ERROR_NONE, fake->Initialize(nullptr));
+    EXPECT_EQ(WPEFramework::Core::ERROR_NONE, fake->Reset());
+    fake->Deinitialize(nullptr);
+
+    fake->Release();
+}
+
+TEST(PluginOcdmJsonRpcInterfaceL1Tests, FakeContentDecryptionSessionsReturnsEmptyIterator)
+{
+    auto* fake = new FakeContentDecryption();
+
+    RPC::IStringIterator* sessions = fake->Sessions("widevine");
+    ASSERT_NE(nullptr, sessions);
+    EXPECT_EQ(0u, sessions->Count());
+
+    sessions->Release();
+    fake->Release();
+}
+
 } // namespace

@@ -30,12 +30,87 @@
 #include "open_cdm_ext.h"
 #define private public
 #include "open_cdm_impl.h"
+#include "FakeServerInterfaces.h"
 #undef private
 
 uint32_t opencdm_session_get_session_id_ext(struct OpenCDMSession* opencdmSession);
 OpenCDMError opencdm_destruct_session_ext(OpenCDMSession* opencdmSession);
 
 namespace {
+
+struct CallbackCapture {
+    int challengeCalls = 0;
+    int keyUpdateCalls = 0;
+    int errorCalls = 0;
+    int keysUpdatedCalls = 0;
+    OpenCDMSession* challengeSession = nullptr;
+    OpenCDMSession* keyUpdateSession = nullptr;
+    const OpenCDMSession* keysUpdatedSession = nullptr;
+    std::string lastUrl;
+    std::vector<uint8_t> lastChallenge;
+    std::vector<uint8_t> lastKeyId;
+    std::string lastErrorMessage;
+};
+
+void ProcessChallengeCallback(OpenCDMSession* session,
+                              void* userData,
+                              const char url[],
+                              const uint8_t challenge[],
+                              const uint16_t challengeLength)
+{
+    auto* capture = static_cast<CallbackCapture*>(userData);
+    ASSERT_NE(nullptr, capture);
+    capture->challengeCalls++;
+    capture->challengeSession = session;
+    capture->lastUrl = (url != nullptr ? url : "");
+    capture->lastChallenge.assign(challenge, challenge + challengeLength);
+}
+
+void KeyUpdateCallback(OpenCDMSession* session,
+                       void* userData,
+                       const uint8_t keyId[],
+                       const uint8_t length)
+{
+    auto* capture = static_cast<CallbackCapture*>(userData);
+    ASSERT_NE(nullptr, capture);
+    capture->keyUpdateCalls++;
+    capture->keyUpdateSession = session;
+    capture->lastKeyId.assign(keyId, keyId + length);
+}
+
+void ErrorMessageCallback(OpenCDMSession*,
+                          void* userData,
+                          const char message[])
+{
+    auto* capture = static_cast<CallbackCapture*>(userData);
+    ASSERT_NE(nullptr, capture);
+    capture->errorCalls++;
+    capture->lastErrorMessage = (message != nullptr ? message : "");
+}
+
+void KeysUpdatedCallback(const OpenCDMSession* session,
+                         void* userData)
+{
+    auto* capture = static_cast<CallbackCapture*>(userData);
+    ASSERT_NE(nullptr, capture);
+    capture->keysUpdatedCalls++;
+    capture->keysUpdatedSession = session;
+}
+
+class ScopedFakeAccessor {
+public:
+    ScopedFakeAccessor()
+    {
+        InstallFakeAccessor(&accessor);
+    }
+
+    ~ScopedFakeAccessor()
+    {
+        UninstallFakeAccessor();
+    }
+
+    FakeOpenCDMAccessor accessor;
+};
 
 class FakeSessionExt : public Exchange::ISessionExt {
 public:
@@ -284,6 +359,28 @@ TEST(ClientOpenCdmCoreApiL1Tests, IsTypeSupportedReturnsNonSuccessWithoutService
     EXPECT_NE(ERROR_NONE, result);
 }
 
+TEST(ClientOpenCdmCoreApiL1Tests, IsTypeSupportedReturnsSuccessWithAccessor)
+{
+    ScopedFakeAccessor scoped;
+    scoped.accessor.isTypeSupportedValue = true;
+
+    const OpenCDMError result =
+        opencdm_is_type_supported("com.widevine.alpha", "video/mp4");
+
+    EXPECT_EQ(ERROR_NONE, result);
+}
+
+TEST(ClientOpenCdmCoreApiL1Tests, IsTypeSupportedReturnsNotSupportedWhenAccessorRejectsType)
+{
+    ScopedFakeAccessor scoped;
+    scoped.accessor.isTypeSupportedValue = false;
+
+    const OpenCDMError result =
+        opencdm_is_type_supported("com.widevine.alpha", "video/mp4");
+
+    EXPECT_EQ(ERROR_KEYSYSTEM_NOT_SUPPORTED, result);
+}
+
 TEST(ClientOpenCdmCoreApiL1Tests, SystemMetadataBufferHandling)
 {
     OpenCDMSystem system("com.widevine.alpha", "meta");
@@ -314,6 +411,36 @@ TEST(ClientOpenCdmCoreApiL1Tests, MetricSystemDataRejectsNullInputs)
               opencdm_get_metric_system_data(nullptr, &length, nullptr));
 }
 
+TEST(ClientOpenCdmCoreApiL1Tests, MetricSystemDataForwardsToAccessor)
+{
+    ScopedFakeAccessor scoped;
+    scoped.accessor.metricSystemDataResult = Exchange::OCDM_RESULT::OCDM_SUCCESS;
+    scoped.accessor.metricSystemData = {0x9A, 0x9B};
+
+    OpenCDMSystem system("com.widevine.alpha", "meta");
+    uint8_t metric[4] = {0};
+    uint32_t metricLength = sizeof(metric);
+
+    EXPECT_EQ(ERROR_NONE,
+              opencdm_get_metric_system_data(&system, &metricLength, metric));
+    EXPECT_EQ(2u, metricLength);
+    EXPECT_EQ(0x9A, metric[0]);
+    EXPECT_EQ(0x9B, metric[1]);
+}
+
+TEST(ClientOpenCdmCoreApiL1Tests, MetricSystemDataPropagatesAccessorFailure)
+{
+    ScopedFakeAccessor scoped;
+    scoped.accessor.metricSystemDataResult = Exchange::OCDM_RESULT::OCDM_FAIL;
+
+    OpenCDMSystem system("com.widevine.alpha", "meta");
+    uint8_t metric[4] = {0};
+    uint32_t metricLength = sizeof(metric);
+
+    EXPECT_EQ(static_cast<OpenCDMError>(Exchange::OCDM_RESULT::OCDM_FAIL),
+              opencdm_get_metric_system_data(&system, &metricLength, metric));
+}
+
 
 TEST(ClientOpenCdmCoreApiL1Tests, SessionLookupFallbacks)
 {
@@ -341,6 +468,35 @@ TEST(ClientOpenCdmCoreApiL1Tests, ServerCertificateSetRejectsNullSystem)
                                                     sizeof(certificate)));
 }
 
+TEST(ClientOpenCdmCoreApiL1Tests, ServerCertificateSetForwardsToAccessor)
+{
+    ScopedFakeAccessor scoped;
+    scoped.accessor.serverCertificateResult = Exchange::OCDM_RESULT::OCDM_SUCCESS;
+
+    OpenCDMSystem system("com.widevine.alpha", "meta");
+    const uint8_t certificate[3] = {0xA0, 0xB0, 0xC0};
+
+    EXPECT_EQ(ERROR_NONE,
+              opencdm_system_set_server_certificate(&system, certificate,
+                                                    sizeof(certificate)));
+    ASSERT_EQ(sizeof(certificate), scoped.accessor.lastServerCertificate.size());
+    EXPECT_EQ(0xA0, scoped.accessor.lastServerCertificate[0]);
+    EXPECT_EQ(0xC0, scoped.accessor.lastServerCertificate[2]);
+}
+
+TEST(ClientOpenCdmCoreApiL1Tests, ServerCertificateSetPropagatesAccessorFailure)
+{
+    ScopedFakeAccessor scoped;
+    scoped.accessor.serverCertificateResult = Exchange::OCDM_RESULT::OCDM_FAIL;
+
+    OpenCDMSystem system("com.widevine.alpha", "meta");
+    const uint8_t certificate[2] = {0xA0, 0xB0};
+
+    EXPECT_EQ(static_cast<OpenCDMError>(Exchange::OCDM_RESULT::OCDM_FAIL),
+              opencdm_system_set_server_certificate(&system, certificate,
+                                                    sizeof(certificate)));
+}
+
 TEST(ClientOpenCdmCoreApiL1Tests, ConstructSessionRejectsInvalidArgs)
 {
     OpenCDMSession* session = nullptr;
@@ -352,6 +508,100 @@ TEST(ClientOpenCdmCoreApiL1Tests, ConstructSessionRejectsInvalidArgs)
     EXPECT_EQ(ERROR_INVALID_SESSION,
               opencdm_construct_session(&system, Temporary, "cenc", nullptr, 0,
                                         nullptr, 0, nullptr, nullptr, nullptr));
+}
+
+TEST(ClientOpenCdmCoreApiL1Tests, ConstructSessionCreatesSessionWithAccessor)
+{
+    ScopedFakeAccessor scoped;
+
+    auto* fakeSession = new FakeOpenCDMAccessor::FakeSession();
+    fakeSession->AddRef();
+    fakeSession->sessionIdValue = "session-created";
+    scoped.accessor.sessionToCreate = fakeSession;
+
+    OpenCDMSession* session = nullptr;
+    OpenCDMSystem system("com.widevine.alpha", "meta");
+    const uint8_t initData[3] = {0x01, 0x02, 0x03};
+    const uint8_t cdmData[2] = {0xA1, 0xA2};
+
+    EXPECT_EQ(ERROR_NONE,
+              opencdm_construct_session(&system, Temporary, "cenc", initData,
+                                        sizeof(initData), cdmData,
+                                        sizeof(cdmData), nullptr, nullptr,
+                                        &session));
+    ASSERT_NE(nullptr, session);
+    EXPECT_STREQ("session-created", opencdm_session_id(session));
+    EXPECT_STREQ("buffer-ext", opencdm_session_buffer_id(session));
+    EXPECT_EQ("com.widevine.alpha", scoped.accessor.lastCreateSessionKeySystem);
+    EXPECT_EQ(Temporary, scoped.accessor.lastCreateSessionLicenseType);
+    EXPECT_EQ("cenc", scoped.accessor.lastCreateSessionInitDataType);
+    ASSERT_EQ(sizeof(initData), scoped.accessor.lastCreateSessionInitData.size());
+    EXPECT_EQ(0x01, scoped.accessor.lastCreateSessionInitData[0]);
+    EXPECT_EQ(0x03, scoped.accessor.lastCreateSessionInitData[2]);
+    ASSERT_EQ(sizeof(cdmData), scoped.accessor.lastCreateSessionCdmData.size());
+    EXPECT_EQ(0xA1, scoped.accessor.lastCreateSessionCdmData[0]);
+    EXPECT_EQ(0xA2, scoped.accessor.lastCreateSessionCdmData[1]);
+
+    EXPECT_EQ(ERROR_NONE, opencdm_destruct_session(session));
+    EXPECT_TRUE(fakeSession->revokeCalled);
+    fakeSession->Release();
+}
+
+TEST(ClientOpenCdmCoreApiL1Tests, SessionCallbacksPropagateMediaKeySessionEvents)
+{
+    ScopedFakeAccessor scoped;
+
+    auto* fakeSession = new FakeOpenCDMAccessor::FakeSession();
+    fakeSession->AddRef();
+    fakeSession->sessionIdValue = "session-with-callbacks";
+    scoped.accessor.sessionToCreate = fakeSession;
+
+    CallbackCapture capture;
+    OpenCDMSessionCallbacks callbacks = {};
+    callbacks.process_challenge_callback = ProcessChallengeCallback;
+    callbacks.key_update_callback = KeyUpdateCallback;
+    callbacks.error_message_callback = ErrorMessageCallback;
+    callbacks.keys_updated_callback = KeysUpdatedCallback;
+
+    OpenCDMSession* session = nullptr;
+    OpenCDMSystem system("com.widevine.alpha", "meta");
+    const uint8_t initData[2] = {0x0A, 0x0B};
+
+    ASSERT_EQ(ERROR_NONE,
+              opencdm_construct_session(&system, Temporary, "cenc", initData,
+                                        sizeof(initData), nullptr, 0,
+                                        &callbacks, &capture, &session));
+    ASSERT_NE(nullptr, session);
+
+    scoped.accessor.FireOnKeyMessage({0xAA, 0xBB}, "https://license.example");
+    scoped.accessor.FireOnError(7, Exchange::OCDM_RESULT::OCDM_FAIL,
+                                "error-from-server");
+    scoped.accessor.FireOnKeyStatusUpdate({0x01, 0x02}, Exchange::ISession::StatusPending);
+    scoped.accessor.FireOnKeyStatusUpdate({0x01, 0x02}, Exchange::ISession::Usable);
+    scoped.accessor.FireOnKeyStatusesUpdated();
+
+    EXPECT_EQ(1, capture.challengeCalls);
+    EXPECT_EQ(session, capture.challengeSession);
+    EXPECT_EQ("https://license.example", capture.lastUrl);
+    ASSERT_EQ(2u, capture.lastChallenge.size());
+    EXPECT_EQ(0xAA, capture.lastChallenge[0]);
+    EXPECT_EQ(0xBB, capture.lastChallenge[1]);
+
+    EXPECT_EQ(1, capture.errorCalls);
+    EXPECT_EQ("error-from-server", capture.lastErrorMessage);
+
+    EXPECT_EQ(1, capture.keyUpdateCalls);
+    EXPECT_EQ(session, capture.keyUpdateSession);
+    ASSERT_EQ(2u, capture.lastKeyId.size());
+    EXPECT_EQ(0x01, capture.lastKeyId[0]);
+    EXPECT_EQ(0x02, capture.lastKeyId[1]);
+
+    EXPECT_EQ(1, capture.keysUpdatedCalls);
+    EXPECT_EQ(session, capture.keysUpdatedSession);
+
+    EXPECT_EQ(ERROR_NONE, opencdm_destruct_session(session));
+    EXPECT_TRUE(fakeSession->revokeCalled);
+    fakeSession->Release();
 }
 
 TEST(ClientOpenCdmCoreApiL1Tests, SessionLifecycleApisRejectNullSession)
