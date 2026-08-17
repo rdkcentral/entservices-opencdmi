@@ -174,21 +174,23 @@ cd ..
 # Clone the required repositories
 
 
-git clone --branch R4_4-RDK https://github.com/rdkcentral/ThunderTools.git
+clone_if_missing ThunderTools --branch R4_4-RDK https://github.com/rdkcentral/ThunderTools.git
 cd ThunderTools
 git checkout $THUNDER_TOOLS_COMMIT_SHA
 cd ..
 
-git clone --branch R4_4-RDK https://github.com/rdkcentral/Thunder.git
+clone_if_missing Thunder --branch R4_4-RDK https://github.com/rdkcentral/Thunder.git
 cd Thunder
 git checkout $THUNDER_COMMIT_SHA
 cd ..
 
-git clone --branch R4.4.2 https://github.com/rdkcentral/ThunderClientLibraries.git
+clone_if_missing ThunderClientLibraries --branch R4.4.2 https://github.com/rdkcentral/ThunderClientLibraries.git
 
-git clone --branch main https://github.com/rdkcentral/entservices-apis.git
+clone_if_missing entservices-apis --branch main https://github.com/rdkcentral/entservices-apis.git
 
-git clone --branch 2.0.0 https://github.com/rdkcentral/entservices-testframework.git
+clone_if_missing entservices-testframework --branch 2.0.0 https://github.com/rdkcentral/entservices-testframework.git
+
+clone_if_missing googletest --branch v1.15.2 https://github.com/google/googletest.git
 
 ############################
 # Build Thunder-Tools

@@ -200,7 +200,8 @@ if [[ -z "${_wpe_cfg}" || -z "${_plugins_cfg}" ]]; then
     exit 1
 fi
 
-EXTRA_CXX_FLAGS="-DEXCEPTIONS_ENABLE=ON -DUSE_THUNDER_R4=ON -DRDK_SERVICES_L1_TEST"
+# USE_THUNDER_R4 comes from the Plugins imported target; redefining it here warns.
+EXTRA_CXX_FLAGS="-DEXCEPTIONS_ENABLE=ON -DRDK_SERVICES_L1_TEST"
 if [[ "${ENABLE_COVERAGE}" -eq 1 ]]; then
     EXTRA_CXX_FLAGS="${EXTRA_CXX_FLAGS} -fprofile-arcs -ftest-coverage --coverage"
 fi

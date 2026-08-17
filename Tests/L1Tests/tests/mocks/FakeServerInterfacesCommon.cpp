@@ -24,8 +24,9 @@
 
 #include "open_cdm_impl.h"
 
+// Must be a valid domain socket path, otherwise the base COM-RPC client trips a Thunder assert.
 FakeOpenCDMAccessor::FakeOpenCDMAccessor()
-    : OpenCDMAccessor(_T("MockOpenCDM"))
+    : OpenCDMAccessor(_T("/tmp/MockOpenCDM"))
     , metadataResult(Exchange::OCDM_RESULT::OCDM_SUCCESS)
     , metadataValue("mock-metadata")
     , versionValue("1.2.3")
