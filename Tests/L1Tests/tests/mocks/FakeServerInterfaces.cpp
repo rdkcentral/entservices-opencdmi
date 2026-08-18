@@ -27,7 +27,7 @@
 Core::CriticalSection _systemLock;
 
 FakeOpenCDMAccessor::FakeOpenCDMAccessor()
-    : OpenCDMAccessor(_T("MockOpenCDM"))
+    : OpenCDMAccessor(_T("/tmp/MockOpenCDM"))
     , metadataResult(Exchange::OCDM_RESULT::OCDM_SUCCESS)
     , metadataValue("mock-metadata")
     , versionValue("1.2.3")
