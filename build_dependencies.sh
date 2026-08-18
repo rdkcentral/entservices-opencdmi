@@ -141,6 +141,7 @@ restore_workspace_ownership()
         "${GITHUB_WORKSPACE}/ThunderClientLibraries" \
         "${GITHUB_WORKSPACE}/entservices-apis" \
         "${GITHUB_WORKSPACE}/entservices-testframework" \
+        "${GITHUB_WORKSPACE}/googletest" \
         "${GITHUB_WORKSPACE}/trower-base64" \
         "${PYTHON_VENV_DIR}" 2>/dev/null || true
 }
@@ -189,8 +190,6 @@ clone_if_missing ThunderClientLibraries --branch R4.4.2 https://github.com/rdkce
 clone_if_missing entservices-apis --branch main https://github.com/rdkcentral/entservices-apis.git
 
 clone_if_missing entservices-testframework --branch 2.0.0 https://github.com/rdkcentral/entservices-testframework.git
-
-clone_if_missing googletest --branch v1.15.2 https://github.com/google/googletest.git
 
 ############################
 # Build Thunder-Tools
@@ -264,6 +263,8 @@ cmake --build build/ThunderClientLibraries
 
 #############################
 # Build googletest
+
+clone_if_missing googletest --branch v1.15.2 https://github.com/google/googletest.git
 
 cmake -G Ninja -S googletest -B build/googletest \
     -DCMAKE_INSTALL_PREFIX="$GITHUB_WORKSPACE/install/usr" \

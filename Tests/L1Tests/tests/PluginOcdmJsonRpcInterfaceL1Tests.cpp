@@ -35,6 +35,7 @@ using WPEFramework::Plugin::OCDM;
 
 namespace {
 
+// Instances are stack-allocated in these tests, so Release() must never delete.
 class TestOCDM : public OCDM {
 public:
     uint32_t AddRef() const override
@@ -45,12 +46,8 @@ public:
     uint32_t Release() const override
     {
         const uint32_t value = --_refCount;
-        if (value == 0) {
-            delete this;
-            return WPEFramework::Core::ERROR_DESTRUCTION_SUCCEEDED;
-        }
 
-        return WPEFramework::Core::ERROR_NONE;
+        return (value == 0 ? WPEFramework::Core::ERROR_DESTRUCTION_SUCCEEDED : WPEFramework::Core::ERROR_NONE);
     }
 
 private:

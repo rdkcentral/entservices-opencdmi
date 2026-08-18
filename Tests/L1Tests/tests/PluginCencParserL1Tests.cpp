@@ -386,6 +386,18 @@ TEST(PluginCencParserL1Tests, ParseUnrecognisedDataProducesNoKeys)
     EXPECT_TRUE(parser.IsEmpty());
 }
 
+TEST(PluginCencParserL1Tests, ParseShortInputProducesNoKeys)
+{
+    const std::array<uint8_t, 3> shortInput = {{
+        0x00, 0x00, 0x00
+    }};
+
+    CommonEncryptionData parser(shortInput.data(),
+                                static_cast<uint16_t>(shortInput.size()));
+
+    EXPECT_TRUE(parser.IsEmpty());
+}
+
 TEST(PluginCencParserL1Tests, ParsePsshV1WithExcessiveKeyCountIsRejected)
 {
     // v1 PSSH where key count (100) far exceeds the available buffer space
