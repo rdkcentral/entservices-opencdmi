@@ -253,27 +253,21 @@ namespace Plugin {
 
         void Parse(const uint8_t data[], const uint16_t length)
         {
+            uint16_t offset = 0;
             if ((data == nullptr) || (length == 0)) {
-                return;
+	           return;
             }
 
-            uint16_t offset = 0;
-
             do {
-                const uint16_t remaining = static_cast<uint16_t>(length - offset);
-                if (remaining < 8) {
-                    break;
-                }
-
                 // Check if this is a PSSH box...
-                const uint32_t sizeBE = ((data[offset] << 24) | (data[offset + 1] << 16) | (data[offset + 2] << 8) | data[offset + 3]);
-                if ((sizeBE >= 8) && (sizeBE <= static_cast<uint32_t>(remaining))
+                        uint32_t sizeBE = ((data[offset] << 24) | (data[offset + 1] << 16) | (data[offset + 2] << 8) | data[offset + 3]);
+                if ((sizeBE <= static_cast<uint32_t>(length - offset)) && ((length - offset) >= 4)
                         && (::memcmp(&(data[offset + 4]), PSSHeader, 4) == 0)) {
                     TRACE(Trace::Information, (_T("Initdata contains a PSSH box")));
-                    ParsePSSHBox(&(data[offset + 8]), static_cast<uint16_t>(sizeBE - 8));
+                    ParsePSSHBox(&(data[offset + 4 + 4]), (sizeBE - 4 - 4));
                     offset += sizeBE;
                 } else if (offset == 0) {
-                    const uint32_t sizeLE = (data[offset] | (data[offset + 1] << 8) | (data[offset + 2] << 16) | (data[offset + 3] << 24));
+                    uint32_t sizeLE = (data[offset] | (data[offset + 1] << 8) | (data[offset + 2] << 16) | (data[offset + 3] << 24));
                     if ((data[0] == '<') && (data[2] == 'W') && (data[4] == 'R') && (data[6] == 'M')) {
                         // Playready XML data without PSSH header and withouth Playready Rights Managment Header
                         TRACE(Trace::Information, (_T("Initdata contains Playready XML data")));

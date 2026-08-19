@@ -23,11 +23,6 @@ project(ocdm)
 
 project_version(4.4.1)
 
-set(WPEFRAMEWORK_CONFIG_TEMPLATE
-        "${WPEFramework_DIR}/templates/defaultConfig.cmake.in")
-set(WPEFRAMEWORK_PC_TEMPLATE
-        "${WPEFramework_DIR}/templates/default.pc.in")
-
 set(TARGET ${PROJECT_NAME})
 
 message("Setup ${TARGET} v${PROJECT_VERSION}")
@@ -49,8 +44,7 @@ endif()
 find_package(GSTREAMER REQUIRED)
 find_package(GSTREAMER_BASE REQUIRED)
 
-set(CDMI_ADAPTER_IMPLEMENTATION "gstreamer" CACHE STRING
-        "Defines which implementation is used.")
+option(CDMI_ADAPTER_IMPLEMENTATION "Defines which implementation is used." "None")
 
 
 add_library(${TARGET} SHARED
@@ -183,10 +177,8 @@ install(
 )
 
 InstallCMakeConfig(
-        TARGETS ${TARGET}
-        TEMPLATE "${WPEFRAMEWORK_CONFIG_TEMPLATE}")
+        TARGETS ${TARGET})
 
 InstallPackageConfig(
         TARGETS ${TARGET} 
-        DESCRIPTION "OCDM library"
-        TEMPLATE "${WPEFRAMEWORK_PC_TEMPLATE}")
+        DESCRIPTION "OCDM library")
