@@ -499,7 +499,7 @@ private:
                     //difficult to identify reasons.
                     //When extending any of the structures consider extending the other or introduce some kind of translation between them.
                     const CDMi::SampleInfo* samples = reinterpret_cast<const CDMi::SampleInfo *>(sampleInfo);
-                    SetSamples(sampleInfoLength, samples);
+                    SetSamples(sampleInfoLength, samples, initWithLast15);
                 }
 
                 if(properties != nullptr) {

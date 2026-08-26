@@ -521,7 +521,7 @@ OpenCDMError opencdm_gstreamer_session_decrypt_buffer_multi_once(struct OpenCDMS
 
                 if (vProtectionInfo[vBuffIdx].subSamplesGstBuf == nullptr && vProtectionInfo[vBuffIdx].ivGstBuf == nullptr &&
                         vProtectionInfo[vBuffIdx].keyIdGstBuf == nullptr) {
-                    TRACE_L1("Nothing to decrypt in sample id: %d", vBuffIdx);
+                    TRACE_L1("Nothing to decrypt in sample id: %zu", vBuffIdx);
                     continue;
                 } else {
                     if (vProtectionInfo[vBuffIdx].subSamplesBuf) {
@@ -539,12 +539,12 @@ OpenCDMError opencdm_gstreamer_session_decrypt_buffer_multi_once(struct OpenCDMS
                         }
                         gst_byte_reader_free(reader);
                         if (encryptedSubSampleCount == 0) {
-                            TRACE_L1("Nothing to decrypt in subSamples, sample id: %d", vBuffIdx);
+                            TRACE_L1("Nothing to decrypt in subSamples, sample id: %zu", vBuffIdx);
                             continue;
                         }
                     }
                     if (vProtectionInfo[vBuffIdx].dataSize == 0) {
-                        TRACE_L1("Nothing to decrypt - empty buffer, sample id: %d", vBuffIdx);
+                        TRACE_L1("Nothing to decrypt - empty buffer, sample id: %zu", vBuffIdx);
                         continue;
                     }
                 }
@@ -581,6 +581,11 @@ OpenCDMError opencdm_gstreamer_session_decrypt_buffer_multi_once(struct OpenCDMS
                     break;
                 }
 
+                if (vSubSampleInfo[vBuffIdx].size() > 255) {
+                    TRACE_L1("Max number of sub samples exceeded %zu", vSubSampleInfo[vBuffIdx].size());
+                    result = ERROR_INVALID_DECRYPT_BUFFER;
+                    break;
+                }
                 vSampleInfo.emplace_back(SampleInfo{vProtectionInfo[vBuffIdx].encScheme, vProtectionInfo[vBuffIdx].pattern,
                     vProtectionInfo[vBuffIdx].ivBuf, static_cast<uint8_t>(vProtectionInfo[vBuffIdx].ivSize),
                     vProtectionInfo[vBuffIdx].keyIdBuf, static_cast<uint8_t>(vProtectionInfo[vBuffIdx].keyIdSize),
@@ -683,31 +688,35 @@ OpenCDMError opencdm_gstreamer_session_decrypt_buffer_multi_once(struct OpenCDMS
                    result = ERROR_OUT_OF_MEMORY;
                    TRACE_L1("Failed to allocate svp data block");
                }
-           }
+            }
 
-            for (size_t vBuffIdx = 0; vBuffIdx < vbuff.size(); ++vBuffIdx) {
-                if (vProtectionInfo[vBuffIdx].encrypted == false) {
-                    gst_buffer_svp_transform_from_cleardata(session->SessionPrivateData(), vbuff[vBuffIdx], mediaType);
-                }
-
-                if (vProtectionInfo[vBuffIdx].dataBufMap.data) {
-                    gst_buffer_unmap(vbuff[vBuffIdx], &vProtectionInfo[vBuffIdx].dataBufMap);
-                }
-                if (vProtectionInfo[vBuffIdx].ivBufMap.data) {
-                    gst_buffer_unmap(vProtectionInfo[vBuffIdx].ivGstBuf, &vProtectionInfo[vBuffIdx].ivBufMap);
-                }
-                if (vProtectionInfo[vBuffIdx].keyIdBufMap.data) {
-                    gst_buffer_unmap(vProtectionInfo[vBuffIdx].keyIdGstBuf, &vProtectionInfo[vBuffIdx].keyIdBufMap);
-                }
-                if (vProtectionInfo[vBuffIdx].subSamplesBufMap.data) {
-                    gst_buffer_unmap(vProtectionInfo[vBuffIdx].subSamplesGstBuf, &vProtectionInfo[vBuffIdx].subSamplesBufMap);
+            if (result == ERROR_NONE) {
+                for (size_t vBuffIdx = 0; vBuffIdx < vbuff.size(); ++vBuffIdx) {
+                    if (vProtectionInfo[vBuffIdx].encrypted == false) {
+                        gst_buffer_svp_transform_from_cleardata(session->SessionPrivateData(), vbuff[vBuffIdx], mediaType);
+                    }
                 }
             }
         } //if protection meta valid
-   } else {
-       result = ERROR_INVALID_SESSION;
-       TRACE_L1("Invalid session argument");
-   }
+
+        for (size_t vBuffIdx = 0; vBuffIdx < vbuff.size(); ++vBuffIdx) {
+            if (vProtectionInfo[vBuffIdx].dataBufMap.data) {
+                gst_buffer_unmap(vbuff[vBuffIdx], &vProtectionInfo[vBuffIdx].dataBufMap);
+            }
+            if (vProtectionInfo[vBuffIdx].ivBufMap.data) {
+                gst_buffer_unmap(vProtectionInfo[vBuffIdx].ivGstBuf, &vProtectionInfo[vBuffIdx].ivBufMap);
+            }
+            if (vProtectionInfo[vBuffIdx].keyIdBufMap.data) {
+                gst_buffer_unmap(vProtectionInfo[vBuffIdx].keyIdGstBuf, &vProtectionInfo[vBuffIdx].keyIdBufMap);
+            }
+            if (vProtectionInfo[vBuffIdx].subSamplesBufMap.data) {
+                gst_buffer_unmap(vProtectionInfo[vBuffIdx].subSamplesGstBuf, &vProtectionInfo[vBuffIdx].subSamplesBufMap);
+            }
+        }
+    } else {
+        result = ERROR_INVALID_SESSION;
+        TRACE_L1("Invalid session argument");
+    }
 
     return result;
 }
