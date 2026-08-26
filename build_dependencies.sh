@@ -59,7 +59,7 @@ cd ..
 
 git clone --branch R4.4.2 https://github.com/rdkcentral/ThunderClientLibraries.git
 
-git clone --branch main https://github.com/rdkcentral/entservices-apis.git
+git clone --branch feature/RDKDEV-1281 https://github.com/rdkcentral/entservices-apis.git
 
 git clone --branch 2.0.0 https://github.com/rdkcentral/entservices-testframework.git
 
