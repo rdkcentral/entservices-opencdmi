@@ -63,7 +63,7 @@ jobs:
             !install/usr/lib/pkgconfig/gtest.pc
             !install/usr/lib/pkgconfig/gtest_main.pc
             !install/usr/lib/wpeframework/plugins
-          key: ${{ runner.os }}-${{ env.REPO_NAME }}-${{ env.THUNDER_COMMIT_SHA }}-${{ env.INTERFACES_REF }}-5
+          key: ${{ runner.os }}-${{ env.REPO_NAME }}-${{ env.THUNDER_COMMIT_SHA }}-${{ env.THUNDER_TOOLS_COMMIT_SHA }}-${{ env.INTERFACES_REF }}-5
 
       - name: Set up Python
         uses: actions/setup-python@v4
@@ -152,6 +152,7 @@ jobs:
           -S "$GITHUB_WORKSPACE/ThunderTools"
           -B build/ThunderTools
           -DEXCEPTIONS_ENABLE=ON
+          -DPYTHON_EXECUTABLE="$(command -v python3)"
           -DCMAKE_INSTALL_PREFIX="$GITHUB_WORKSPACE/install/usr"
           -DCMAKE_MODULE_PATH="$GITHUB_WORKSPACE/install/tools/cmake"
           -DGENERIC_CMAKE_MODULE_PATH="$GITHUB_WORKSPACE/install/tools/cmake"
@@ -174,6 +175,7 @@ jobs:
           -DBINDING=127.0.0.1
           -DPORT=55555
           -DEXCEPTIONS_ENABLE=ON
+          -DPYTHON_EXECUTABLE="$(command -v python3)"
           &&
           cmake --build build/Thunder -j8
           &&
@@ -195,6 +197,37 @@ jobs:
           patch -p1 < $GITHUB_WORKSPACE/entservices-testframework/patches/RDKEMW-1007.patch
           cd -
 
+      - name: Enable proxy stub generator diagnostics
+        run: |
+          while IFS= read -r module; do
+            python3 - "$module" <<'PY'
+          import pathlib
+          import sys
+
+          module = pathlib.Path(sys.argv[1])
+          text = module.read_text()
+          old = """        execute_process(COMMAND ${PYTHON_EXECUTABLE} ${_execute_command} ${_input} RESULT_VARIABLE rv)
+                if(NOT ${rv} EQUAL 0)
+                    message(FATAL_ERROR \"ProxyStubGenerator generator failed.\")
+                endif()"""
+          new = """        execute_process(
+                COMMAND ${PYTHON_EXECUTABLE} ${_execute_command} ${_input}
+                RESULT_VARIABLE rv
+                OUTPUT_VARIABLE generator_stdout
+                ERROR_VARIABLE generator_stderr
+        )
+                if(NOT ${rv} EQUAL 0)
+                    message(FATAL_ERROR
+                        \"ProxyStubGenerator generator failed with exit code ${rv}\\n\"
+                        \"stdout: ${generator_stdout}\\n\"
+                        \"stderr: ${generator_stderr}\")
+                endif()"""
+          if old in text:
+              module.write_text(text.replace(old, new, 1))
+              print(f"Enabled diagnostics in {module}")
+          PY
+          done < <(find "$GITHUB_WORKSPACE/install" -type f -name FindProxyStubGenerator.cmake)
+
       - name: Build entservices-apis
         run: >
           cmake -G Ninja
@@ -203,6 +236,7 @@ jobs:
           -DEXCEPTIONS_ENABLE=ON
           -DCMAKE_INSTALL_PREFIX="$GITHUB_WORKSPACE/install/usr"
           -DCMAKE_MODULE_PATH="$GITHUB_WORKSPACE/install/tools/cmake"
+          -DPYTHON_EXECUTABLE="$(command -v python3)"
           &&
           cmake --build build/entservices-apis -j8
           &&
