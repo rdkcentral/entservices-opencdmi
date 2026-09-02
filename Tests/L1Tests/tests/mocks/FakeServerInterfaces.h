@@ -36,6 +36,16 @@ public:
 
     FakeOpenCDMAccessor();
 
+    uint32_t AddRef() const override
+    {
+        return Core::ERROR_NONE;
+    }
+
+    uint32_t Release() const override
+    {
+        return Core::ERROR_NONE;
+    }
+
     Exchange::OCDM_RESULT metadataResult;
     std::string metadataValue;
     mutable std::string lastMetadataKeySystem;

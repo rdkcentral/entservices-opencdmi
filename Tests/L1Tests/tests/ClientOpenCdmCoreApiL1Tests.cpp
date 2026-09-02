@@ -889,10 +889,11 @@ TEST(ClientOpenCdmCoreApiL1Tests, SessionIdReturnsStoredSessionId)
     OpenCDMSystem system("com.widevine.alpha", "meta");
     auto* session = new OpenCDMSession(&system, "cenc", nullptr, 0, nullptr, 0,
                                        Temporary, nullptr, nullptr);
-    session->_sessionId = "my-drm-session-001";
+    new (&session->_sessionId) std::string("my-drm-session-001");
 
     EXPECT_STREQ("my-drm-session-001", opencdm_session_id(session));
 
+    session->_sessionId.~basic_string();
     delete session;
 }
 
