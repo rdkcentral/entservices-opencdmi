@@ -129,7 +129,6 @@ target_link_directories(${PROJECT_NAME} PUBLIC ${CMAKE_INSTALL_PREFIX}/lib ${CMA
 
 target_link_libraries(${PROJECT_NAME}
     GTest::gtest_main
-    GTest::gmock
     GTest::gtest
     ${TEST_LIB})
 
@@ -172,7 +171,6 @@ target_link_directories(OpenCDMIClientCoreL1Tests PUBLIC ${CMAKE_INSTALL_PREFIX}
 
 target_link_libraries(OpenCDMIClientCoreL1Tests
     GTest::gtest_main
-    GTest::gmock
     GTest::gtest
     ${TEST_LIB})
 
@@ -211,7 +209,6 @@ target_link_directories(OpenCDMIAdapterRdkL1Tests
 
 target_link_libraries(OpenCDMIAdapterRdkL1Tests
     GTest::gtest_main
-    GTest::gmock
     GTest::gtest
 )
 
