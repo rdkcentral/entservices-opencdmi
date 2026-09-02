@@ -853,13 +853,12 @@ TEST(ClientOpenCdmCoreApiL1Tests, SessionHasKeyIdReturnsTrueForPresentKey)
     OpenCDMSystem system("com.widevine.alpha", "meta");
     auto* session = new OpenCDMSession(&system, "cenc", nullptr, 0, nullptr, 0,
                                        Temporary, nullptr, nullptr);
-    new (&session->_keyStatuses) std::list<Exchange::KeyId>();
+    session->_keyStatuses.clear();
     session->_keyStatuses.emplace_back(keyData, static_cast<uint8_t>(sizeof(keyData)));
 
     EXPECT_EQ(1u, opencdm_session_has_key_id(session, sizeof(keyData), keyData));
     EXPECT_EQ(0u, opencdm_session_has_key_id(session, sizeof(absentKey), absentKey));
 
-    session->_keyStatuses.~list();
     delete session;
 }
 
@@ -874,14 +873,13 @@ TEST(ClientOpenCdmCoreApiL1Tests, SessionStatusReturnsPendingForKeyInList)
     OpenCDMSystem system("com.widevine.alpha", "meta");
     auto* session = new OpenCDMSession(&system, "cenc", nullptr, 0, nullptr, 0,
                                        Temporary, nullptr, nullptr);
-    new (&session->_keyStatuses) std::list<Exchange::KeyId>();
+    session->_keyStatuses.clear();
     session->_keyStatuses.emplace_back(keyData, static_cast<uint8_t>(sizeof(keyData)));
 
     // A key in the list with default status returns StatusPending via CDMState conversion
     const KeyStatus status = opencdm_session_status(session, keyData, sizeof(keyData));
     EXPECT_NE(KeyStatus::InternalError, status);
 
-    session->_keyStatuses.~list();
     delete session;
 }
 
@@ -891,11 +889,10 @@ TEST(ClientOpenCdmCoreApiL1Tests, SessionIdReturnsStoredSessionId)
     OpenCDMSystem system("com.widevine.alpha", "meta");
     auto* session = new OpenCDMSession(&system, "cenc", nullptr, 0, nullptr, 0,
                                        Temporary, nullptr, nullptr);
-    new (&session->_sessionId) std::string("my-drm-session-001");
+    session->_sessionId = "my-drm-session-001";
 
     EXPECT_STREQ("my-drm-session-001", opencdm_session_id(session));
 
-    session->_sessionId.~basic_string();
     delete session;
 }
 
@@ -939,12 +936,11 @@ TEST(ClientOpenCdmCoreApiL1Tests, SessionHasKeyIdWithZeroKeyLengthReturnsFalse)
     OpenCDMSystem system("com.widevine.alpha", "meta");
     auto* session = new OpenCDMSession(&system, "cenc", nullptr, 0, nullptr, 0,
                                        Temporary, nullptr, nullptr);
-    new (&session->_keyStatuses) std::list<Exchange::KeyId>();
+    session->_keyStatuses.clear();
 
     const uint8_t keyData[4] = {0x01, 0x02, 0x03, 0x04};
     EXPECT_EQ(0u, opencdm_session_has_key_id(session, 0, keyData));
 
-    session->_keyStatuses.~list();
     delete session;
 }
 

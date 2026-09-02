@@ -17,7 +17,8 @@
  * limitations under the License.
  */
 
-#include <gtest/gtest.h>
+#include <gtest/gtest.h>
+
 #include "FakeServerInterfaces.h"
 
 #include <gtest/gtest.h>
