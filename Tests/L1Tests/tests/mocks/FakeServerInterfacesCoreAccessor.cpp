@@ -19,6 +19,8 @@
 
 #include "FakeServerInterfaces.h"
 
+#include <gtest/gtest.h>
+
 template <typename Tag, typename Tag::type Member>
 struct PrivateAccess {
     friend typename Tag::type GetMember(Tag)
