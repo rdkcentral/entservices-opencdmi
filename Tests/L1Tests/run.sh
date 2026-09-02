@@ -31,6 +31,12 @@
 #   -n              configure/build only, do not execute tests
 #   -d              bootstrap dependencies using repo build_dependencies.sh
 
+if [[ "$(uname -s)" != "Linux" || ! -f /etc/os-release || \
+      "$(. /etc/os-release && echo "${ID}")" != "ubuntu" ]]; then
+    echo "ERROR: Platform not supported. This script supports Ubuntu only."
+    exit 1
+fi
+
 if [[ -z "${MAKEFLAGS}" ]]; then
     export MAKEFLAGS=-j$(nproc)
 fi

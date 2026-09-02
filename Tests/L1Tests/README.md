@@ -4,7 +4,11 @@ This directory contains the OpenCDMI client and plugin Level 1 tests. The tests 
 
 ## Supported environment
 
-The dependency bootstrap script targets Ubuntu/Linux. Run the commands below from the repository root on an Ubuntu build machine.
+The dependency bootstrap and L1 runner scripts support Ubuntu only.
+For any non-Ubuntu platform, they exit with:
+`ERROR: Platform not supported. This script supports Ubuntu only.`
+
+Run the commands below from the repository root on an Ubuntu build machine.
 
 Required tools include:
 
@@ -123,10 +127,21 @@ sudo ./build_dependencies.sh
 
 For a nonstandard install location, set `EXT_INSTALL_ROOT` as shown above.
 
+### apt lock error during dependency bootstrap
+
+If you see errors like "Could not get lock /var/lib/apt/lists/lock", another
+package process (for example `aptd` or unattended updates) is running.
+
+`build_dependencies.sh` now waits for apt locks to clear and retries apt
+commands automatically. If the lock is held for too long, rerun later or stop
+the other package operation first.
+
 ### CMake reports `CDMI_ADAPTER_IMPLEMENTATION` as unused
 
 The L1 runner intentionally disables the production OpenCDMI subdirectories and removes the adapter setting before configuring. This warning is harmless for the L1-only build; the adapter implementation is not compiled by these tests.
 
-### Running on macOS or Windows
+### Running on non-Ubuntu platforms
 
-`build_dependencies.sh` uses Ubuntu/Debian package names and `apt`, so it is not a portable dependency installer. Use an Ubuntu environment such as a native Linux machine, VM, container, or CI runner for the documented flow.
+Non-Ubuntu platforms are not supported by these scripts.
+Use an Ubuntu environment such as a native machine, VM, container,
+or CI runner for the documented flow.

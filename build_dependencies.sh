@@ -19,12 +19,30 @@
 
 set -x
 set -e
+
+log_info()
+{
+    echo "INFO: $*"
+}
+
 ##############################
 THUNDER_TOOLS_COMMIT_SHA="d5dd83c7c19c49c7f25c558c126500bd2d64f7a4"
 THUNDER_COMMIT_SHA="2c0fcc5529e7da734be558ca6efa05d934dcce31"
 GITHUB_WORKSPACE="${PWD}"
 ls -la ${GITHUB_WORKSPACE}
 cd ${GITHUB_WORKSPACE}
+
+OS_NAME="$(uname -s)"
+UBUNTU_ID=""
+
+if [[ -f /etc/os-release ]]; then
+    UBUNTU_ID="$(. /etc/os-release && echo "${ID}")"
+fi
+
+if [[ "${OS_NAME}" != "Linux" || "${UBUNTU_ID}" != "ubuntu" ]]; then
+    echo "ERROR: Platform not supported. This script supports Ubuntu only."
+    exit 1
+fi
 
 is_root=0
 if [[ "$(id -u)" -eq 0 ]]; then
@@ -99,6 +117,76 @@ PY
     exit 1
 }
 
+is_apt_lock_held()
+{
+    local lock_files=(
+        /var/lib/dpkg/lock-frontend
+        /var/lib/apt/lists/lock
+        /var/cache/apt/archives/lock
+    )
+
+    if command -v fuser >/dev/null 2>&1; then
+        fuser "${lock_files[@]}" >/dev/null 2>&1
+        return $?
+    fi
+
+    pgrep -f "apt|apt-get|aptd|unattended" >/dev/null 2>&1
+}
+
+wait_for_apt_lock_release()
+{
+    local max_lock_checks="${APT_LOCK_RETRY_ATTEMPTS:-5}"
+    local lock_retry_delay_seconds="${APT_LOCK_RETRY_DELAY_SECONDS:-5}"
+    local lock_attempt=1
+
+    while [[ "${lock_attempt}" -le "${max_lock_checks}" ]]; do
+        if ! is_apt_lock_held; then
+            return 0
+        fi
+
+        if [[ "${lock_attempt}" -eq "${max_lock_checks}" ]]; then
+            echo "ERROR: apt lock is still held after ${max_lock_checks} checks."
+            echo "ERROR: Another package process is still running."
+            return 1
+        fi
+
+        echo "INFO: apt is busy (lock check ${lock_attempt}/${max_lock_checks})."
+        echo "INFO: Retrying lock check in ${lock_retry_delay_seconds}s..."
+        sleep "${lock_retry_delay_seconds}"
+        lock_attempt=$((lock_attempt + 1))
+    done
+
+    return 0
+}
+
+run_apt_with_retry()
+{
+    local max_attempts="${APT_RETRY_ATTEMPTS:-5}"
+    local retry_delay_seconds="${APT_RETRY_DELAY_SECONDS:-10}"
+    local attempt=1
+    local rc=0
+
+    while [[ "${attempt}" -le "${max_attempts}" ]]; do
+        wait_for_apt_lock_release || return 1
+
+        if "$@"; then
+            return 0
+        fi
+
+        rc=$?
+        if [[ "${attempt}" -ge "${max_attempts}" ]]; then
+            break
+        fi
+
+        echo "WARNING: apt command failed (attempt ${attempt}/${max_attempts}). Retrying in ${retry_delay_seconds}s..."
+        sleep "${retry_delay_seconds}"
+        attempt=$((attempt + 1))
+    done
+
+    echo "ERROR: apt command failed after ${max_attempts} attempts."
+    return "${rc}"
+}
+
 clone_if_missing()
 {
     local repo_dir="$1"
@@ -151,15 +239,27 @@ trap restore_workspace_ownership EXIT
 # # ############################# 
 #1. Install Dependencies and packages
 
-${SUDO} apt update
-${SUDO} apt install -y valgrind lcov clang meson curl \
-    libsqlite3-dev libcurl4-openssl-dev libsystemd-dev \
-    libboost-all-dev libwebsocketpp-dev libunwind-dev \
-    libgstreamer1.0-dev libgstreamer-plugins-base1.0-dev \
-    libcunit1 libcunit1-dev protobuf-compiler-grpc \
-    libgrpc-dev libgrpc++-dev python3-pip python3-venv
+if [[ -n "${SUDO}" ]]; then
+    run_apt_with_retry ${SUDO} apt update
+    run_apt_with_retry ${SUDO} apt install -y valgrind lcov clang meson curl \
+        libsqlite3-dev libcurl4-openssl-dev libsystemd-dev \
+        libboost-all-dev libwebsocketpp-dev libunwind-dev \
+        libgstreamer1.0-dev libgstreamer-plugins-base1.0-dev \
+        libcunit1 libcunit1-dev protobuf-compiler-grpc \
+        libgrpc-dev libgrpc++-dev python3-pip python3-venv
+else
+    run_apt_with_retry apt update
+    run_apt_with_retry apt install -y valgrind lcov clang meson curl \
+        libsqlite3-dev libcurl4-openssl-dev libsystemd-dev \
+        libboost-all-dev libwebsocketpp-dev libunwind-dev \
+        libgstreamer1.0-dev libgstreamer-plugins-base1.0-dev \
+        libcunit1 libcunit1-dev protobuf-compiler-grpc \
+        libgrpc-dev libgrpc++-dev python3-pip python3-venv
+fi
+    log_info "System build packages are available."
 
 ensure_python_module jsonref
+    log_info "Python build dependency 'jsonref' is available."
 
 ############################
 # Build trevor-base64
@@ -171,6 +271,7 @@ meson setup --warnlevel 3 --werror --prefix "${GITHUB_WORKSPACE}/install/usr" bu
 ninja -C build
 ninja -C build install
 cd ..
+log_info "Dependency build completed: trower-base64."
 ###########################################
 # Clone the required repositories
 
@@ -208,6 +309,7 @@ cmake -G Ninja -S ThunderTools -B build/ThunderTools \
     -DCMAKE_PREFIX_PATH="$GITHUB_WORKSPACE/install/usr"
 
 cmake --build build/ThunderTools --target install
+log_info "Dependency build completed: ThunderTools."
 
 
 ############################
@@ -231,6 +333,7 @@ cmake -G Ninja -S Thunder -B build/Thunder \
     -DEXCEPTIONS_ENABLE=ON
 
 cmake --build build/Thunder --target install
+log_info "Dependency build completed: Thunder."
 
 ############################
 # Build entservices-apis
@@ -248,6 +351,7 @@ cmake -G Ninja -S entservices-apis  -B build/entservices-apis \
     -DCMAKE_PREFIX_PATH="$GITHUB_WORKSPACE/install/usr"
 
 cmake --build build/entservices-apis --target install
+log_info "Dependency build completed: entservices-apis."
 
 
 #############################
@@ -260,6 +364,7 @@ cmake -G Ninja -S ThunderClientLibraries -B build/ThunderClientLibraries \
     -DCMAKE_PREFIX_PATH="$GITHUB_WORKSPACE/install/usr"
 
 cmake --build build/ThunderClientLibraries
+log_info "Dependency build completed: ThunderClientLibraries."
 
 #############################
 # Build googletest
@@ -276,5 +381,7 @@ cmake -G Ninja -S googletest -B build/googletest \
     -DCMAKE_POSITION_INDEPENDENT_CODE=ON
 
 cmake --build build/googletest --target install
+log_info "Dependency build completed: googletest."
 
 ls -la ${GITHUB_WORKSPACE}
+log_info "BUILD_DEPENDENCIES_COMPLETED: All build dependencies completed successfully."
