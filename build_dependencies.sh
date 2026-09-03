@@ -117,48 +117,6 @@ PY
     exit 1
 }
 
-is_apt_lock_held()
-{
-    local lock_files=(
-        /var/lib/dpkg/lock-frontend
-        /var/lib/apt/lists/lock
-        /var/cache/apt/archives/lock
-    )
-
-    if command -v fuser >/dev/null 2>&1; then
-        fuser "${lock_files[@]}" >/dev/null 2>&1
-        return $?
-    fi
-
-    pgrep -f "apt|apt-get|aptd|unattended" >/dev/null 2>&1
-}
-
-wait_for_apt_lock_release()
-{
-    local max_lock_checks="${APT_LOCK_RETRY_ATTEMPTS:-5}"
-    local lock_retry_delay_seconds="${APT_LOCK_RETRY_DELAY_SECONDS:-5}"
-    local lock_attempt=1
-
-    while [[ "${lock_attempt}" -le "${max_lock_checks}" ]]; do
-        if ! is_apt_lock_held; then
-            return 0
-        fi
-
-        if [[ "${lock_attempt}" -eq "${max_lock_checks}" ]]; then
-            echo "ERROR: apt lock is still held after ${max_lock_checks} checks."
-            echo "ERROR: Another package process is still running."
-            return 1
-        fi
-
-        echo "INFO: apt is busy (lock check ${lock_attempt}/${max_lock_checks})."
-        echo "INFO: Retrying lock check in ${lock_retry_delay_seconds}s..."
-        sleep "${lock_retry_delay_seconds}"
-        lock_attempt=$((lock_attempt + 1))
-    done
-
-    return 0
-}
-
 run_apt_with_retry()
 {
     local max_attempts="${APT_RETRY_ATTEMPTS:-5}"
@@ -167,13 +125,12 @@ run_apt_with_retry()
     local rc=0
 
     while [[ "${attempt}" -le "${max_attempts}" ]]; do
-        wait_for_apt_lock_release || return 1
-
         if "$@"; then
             return 0
+        else
+            rc=$?
         fi
 
-        rc=$?
         if [[ "${attempt}" -ge "${max_attempts}" ]]; then
             break
         fi
