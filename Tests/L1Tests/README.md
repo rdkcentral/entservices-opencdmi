@@ -53,11 +53,11 @@ The runner performs these steps:
 3. Builds and installs the test executable into `Tests/L1Tests/install`.
 4. Runs the discovered L1 test executable.
 
-Test results are written to:
+Test results are written to per-runner JSON files under:
 
-```text
-Tests/L1Tests/build/rdkL1TestResults.json
-```
+- Tests/L1Tests/build/OpenCDMIL1Tests.json
+- Tests/L1Tests/build/OpenCDMIClientCoreL1Tests.json
+- Tests/L1Tests/build/OpenCDMIAdapterRdkL1Tests.json
 
 The runner sets `PLUGIN_OPENCDMI=OFF` for this L1 build because the tests compile the required OpenCDMI source files and mocks directly. The production OpenCDMI client/plugin shared libraries are not required to run these tests.
 
