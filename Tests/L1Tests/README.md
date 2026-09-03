@@ -58,6 +58,10 @@ Test results are written to per-runner JSON files under:
 - Tests/L1Tests/build/OpenCDMIL1Tests.json
 - Tests/L1Tests/build/OpenCDMIClientCoreL1Tests.json
 - Tests/L1Tests/build/OpenCDMIAdapterRdkL1Tests.json
+- Tests/L1Tests/build/OpenCDMIClientCoreL1Tests.json
+
+- Tests/L1Tests/build/OpenCDMIAdapterRdkL1Tests.json
+
 
 The runner sets `PLUGIN_OPENCDMI=OFF` for this L1 build because the tests compile the required OpenCDMI source files and mocks directly. The production OpenCDMI client/plugin shared libraries are not required to run these tests.
 
