@@ -41,8 +41,8 @@ jobs:
         # https://docs.github.com/en/rest/actions/cache
         # Modify the key if changing the list.
         if: ${{ !env.ACT }}
-        id: cache
-        uses: actions/cache@v3
+          -DRDK_SERVICES_L1_TEST=ON
+          -DUSE_THUNDER_R4=ON
         with:
           path: |
             build/Thunder
@@ -354,7 +354,6 @@ jobs:
           -fprofile-arcs
           -ftest-coverage
           -DEXCEPTIONS_ENABLE=ON
-          -DUSE_THUNDER_R4=ON
           -DTHUNDER_VERSION=4
           -DTHUNDER_VERSION_MAJOR=4
           -DTHUNDER_VERSION_MINOR=4
@@ -485,6 +484,7 @@ jobs:
           -fprofile-arcs
           -ftest-coverage
           -DEXCEPTIONS_ENABLE=ON
+          -DUSE_THUNDER_R4=ON
           -DTHUNDER_VERSION=4
           -DTHUNDER_VERSION_MAJOR=4
           -DTHUNDER_VERSION_MINOR=4
