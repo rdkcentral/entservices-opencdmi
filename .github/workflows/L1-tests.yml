@@ -638,9 +638,9 @@ jobs:
         run: |
           export PATH=$GITHUB_WORKSPACE/install/usr/bin:${PATH}
           export LD_LIBRARY_PATH=$GITHUB_WORKSPACE/install/usr/lib:$GITHUB_WORKSPACE/install/usr/lib/wpeframework/plugins:${LD_LIBRARY_PATH}
-          GTEST_OUTPUT="json:$(pwd)/OpenCDMIL1Tests.json" OpenCDMIL1Tests
-          GTEST_OUTPUT="json:$(pwd)/OpenCDMIClientCoreL1Tests.json" OpenCDMIClientCoreL1Tests
-          GTEST_OUTPUT="json:$(pwd)/OpenCDMIAdapterRdkL1Tests.json" OpenCDMIAdapterRdkL1Tests
+          GTEST_OUTPUT="json:$(pwd)/OpenCDMIL1Tests.json" "$GITHUB_WORKSPACE/install/usr/bin/OpenCDMIL1Tests"
+          GTEST_OUTPUT="json:$(pwd)/OpenCDMIClientCoreL1Tests.json" "$GITHUB_WORKSPACE/install/usr/bin/OpenCDMIClientCoreL1Tests"
+          GTEST_OUTPUT="json:$(pwd)/OpenCDMIAdapterRdkL1Tests.json" "$GITHUB_WORKSPACE/install/usr/bin/OpenCDMIAdapterRdkL1Tests"
           cp -rf $(pwd)/OpenCDMIL1Tests.json $GITHUB_WORKSPACE/OpenCDMIL1TestsWithoutValgrind.json
           cp -rf $(pwd)/OpenCDMIClientCoreL1Tests.json $GITHUB_WORKSPACE/OpenCDMIClientCoreL1TestsWithoutValgrind.json
           cp -rf $(pwd)/OpenCDMIAdapterRdkL1Tests.json $GITHUB_WORKSPACE/OpenCDMIAdapterRdkL1TestsWithoutValgrind.json
@@ -650,9 +650,9 @@ jobs:
         run: |
           export PATH=$GITHUB_WORKSPACE/install/usr/bin:${PATH}
           export LD_LIBRARY_PATH=$GITHUB_WORKSPACE/install/usr/lib:$GITHUB_WORKSPACE/install/usr/lib/wpeframework/plugins:${LD_LIBRARY_PATH}
-          valgrind --tool=memcheck --log-file=valgrind_log.OpenCDMIL1Tests --leak-check=yes --show-reachable=yes --track-fds=yes --fair-sched=try env GTEST_OUTPUT="json:$(pwd)/OpenCDMIL1Tests.valgrind.json" OpenCDMIL1Tests
-          valgrind --tool=memcheck --log-file=valgrind_log.OpenCDMIClientCoreL1Tests --leak-check=yes --show-reachable=yes --track-fds=yes --fair-sched=try env GTEST_OUTPUT="json:$(pwd)/OpenCDMIClientCoreL1Tests.valgrind.json" OpenCDMIClientCoreL1Tests
-          valgrind --tool=memcheck --log-file=valgrind_log.OpenCDMIAdapterRdkL1Tests --leak-check=yes --show-reachable=yes --track-fds=yes --fair-sched=try env GTEST_OUTPUT="json:$(pwd)/OpenCDMIAdapterRdkL1Tests.valgrind.json" OpenCDMIAdapterRdkL1Tests
+          valgrind --tool=memcheck --log-file=valgrind_log.OpenCDMIL1Tests --leak-check=yes --show-reachable=yes --track-fds=yes --fair-sched=try env GTEST_OUTPUT="json:$(pwd)/OpenCDMIL1Tests.valgrind.json" "$GITHUB_WORKSPACE/install/usr/bin/OpenCDMIL1Tests"
+          valgrind --tool=memcheck --log-file=valgrind_log.OpenCDMIClientCoreL1Tests --leak-check=yes --show-reachable=yes --track-fds=yes --fair-sched=try env GTEST_OUTPUT="json:$(pwd)/OpenCDMIClientCoreL1Tests.valgrind.json" "$GITHUB_WORKSPACE/install/usr/bin/OpenCDMIClientCoreL1Tests"
+          valgrind --tool=memcheck --log-file=valgrind_log.OpenCDMIAdapterRdkL1Tests --leak-check=yes --show-reachable=yes --track-fds=yes --fair-sched=try env GTEST_OUTPUT="json:$(pwd)/OpenCDMIAdapterRdkL1Tests.valgrind.json" "$GITHUB_WORKSPACE/install/usr/bin/OpenCDMIAdapterRdkL1Tests"
           cp -rf $(pwd)/*.valgrind.json $GITHUB_WORKSPACE/
 
       - name: Generate coverage
