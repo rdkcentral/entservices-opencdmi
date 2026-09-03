@@ -27,7 +27,7 @@
 # Options:
 #   -c              enable coverage-oriented compiler flags
 #   -t <seconds>    per-run timeout for test execution (default: 60)
-#   -f <filter>     gtest filter passed to RdkServicesL1Test
+#   -f <filter>     gtest filter passed to each L1 test runner
 #   -n              configure/build only, do not execute tests
 #   -d              bootstrap dependencies using repo build_dependencies.sh
 
@@ -45,7 +45,6 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 REPO_ROOT="$(realpath "${SCRIPT_DIR}/../..")"
 BUILD_DIR="${SCRIPT_DIR}/build"
 INSTALL_DIR="${SCRIPT_DIR}/install"
-RESULTS_JSON="${BUILD_DIR}/rdkL1TestResults.json"
 
 # Optional external install root (for Thunder/WPE packages built outside repo).
 # If unset, try common install roots used by local dependency builds.
@@ -232,39 +231,92 @@ if [[ "${BUILD_ONLY}" -eq 1 ]]; then
     exit 0
 fi
 
-RUNNER=""
-if [[ -x "${INSTALL_DIR}/bin/RdkServicesL1Test" ]]; then
-    RUNNER="${INSTALL_DIR}/bin/RdkServicesL1Test"
-elif command -v RdkServicesL1Test >/dev/null 2>&1; then
-    RUNNER="$(command -v RdkServicesL1Test)"
-elif [[ -x "${INSTALL_DIR}/bin/OpenCDMIL1Tests" ]]; then
-    RUNNER="${INSTALL_DIR}/bin/OpenCDMIL1Tests"
-elif [[ -x "${BUILD_DIR}/Tests/L1Tests/OpenCDMIL1Tests" ]]; then
-    RUNNER="${BUILD_DIR}/Tests/L1Tests/OpenCDMIL1Tests"
-fi
-
 export PATH="${INSTALL_DIR}/bin:${PATH}"
 export LD_LIBRARY_PATH="${INSTALL_DIR}/lib:${INSTALL_DIR}/lib/wpeframework/plugins:${EXT_INSTALL_ROOT}/usr/lib:${EXT_INSTALL_ROOT}/usr/lib/wpeframework/plugins:${EXT_INSTALL_ROOT}/lib:${EXT_INSTALL_ROOT}/lib/wpeframework/plugins:${LD_LIBRARY_PATH}"
-export GTEST_OUTPUT="json:${RESULTS_JSON}"
 
-if [[ -z "${RUNNER}" ]]; then
-    echo "ERROR: No L1 test runner found in ${INSTALL_DIR}/bin or build output."
-    echo "Expected one of: RdkServicesL1Test or OpenCDMIL1Tests"
-    echo "Attempting ctest fallback in ${BUILD_DIR}/Tests/L1Tests."
+RUNNER_NAMES=(
+    OpenCDMIL1Tests
+    OpenCDMIClientCoreL1Tests
+    OpenCDMIAdapterRdkL1Tests
+)
 
-    ctest --test-dir "${BUILD_DIR}/Tests/L1Tests" --output-on-failure --timeout "${RUN_TIMEOUT}"
-    exit $?
-fi
+overall_status=0
+for runner_name in "${RUNNER_NAMES[@]}"; do
+    runner="${INSTALL_DIR}/bin/${runner_name}"
+    if [[ ! -x "${runner}" ]]; then
+        echo "ERROR: Expected L1 test runner not found: ${runner}"
+        overall_status=1
+        continue
+    fi
 
-CMD=("${RUNNER}")
-if [[ -n "${GTEST_FILTER}" ]]; then
-    CMD+=("--gtest_filter=${GTEST_FILTER}")
-fi
+    results_json="${BUILD_DIR}/${runner_name}.json"
+    rm -f "${results_json}"
+    runner_command=("${runner}")
+    if [[ -n "${GTEST_FILTER}" ]]; then
+        runner_command+=("--gtest_filter=${GTEST_FILTER}")
+    fi
 
-if command -v timeout >/dev/null 2>&1; then
-    timeout "${RUN_TIMEOUT}" "${CMD[@]}"
-else
-    "${CMD[@]}"
-fi
+    if command -v timeout >/dev/null 2>&1; then
+        if ! GTEST_OUTPUT="json:${results_json}" \
+            timeout "${RUN_TIMEOUT}" "${runner_command[@]}"; then
+            overall_status=1
+        fi
+    else
+        if ! GTEST_OUTPUT="json:${results_json}" "${runner_command[@]}"; then
+            overall_status=1
+        fi
+    fi
 
-echo "L1 test results: ${RESULTS_JSON}"
+    if [[ -f "${results_json}" ]]; then
+        echo "L1 test results: ${results_json}"
+    else
+        echo "ERROR: L1 test runner did not produce results: ${runner_name}"
+        overall_status=1
+    fi
+done
+
+python3 - "${BUILD_DIR}" "${RUNNER_NAMES[@]}" <<'PY'
+import json
+import pathlib
+import sys
+
+build_dir = pathlib.Path(sys.argv[1])
+runner_names = sys.argv[2:]
+totals = {"tests": 0, "passed": 0, "failed": 0, "disabled": 0}
+
+print("\nL1 TEST SUMMARY")
+print(f"{'Runner':<32} {'Total':>7} {'Passed':>7} {'Failed':>7} "
+    f"{'Disabled':>9}  Status")
+print("-" * 82)
+
+for runner_name in runner_names:
+    result_path = build_dir / f"{runner_name}.json"
+    if not result_path.is_file():
+      print(f"{runner_name:<32} {'-':>7} {'-':>7} {'-':>7} "
+          f"{'-':>9}  NO RESULTS")
+      continue
+
+    with result_path.open(encoding="utf-8") as result_file:
+      result = json.load(result_file)
+
+    tests = int(result.get("tests", 0))
+    failures = int(result.get("failures", 0))
+    errors = int(result.get("errors", 0))
+    disabled = int(result.get("disabled", 0))
+    failed = failures + errors
+    passed = tests - failed - disabled
+    status = "PASSED" if failed == 0 else "FAILED"
+
+    totals["tests"] += tests
+    totals["passed"] += passed
+    totals["failed"] += failed
+    totals["disabled"] += disabled
+    print(f"{runner_name:<32} {tests:>7} {passed:>7} {failed:>7} "
+        f"{disabled:>9}  {status}")
+
+print("-" * 82)
+print(f"{'TOTAL':<32} {totals['tests']:>7} {totals['passed']:>7} "
+    f"{totals['failed']:>7} {totals['disabled']:>9}")
+PY
+
+exit "${overall_status}"

@@ -531,7 +531,7 @@ TEST(ClientOpenCdmCoreApiL1Tests, ConstructSessionCreatesSessionWithAccessor)
                                         &session));
     ASSERT_NE(nullptr, session);
     EXPECT_STREQ("session-created", opencdm_session_id(session));
-    EXPECT_STREQ("buffer-ext", opencdm_session_buffer_id(session));
+    EXPECT_STREQ("", opencdm_session_buffer_id(session));
     EXPECT_EQ("com.widevine.alpha", scoped.accessor.lastCreateSessionKeySystem);
     EXPECT_EQ(Temporary, scoped.accessor.lastCreateSessionLicenseType);
     EXPECT_EQ("cenc", scoped.accessor.lastCreateSessionInitDataType);
@@ -676,8 +676,13 @@ TEST(ClientOpenCdmCoreApiL1Tests, MetricSessionDataRejectsNullSession)
 
 TEST(ClientOpenCdmCoreApiL1Tests, DisposeCanBeCalled)
 {
-    opencdm_dispose();
-    SUCCEED();
+    GTEST_FLAG_SET(death_test_style, "threadsafe");
+    EXPECT_EXIT(
+        {
+            opencdm_dispose();
+            std::_Exit(0);
+        },
+        ::testing::ExitedWithCode(0), "");
 }
 
 TEST(ClientOpenCdmCoreApiL1Tests, SessionCoreApisForwardToSessionInterface)
@@ -745,8 +750,8 @@ TEST(ClientOpenCdmCoreApiL1Tests, SessionCoreApisForwardToSessionInterface)
               opencdm_session_remove(session));
     EXPECT_TRUE(fakeCoreSession->removeCalled);
 
-    delete fakeCoreSession;
     delete session;
+    delete fakeCoreSession;
 }
 
 TEST(ClientOpenCdmCoreApiL1Tests, SessionExtensionApisForwardToSessionExt)
@@ -810,8 +815,8 @@ TEST(ClientOpenCdmCoreApiL1Tests, SessionExtensionApisForwardToSessionExt)
               opencdm_session_clean_decrypt_context(session));
     EXPECT_EQ(ERROR_NONE, opencdm_destruct_session_ext(session));
 
-    delete fakeSession;
     delete session;
+    delete fakeSession;
 }
 
 TEST(ClientOpenCdmCoreApiL1Tests, SessionExtensionChallengeDataSupportsSizeProbe)
@@ -834,8 +839,8 @@ TEST(ClientOpenCdmCoreApiL1Tests, SessionExtensionChallengeDataSupportsSizeProbe
     EXPECT_EQ(3u, challengeSize);
     EXPECT_EQ(9u, fakeSession->lastChallengeIsLdl);
 
-    delete fakeSession;
     delete session;
+    delete fakeSession;
 }
 
 TEST(ClientOpenCdmCoreApiL1Tests, SessionHasKeyIdReturnsTrueForPresentKey)
@@ -889,11 +894,10 @@ TEST(ClientOpenCdmCoreApiL1Tests, SessionIdReturnsStoredSessionId)
     OpenCDMSystem system("com.widevine.alpha", "meta");
     auto* session = new OpenCDMSession(&system, "cenc", nullptr, 0, nullptr, 0,
                                        Temporary, nullptr, nullptr);
-    new (&session->_sessionId) std::string("my-drm-session-001");
+    session->_sessionId = "my-drm-session-001";
 
     EXPECT_STREQ("my-drm-session-001", opencdm_session_id(session));
 
-    session->_sessionId.~basic_string();
     delete session;
 }
 
@@ -977,8 +981,8 @@ TEST(ClientOpenCdmCoreApiL1Tests, SessionExtensionApisHandleZeroOrShortInputs)
     EXPECT_EQ(3u, shortChallengeSize);
     EXPECT_EQ(0x88, shortChallenge[0]);
 
-    delete fakeSession;
     delete session;
+    delete fakeSession;
 }
 
 } // namespace

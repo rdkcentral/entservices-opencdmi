@@ -442,7 +442,6 @@ jobs:
           -include $GITHUB_WORKSPACE/entservices-testframework/Tests/mocks/wpa_ctrl_mock.h
           -include $GITHUB_WORKSPACE/entservices-testframework/Tests/mocks/readprocMockInterface.h
           -include $GITHUB_WORKSPACE/entservices-testframework/Tests/mocks/gdialservice.h
-          -include $GITHUB_WORKSPACE/entservices-testframework/Tests/mocks/systemaudioplatform.h
           -include $GITHUB_WORKSPACE/entservices-testframework/Tests/headers/systemaudioplatform.h
           --coverage
           -Wall -Wno-unused-result -Wno-deprecated-declarations -Wno-error=format=

@@ -21,8 +21,6 @@
 
 #include "FakeServerInterfaces.h"
 
-#include <gtest/gtest.h>
-
 template <typename Tag, typename Tag::type Member>
 struct PrivateAccess {
     friend typename Tag::type GetMember(Tag)
@@ -31,38 +29,35 @@ struct PrivateAccess {
     }
 };
 
-struct RemoteMemberTag {
-    using type = Exchange::IAccessorOCDM* OpenCDMAccessor::*;
-    friend type GetMember(RemoteMemberTag);
+struct SingletonMemberTag {
+    using type = OpenCDMAccessor**;
+    friend type GetMember(SingletonMemberTag);
 };
 
-template struct PrivateAccess<RemoteMemberTag, &OpenCDMAccessor::_remote>;
+template struct PrivateAccess<
+    SingletonMemberTag,
+    &Core::SingletonType<OpenCDMAccessor>::g_TypedSingleton>;
 
 namespace {
-Exchange::IAccessorOCDM* g_previousRemote = nullptr;
+OpenCDMAccessor* g_previousAccessor = nullptr;
 }
 
 void InstallFakeAccessor(OpenCDMAccessor* accessor)
 {
-    OpenCDMAccessor* realAccessor = OpenCDMAccessor::Instance();
-    ASSERT(realAccessor != nullptr);
+    ASSERT(accessor != nullptr);
+    ASSERT(g_previousAccessor == nullptr);
 
-    if (realAccessor != nullptr) {
-        auto remoteMember = GetMember(RemoteMemberTag {});
-        g_previousRemote = realAccessor->*remoteMember;
-        realAccessor->*remoteMember = accessor;
-
-    }
+    OpenCDMAccessor::Instance();
+    auto singletonMember = GetMember(SingletonMemberTag {});
+    g_previousAccessor = *singletonMember;
+    *singletonMember = accessor;
 }
 
 void UninstallFakeAccessor()
 {
-    OpenCDMAccessor* realAccessor = OpenCDMAccessor::Instance();
-    ASSERT(realAccessor != nullptr);
+    ASSERT(g_previousAccessor != nullptr);
 
-    if (realAccessor != nullptr) {
-        auto remoteMember = GetMember(RemoteMemberTag {});
-        realAccessor->*remoteMember = g_previousRemote;
-        g_previousRemote = nullptr;
-    }
+    auto singletonMember = GetMember(SingletonMemberTag {});
+    *singletonMember = g_previousAccessor;
+    g_previousAccessor = nullptr;
 }
