@@ -63,7 +63,10 @@ void ProcessChallengeCallback(OpenCDMSession* session,
     capture->challengeCalls++;
     capture->challengeSession = session;
     capture->lastUrl = (url != nullptr ? url : "");
-    capture->lastChallenge.assign(challenge, challenge + challengeLength);
+    capture->lastChallenge.clear();
+    if ((challenge != nullptr) && (challengeLength > 0)) {
+        capture->lastChallenge.assign(challenge, challenge + challengeLength);
+    }
 }
 
 void KeyUpdateCallback(OpenCDMSession* session,
@@ -75,7 +78,10 @@ void KeyUpdateCallback(OpenCDMSession* session,
     ASSERT_NE(nullptr, capture);
     capture->keyUpdateCalls++;
     capture->keyUpdateSession = session;
-    capture->lastKeyId.assign(keyId, keyId + length);
+    capture->lastKeyId.clear();
+    if ((keyId != nullptr) && (length > 0)) {
+        capture->lastKeyId.assign(keyId, keyId + length);
+    }
 }
 
 void ErrorMessageCallback(OpenCDMSession*,
@@ -598,6 +604,41 @@ TEST(ClientOpenCdmCoreApiL1Tests, SessionCallbacksPropagateMediaKeySessionEvents
 
     EXPECT_EQ(1, capture.keysUpdatedCalls);
     EXPECT_EQ(session, capture.keysUpdatedSession);
+
+    EXPECT_EQ(ERROR_NONE, opencdm_destruct_session(session));
+    EXPECT_TRUE(fakeSession->revokeCalled);
+    fakeSession->Release();
+}
+
+TEST(ClientOpenCdmCoreApiL1Tests, SessionCallbacksAcceptEmptyPayloads)
+{
+    ScopedFakeAccessor scoped;
+
+    auto* fakeSession = new FakeOpenCDMAccessor::FakeSession();
+    fakeSession->AddRef();
+    scoped.accessor.sessionToCreate = fakeSession;
+
+    CallbackCapture capture;
+    OpenCDMSessionCallbacks callbacks = {};
+    callbacks.process_challenge_callback = ProcessChallengeCallback;
+    callbacks.key_update_callback = KeyUpdateCallback;
+
+    OpenCDMSession* session = nullptr;
+    OpenCDMSystem system("com.widevine.alpha", "meta");
+
+    ASSERT_EQ(ERROR_NONE,
+              opencdm_construct_session(&system, Temporary, "cenc", nullptr,
+                                        0, nullptr, 0, &callbacks, &capture,
+                                        &session));
+    ASSERT_NE(nullptr, session);
+
+    scoped.accessor.FireOnKeyMessage({}, "");
+    scoped.accessor.FireOnKeyStatusUpdate({}, Exchange::ISession::Usable);
+
+    EXPECT_EQ(1, capture.challengeCalls);
+    EXPECT_TRUE(capture.lastChallenge.empty());
+    EXPECT_EQ(1, capture.keyUpdateCalls);
+    EXPECT_TRUE(capture.lastKeyId.empty());
 
     EXPECT_EQ(ERROR_NONE, opencdm_destruct_session(session));
     EXPECT_TRUE(fakeSession->revokeCalled);
