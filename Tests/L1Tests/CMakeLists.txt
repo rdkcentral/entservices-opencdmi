@@ -197,8 +197,8 @@ target_include_directories(OpenCDMIAdapterRdkL1Tests
         ../../client/adapter
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
         $<INSTALL_INTERFACE:include>
-        ${CMAKE_SOURCE_DIR}/../entservices-testframework/Tests/mocks/thunder
-        ${CMAKE_SOURCE_DIR}/../Thunder/Source/plugins
+        ${CMAKE_SOURCE_DIR}/entservices-testframework/Tests/mocks/thunder
+        ${CMAKE_SOURCE_DIR}/Thunder/Source/plugins
 )
 
 target_link_directories(OpenCDMIAdapterRdkL1Tests

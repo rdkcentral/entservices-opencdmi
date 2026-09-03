@@ -15,7 +15,7 @@ env:
   THUNDER_COMMIT_SHA: "2c0fcc5529e7da734be558ca6efa05d934dcce31"
   INTERFACES_REF: "develop"
   AUTOMATICS_UNAME: ${{ secrets.AUTOMATICS_UNAME}}
-  AUTOMATICS_PASSCODE: ${{ secrets. AUTOMATICS_PASSCODE}}
+  AUTOMATICS_PASSCODE: ${{ secrets.AUTOMATICS_PASSCODE}}
   RDK_SERVICES_L1_TEST: "ON"
 
 jobs:
@@ -215,7 +215,7 @@ jobs:
                 RESULT_VARIABLE rv
                 OUTPUT_VARIABLE generator_stdout
                 ERROR_VARIABLE generator_stderr
-        )
+                  )
                 if(NOT ${rv} EQUAL 0)
                     message(FATAL_ERROR
                         \"ProxyStubGenerator generator failed with exit code ${rv}\\n\"
