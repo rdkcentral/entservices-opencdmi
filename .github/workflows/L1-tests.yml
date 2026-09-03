@@ -653,7 +653,6 @@ jobs:
           valgrind --tool=memcheck --log-file=valgrind_log.OpenCDMIL1Tests --leak-check=yes --show-reachable=yes --track-fds=yes --fair-sched=try env GTEST_OUTPUT="json:$(pwd)/OpenCDMIL1Tests.valgrind.json" "$GITHUB_WORKSPACE/install/usr/bin/OpenCDMIL1Tests"
           valgrind --tool=memcheck --log-file=valgrind_log.OpenCDMIClientCoreL1Tests --leak-check=yes --show-reachable=yes --track-fds=yes --fair-sched=try env GTEST_OUTPUT="json:$(pwd)/OpenCDMIClientCoreL1Tests.valgrind.json" "$GITHUB_WORKSPACE/install/usr/bin/OpenCDMIClientCoreL1Tests"
           valgrind --tool=memcheck --log-file=valgrind_log.OpenCDMIAdapterRdkL1Tests --leak-check=yes --show-reachable=yes --track-fds=yes --fair-sched=try env GTEST_OUTPUT="json:$(pwd)/OpenCDMIAdapterRdkL1Tests.valgrind.json" "$GITHUB_WORKSPACE/install/usr/bin/OpenCDMIAdapterRdkL1Tests"
-          cp -rf $(pwd)/*.valgrind.json $GITHUB_WORKSPACE/
 
       - name: Generate coverage
         if: ${{ matrix.coverage == 'with-coverage' && !env.ACT && env.RDK_SERVICES_L1_TEST == 'ON' && inputs.caller_source != 'testframework' }}
