@@ -55,10 +55,9 @@ The runner performs these steps:
 
 Test results are written to per-runner JSON files under:
 
-- Tests/L1Tests/build/OpenCDMIL1Tests.json
-- Tests/L1Tests/build/OpenCDMIClientCoreL1Tests.json
-- Tests/L1Tests/build/OpenCDMIAdapterRdkL1Tests.json
-- Tests/L1Tests/build/OpenCDMIClientCoreL1Tests.json
+- `Tests/L1Tests/build/OpenCDMIL1Tests.json`
+- `Tests/L1Tests/build/OpenCDMIClientCoreL1Tests.json`
+- `Tests/L1Tests/build/OpenCDMIAdapterRdkL1Tests.json`
 
 - Tests/L1Tests/build/OpenCDMIAdapterRdkL1Tests.json
 
