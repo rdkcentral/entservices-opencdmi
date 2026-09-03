@@ -14,7 +14,7 @@ env:
   THUNDER_COMMIT_SHA: "2c0fcc5529e7da734be558ca6efa05d934dcce31"
   INTERFACES_REF: "develop"
   AUTOMATICS_UNAME: ${{ secrets.AUTOMATICS_UNAME}}
-  AUTOMATICS_PASSCODE: ${{ secrets. AUTOMATICS_PASSCODE}}
+  AUTOMATICS_PASSCODE: ${{ secrets.AUTOMATICS_PASSCODE}}
   RDK_SERVICE_L2_TEST: "OFF"
 
 jobs:
@@ -46,9 +46,9 @@ jobs:
            echo "Trigger Source: ${{ inputs.caller_source }}"
 
       - name: Set up CMake
-        uses: jwlawson/actions-setup-cmake@v1.13
+        uses: jwlawson/actions-setup-cmake@0d6a7d60b009d01c9e7523be22153ff8f19460d3 # v2.2.0
         with:
-          cmake-version: '3.16.x'
+          cmake-version: '3.31.x'
 
       - name: Install packages
         run: >

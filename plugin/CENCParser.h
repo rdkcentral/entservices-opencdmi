@@ -254,6 +254,9 @@ namespace Plugin {
         void Parse(const uint8_t data[], const uint16_t length)
         {
             uint16_t offset = 0;
+            if ((data == nullptr) || (length == 0)) {
+	           return;
+            }
 
             do {
                 // Check if this is a PSSH box...
