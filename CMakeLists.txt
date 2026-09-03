@@ -17,7 +17,9 @@
 # limitations under the License.
 ###
 
-cmake_minimum_required(VERSION 3.3)
+cmake_minimum_required(VERSION 3.10)
+
+project(entservices-opencdmi)
 
 find_package(WPEFramework)
 
