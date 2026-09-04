@@ -15,8 +15,8 @@ env:
   THUNDER_COMMIT_SHA: "2c0fcc5529e7da734be558ca6efa05d934dcce31"
   INTERFACES_REF: "develop"
   AUTOMATICS_UNAME: ${{ secrets.AUTOMATICS_UNAME}}
-  AUTOMATICS_PASSCODE: ${{ secrets. AUTOMATICS_PASSCODE}}
-  RDK_SERVICES_L1_TEST: "OFF"
+  AUTOMATICS_PASSCODE: ${{ secrets.AUTOMATICS_PASSCODE}}
+  RDK_SERVICES_L1_TEST: "ON"
 
 jobs:
   L1-tests:
@@ -63,7 +63,7 @@ jobs:
             !install/usr/lib/pkgconfig/gtest.pc
             !install/usr/lib/pkgconfig/gtest_main.pc
             !install/usr/lib/wpeframework/plugins
-          key: ${{ runner.os }}-${{ env.REPO_NAME }}-${{ env.THUNDER_COMMIT_SHA }}-${{ env.INTERFACES_REF }}-5
+          key: ${{ runner.os }}-${{ env.REPO_NAME }}-${{ env.THUNDER_COMMIT_SHA }}-${{ env.THUNDER_TOOLS_COMMIT_SHA }}-${{ env.INTERFACES_REF }}-5
 
       - name: Set up Python
         uses: actions/setup-python@v4
@@ -77,9 +77,9 @@ jobs:
            echo "Trigger Source: ${{ inputs.caller_source }}"
 
       - name: Set up CMake
-        uses: jwlawson/actions-setup-cmake@v1.13
+        uses: jwlawson/actions-setup-cmake@0d6a7d60b009d01c9e7523be22153ff8f19460d3 # v2.2.0
         with:
-          cmake-version: '3.16.x'
+          cmake-version: '3.31.x'
 
       - name: Install packages
         run: >
@@ -152,6 +152,7 @@ jobs:
           -S "$GITHUB_WORKSPACE/ThunderTools"
           -B build/ThunderTools
           -DEXCEPTIONS_ENABLE=ON
+          -DPYTHON_EXECUTABLE="$(command -v python3)"
           -DCMAKE_INSTALL_PREFIX="$GITHUB_WORKSPACE/install/usr"
           -DCMAKE_MODULE_PATH="$GITHUB_WORKSPACE/install/tools/cmake"
           -DGENERIC_CMAKE_MODULE_PATH="$GITHUB_WORKSPACE/install/tools/cmake"
@@ -174,6 +175,7 @@ jobs:
           -DBINDING=127.0.0.1
           -DPORT=55555
           -DEXCEPTIONS_ENABLE=ON
+          -DPYTHON_EXECUTABLE="$(command -v python3)"
           &&
           cmake --build build/Thunder -j8
           &&
@@ -185,13 +187,46 @@ jobs:
           repository: rdkcentral/entservices-apis
           path: entservices-apis
           ref: ${{env.INTERFACES_REF}}
-          run: rm -rf $GITHUB_WORKSPACE/entservices-apis/jsonrpc/DTV.json
+
+      - name: Remove DTV.json
+        run: rm -rf $GITHUB_WORKSPACE/entservices-apis/jsonrpc/DTV.json
 
       - name: Apply patches entservices-apis
         run: |
           cd $GITHUB_WORKSPACE/entservices-apis
           patch -p1 < $GITHUB_WORKSPACE/entservices-testframework/patches/RDKEMW-1007.patch
           cd -
+
+      - name: Enable proxy stub generator diagnostics
+        run: |
+          while IFS= read -r module; do
+            python3 - "$module" <<'PY'
+          import pathlib
+          import sys
+
+          module = pathlib.Path(sys.argv[1])
+          text = module.read_text()
+          old = """        execute_process(COMMAND ${PYTHON_EXECUTABLE} ${_execute_command} ${_input} RESULT_VARIABLE rv)
+                if(NOT ${rv} EQUAL 0)
+                    message(FATAL_ERROR \"ProxyStubGenerator generator failed.\")
+                endif()"""
+          new = """        execute_process(
+                COMMAND ${PYTHON_EXECUTABLE} ${_execute_command} ${_input}
+                RESULT_VARIABLE rv
+                OUTPUT_VARIABLE generator_stdout
+                ERROR_VARIABLE generator_stderr
+                  )
+                if(NOT ${rv} EQUAL 0)
+                    message(FATAL_ERROR
+                        \"ProxyStubGenerator generator failed with exit code ${rv}\\n\"
+                        \"stdout: ${generator_stdout}\\n\"
+                        \"stderr: ${generator_stderr}\")
+                endif()"""
+          if old in text:
+              module.write_text(text.replace(old, new, 1))
+              print(f"Enabled diagnostics in {module}")
+          PY
+          done < <(find "$GITHUB_WORKSPACE/install" -type f -name FindProxyStubGenerator.cmake)
 
       - name: Build entservices-apis
         run: >
@@ -201,6 +236,7 @@ jobs:
           -DEXCEPTIONS_ENABLE=ON
           -DCMAKE_INSTALL_PREFIX="$GITHUB_WORKSPACE/install/usr"
           -DCMAKE_MODULE_PATH="$GITHUB_WORKSPACE/install/tools/cmake"
+          -DPYTHON_EXECUTABLE="$(command -v python3)"
           &&
           cmake --build build/entservices-apis -j8
           &&
@@ -318,7 +354,6 @@ jobs:
           -fprofile-arcs
           -ftest-coverage
           -DEXCEPTIONS_ENABLE=ON
-          -DUSE_THUNDER_R4=ON
           -DTHUNDER_VERSION=4
           -DTHUNDER_VERSION_MAJOR=4
           -DTHUNDER_VERSION_MINOR=4
@@ -406,7 +441,6 @@ jobs:
           -include $GITHUB_WORKSPACE/entservices-testframework/Tests/mocks/wpa_ctrl_mock.h
           -include $GITHUB_WORKSPACE/entservices-testframework/Tests/mocks/readprocMockInterface.h
           -include $GITHUB_WORKSPACE/entservices-testframework/Tests/mocks/gdialservice.h
-          -include $GITHUB_WORKSPACE/entservices-testframework/Tests/mocks/systemaudioplatform.h
           -include $GITHUB_WORKSPACE/entservices-testframework/Tests/headers/systemaudioplatform.h
           --coverage
           -Wall -Wno-unused-result -Wno-deprecated-declarations -Wno-error=format=
@@ -450,7 +484,6 @@ jobs:
           -fprofile-arcs
           -ftest-coverage
           -DEXCEPTIONS_ENABLE=ON
-          -DUSE_THUNDER_R4=ON
           -DTHUNDER_VERSION=4
           -DTHUNDER_VERSION_MAJOR=4
           -DTHUNDER_VERSION_MINOR=4
@@ -602,30 +635,24 @@ jobs:
 
       - name: Run unit tests without valgrind
         if: ${{ env.RDK_SERVICES_L1_TEST == 'ON' }}
-        run: >
-          PATH=$GITHUB_WORKSPACE/install/usr/bin:${PATH}
-          LD_LIBRARY_PATH=$GITHUB_WORKSPACE/install/usr/lib:$GITHUB_WORKSPACE/install/usr/lib/wpeframework/plugins:${LD_LIBRARY_PATH}
-          GTEST_OUTPUT="json:$(pwd)/rdkL1TestResults.json"
-          RdkServicesL1Test &&
-          cp -rf $(pwd)/rdkL1TestResults.json $GITHUB_WORKSPACE/rdkL1TestResultsWithoutValgrind.json &&
-          rm -rf $(pwd)/rdkL1TestResults.json
+        run: |
+          export PATH=$GITHUB_WORKSPACE/install/usr/bin:${PATH}
+          export LD_LIBRARY_PATH=$GITHUB_WORKSPACE/install/usr/lib:$GITHUB_WORKSPACE/install/usr/lib/wpeframework/plugins:${LD_LIBRARY_PATH}
+          GTEST_OUTPUT="json:$(pwd)/OpenCDMIL1Tests.json" "$GITHUB_WORKSPACE/install/usr/bin/OpenCDMIL1Tests"
+          GTEST_OUTPUT="json:$(pwd)/OpenCDMIClientCoreL1Tests.json" "$GITHUB_WORKSPACE/install/usr/bin/OpenCDMIClientCoreL1Tests"
+          GTEST_OUTPUT="json:$(pwd)/OpenCDMIAdapterRdkL1Tests.json" "$GITHUB_WORKSPACE/install/usr/bin/OpenCDMIAdapterRdkL1Tests"
+          cp -rf $(pwd)/OpenCDMIL1Tests.json $GITHUB_WORKSPACE/OpenCDMIL1TestsWithoutValgrind.json
+          cp -rf $(pwd)/OpenCDMIClientCoreL1Tests.json $GITHUB_WORKSPACE/OpenCDMIClientCoreL1TestsWithoutValgrind.json
+          cp -rf $(pwd)/OpenCDMIAdapterRdkL1Tests.json $GITHUB_WORKSPACE/OpenCDMIAdapterRdkL1TestsWithoutValgrind.json
 
       - name: Run unit tests with valgrind
         if: ${{ !env.ACT && env.RDK_SERVICES_L1_TEST == 'ON' && inputs.caller_source != 'testframework' }}
-        run: >
-          PATH=$GITHUB_WORKSPACE/install/usr/bin:${PATH}
-          LD_LIBRARY_PATH=$GITHUB_WORKSPACE/install/usr/lib:$GITHUB_WORKSPACE/install/usr/lib/wpeframework/plugins:${LD_LIBRARY_PATH}
-          GTEST_OUTPUT="json:$(pwd)/rdkL1TestResults.json"
-          valgrind
-          --tool=memcheck
-          --log-file=valgrind_log
-          --leak-check=yes
-          --show-reachable=yes
-          --track-fds=yes
-          --fair-sched=try
-          RdkServicesL1Test &&
-          cp -rf $(pwd)/rdkL1TestResults.json $GITHUB_WORKSPACE/rdkL1TestResultsWithValgrind.json &&
-          rm -rf $(pwd)/rdkL1TestResults.json
+        run: |
+          export PATH=$GITHUB_WORKSPACE/install/usr/bin:${PATH}
+          export LD_LIBRARY_PATH=$GITHUB_WORKSPACE/install/usr/lib:$GITHUB_WORKSPACE/install/usr/lib/wpeframework/plugins:${LD_LIBRARY_PATH}
+          valgrind --tool=memcheck --log-file=valgrind_log.OpenCDMIL1Tests --leak-check=yes --show-reachable=yes --track-fds=yes --fair-sched=try env GTEST_OUTPUT="json:$(pwd)/OpenCDMIL1Tests.valgrind.json" "$GITHUB_WORKSPACE/install/usr/bin/OpenCDMIL1Tests"
+          valgrind --tool=memcheck --log-file=valgrind_log.OpenCDMIClientCoreL1Tests --leak-check=yes --show-reachable=yes --track-fds=yes --fair-sched=try env GTEST_OUTPUT="json:$(pwd)/OpenCDMIClientCoreL1Tests.valgrind.json" "$GITHUB_WORKSPACE/install/usr/bin/OpenCDMIClientCoreL1Tests"
+          valgrind --tool=memcheck --log-file=valgrind_log.OpenCDMIAdapterRdkL1Tests --leak-check=yes --show-reachable=yes --track-fds=yes --fair-sched=try env GTEST_OUTPUT="json:$(pwd)/OpenCDMIAdapterRdkL1Tests.valgrind.json" "$GITHUB_WORKSPACE/install/usr/bin/OpenCDMIAdapterRdkL1Tests"
 
       - name: Generate coverage
         if: ${{ matrix.coverage == 'with-coverage' && !env.ACT && env.RDK_SERVICES_L1_TEST == 'ON' && inputs.caller_source != 'testframework' }}
@@ -659,9 +686,13 @@ jobs:
           name: artifacts-L1-opencdmi
           path: |
             coverage/
-            valgrind_log
-            rdkL1TestResultsWithoutValgrind.json
-            rdkL1TestResultsWithValgrind.json
+            valgrind_log.*
+            OpenCDMIL1TestsWithoutValgrind.json
+            OpenCDMIClientCoreL1TestsWithoutValgrind.json
+            OpenCDMIAdapterRdkL1TestsWithoutValgrind.json
+            OpenCDMIL1Tests.valgrind.json
+            OpenCDMIClientCoreL1Tests.valgrind.json
+            OpenCDMIAdapterRdkL1Tests.valgrind.json
           if-no-files-found: warn
           
 
