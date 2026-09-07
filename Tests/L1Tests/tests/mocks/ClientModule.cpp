@@ -25,5 +25,5 @@
 
 extern "C" {
 const char* OpenCDM = "OpenCDM";
-const WPEFramework::Core::IServiceMetadata* OpenCDMRootMetaData_ = nullptr;
+const Thunder::Core::IServiceMetadata* OpenCDMRootMetaData_ = nullptr;
 }

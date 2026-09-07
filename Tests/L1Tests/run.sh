@@ -90,8 +90,8 @@ if [[ -z "${EXT_INSTALL_ROOT}" ]]; then
     )
 
     for _root in "${_auto_candidates[@]}"; do
-        if [[ -f "${_root}/usr/lib/cmake/WPEFramework/WPEFrameworkConfig.cmake" || \
-              -f "${_root}/lib/cmake/WPEFramework/WPEFrameworkConfig.cmake" ]]; then
+        if [[ -f "${_root}/usr/lib/cmake/Thunder/ThunderConfig.cmake" || \
+              -f "${_root}/lib/cmake/Thunder/ThunderConfig.cmake" ]]; then
             EXT_INSTALL_ROOT="${_root}"
             break
         fi
@@ -144,8 +144,8 @@ is_unreadable_install_root()
 
 find_required_configs()
 {
-    _wpe_cfg="$(find_cmake_package_config "WPEFramework" || true)"
-    _plugins_cfg="$(find_cmake_package_config "WPEFrameworkPlugins" || \
+    _wpe_cfg="$(find_cmake_package_config "Thunder" || true)"
+    _plugins_cfg="$(find_cmake_package_config "ThunderPlugins" || \
         find_cmake_package_config "Plugins" || true)"
 }
 
@@ -185,7 +185,7 @@ if [[ -z "${_wpe_cfg}" || -z "${_plugins_cfg}" ]]; then
     fi
 
     echo "ERROR: Missing required CMake package configs for L1 build."
-    echo "Expected WPEFrameworkConfig.cmake and WPEFrameworkPluginsConfig.cmake under:"
+    echo "Expected ThunderConfig.cmake and ThunderPluginsConfig.cmake under:"
     echo "  ${EXT_INSTALL_ROOT}/usr/lib/cmake or ${EXT_INSTALL_ROOT}/lib/cmake"
     echo "Auto-detection checks: ${REPO_ROOT}/install, ${SCRIPT_DIR}/install, /usr/local, /usr"
     echo "Set EXT_INSTALL_ROOT to your installed toolchain root, e.g.:"
@@ -201,7 +201,7 @@ if [[ -z "${_wpe_cfg}" || -z "${_plugins_cfg}" ]]; then
     echo "This avoids CMake errors such as:"
     echo "  string no output variable specified"
     echo "  include could not find requested file: CmakeHelperFunctions"
-    echo "  Could not find package: WPEFrameworkPlugins"
+    echo "  Could not find package: ThunderPlugins"
     exit 1
 fi
 
@@ -232,7 +232,7 @@ if [[ "${BUILD_ONLY}" -eq 1 ]]; then
 fi
 
 export PATH="${INSTALL_DIR}/bin:${PATH}"
-export LD_LIBRARY_PATH="${INSTALL_DIR}/lib:${INSTALL_DIR}/lib/wpeframework/plugins:${EXT_INSTALL_ROOT}/usr/lib:${EXT_INSTALL_ROOT}/usr/lib/wpeframework/plugins:${EXT_INSTALL_ROOT}/lib:${EXT_INSTALL_ROOT}/lib/wpeframework/plugins:${LD_LIBRARY_PATH}"
+export LD_LIBRARY_PATH="${INSTALL_DIR}/lib:${INSTALL_DIR}/lib/Thunder/plugins:${EXT_INSTALL_ROOT}/usr/lib:${EXT_INSTALL_ROOT}/usr/lib/Thunder/plugins:${EXT_INSTALL_ROOT}/lib:${EXT_INSTALL_ROOT}/lib/Thunder/plugins:${LD_LIBRARY_PATH}"
 
 RUNNER_NAMES=(
     OpenCDMIL1Tests

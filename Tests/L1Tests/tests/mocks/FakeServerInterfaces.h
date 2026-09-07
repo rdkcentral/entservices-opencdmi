@@ -227,7 +227,7 @@ private:
 void InstallFakeAccessor(OpenCDMAccessor* accessor);
 void UninstallFakeAccessor();
 
-namespace WPEFramework {
+namespace Thunder {
 namespace Plugin {
 
 class FakeStringIterator : public RPC::IStringIterator {
@@ -402,4 +402,4 @@ private:
 };
 
 } // namespace Plugin
-} // namespace WPEFramework
+} // namespace Thunder

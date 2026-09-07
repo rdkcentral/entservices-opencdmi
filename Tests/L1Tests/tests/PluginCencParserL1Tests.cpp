@@ -24,8 +24,8 @@
 
 #include "CENCParser.h"
 
-using WPEFramework::Exchange::ISession;
-using WPEFramework::Plugin::CommonEncryptionData;
+using Thunder::Exchange::ISession;
+using Thunder::Plugin::CommonEncryptionData;
 
 namespace {
 

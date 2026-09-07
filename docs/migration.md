@@ -15,7 +15,7 @@ need for out-of-tree patches in Yocto.
 | Recipe | Yocto path |
 |---|---|
 | `lib32-entservices-opencdmi` | `meta-rdk-video/recipes-extended/entservices/` |
-| `lib32-wpeframework-clientlibraries` | `meta-rdk-video/recipes-extended/wpeframework/` |
+| `lib32-thunder-clientlibraries` | `meta-rdk-video/recipes-extended/thunder/` |
 
 ---
 
@@ -52,10 +52,10 @@ These patches originated from
 | `5f74438` | `RDKTV-25123: add metrics pass-through on the OCDM framework` | `0001-Add-a-new-metrics-punch-through-on-the-OCDM-framework-rdkservice.patch` |
 | `551592b` | `RDKEVD-5457: set OCDM decrypt worker thread name for correct scheduling` | `0001-set-OCDM-process-thread-name.patch` |
 
-### 3. Phase 2 — `wpeframework-clientlibraries` client patches
+### 3. Phase 2 — `thunder-clientlibraries` client patches
 
 These patches originated from
-`meta-rdk-video/recipes-extended/wpeframework/files/` and modify files under
+`meta-rdk-video/recipes-extended/thunder/files/` and modify files under
 `client/`. All patches use the path prefix `Source/ocdm/` which must be
 translated to `client/` before applying.
 
@@ -76,14 +76,14 @@ sed 's|Source/ocdm/|client/|g' <patch> | patch -p1 --fuzz=3
 | `17f06b1` | `ocdm: preallocate secure memory before decrypt to reduce frame drops` | `r4.4/0001-DELIA-64727-Prealloc-secure-memory-before-decrypt.patch` |
 | `82a9d46` | `RDKEMW-7064: don't call decrypt for fake allocations after Essos RM revoke` | `r4.4/0001-RDKEMW-7064-Dont-decrypt-fake-buffer-is-revoke-has-b.patch` |
 | `e615708` | `RDKEMW-13372: support for additional clear data after subsample map` | `r4.4/0001-RDKEMW-13372-Support-for-additional-clear-data-after.patch` |
-| `5b1a2a7` | `RDKEMW-15917: add decrypt-to-host support for concurrent dual-pipeline SVP` | `wpeframework-clientlibraries_dth.patch`, `wpeframework-clientlibraries_dual_pipeline.patch` |
+| `5b1a2a7` | `RDKEMW-15917: add decrypt-to-host support for concurrent dual-pipeline SVP` | `thunder-clientlibraries_dth.patch`, `thunder-clientlibraries_dual_pipeline.patch` |
 | `57fc339` | `RDKTV-1645: add keysystem parser to facilitate overriding keysystems for certain domains` | `0007-OCDM-added-keysystem-parser-to-facilitate-overriding.patch` |
 
 ---
 
 ## Skipped Patches
 
-The following patches from the `wpeframework-clientlibraries` recipe were
+The following patches from the `thunder-clientlibraries` recipe were
 determined to be **not relevant** to OCDM and were not migrated (they target
 `SecurityAgent`, `Cryptography`, `Vault`, or `PowerController` components):
 
@@ -119,7 +119,7 @@ Prefixes `RDK-`, `RDKTV-`, `RDKEMW-`, and `RDKEVD-` were preserved.
 
 ## Applying Patches (reference)
 
-For any future patches from `wpeframework-clientlibraries` that target
+For any future patches from `thunder-clientlibraries` that target
 `Source/ocdm/`:
 
 ```bash

@@ -18,7 +18,7 @@
  */
 
 #include "open_cdm_adapter.h"
-#undef EXTERNAL  // open_cdm.h defines EXTERNAL; WPEFramework Portability.h redefines it
+#undef EXTERNAL  // open_cdm.h defines EXTERNAL; Thunder Portability.h redefines it
 #include "open_cdm_impl.h"
 
 #include "Module.h"
@@ -434,7 +434,7 @@ OpenCDMError opencdm_gstreamer_session_decrypt_buffer_once(struct OpenCDMSession
             std::string perfString(__FUNCTION__);
             //Get Stream Properties from GstCaps
             MediaProperties streamProperties = {0};
-            WPEFramework::Plugin::CapsParser capsParser;
+            Thunder::Plugin::CapsParser capsParser;
 
             bool isSecureMemoryDisabled = false;
             if(caps != nullptr){

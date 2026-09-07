@@ -125,7 +125,7 @@ add_executable(${PROJECT_NAME} ${TEST_SRC})
 
 include_directories(${TEST_INC})
 
-target_link_directories(${PROJECT_NAME} PUBLIC ${CMAKE_INSTALL_PREFIX}/lib ${CMAKE_INSTALL_PREFIX}/lib/wpeframework/plugins)
+target_link_directories(${PROJECT_NAME} PUBLIC ${CMAKE_INSTALL_PREFIX}/lib ${CMAKE_INSTALL_PREFIX}/lib/thunder/plugins)
 
 target_link_libraries(${PROJECT_NAME}
     GTest::gtest_main
@@ -167,7 +167,7 @@ target_include_directories(OpenCDMIClientCoreL1Tests
     ${CMAKE_SOURCE_DIR}/Thunder/Source/plugins
 )
 
-target_link_directories(OpenCDMIClientCoreL1Tests PUBLIC ${CMAKE_INSTALL_PREFIX}/lib ${CMAKE_INSTALL_PREFIX}/lib/wpeframework/plugins)
+target_link_directories(OpenCDMIClientCoreL1Tests PUBLIC ${CMAKE_INSTALL_PREFIX}/lib ${CMAKE_INSTALL_PREFIX}/lib/thunder/plugins)
 
 target_link_libraries(OpenCDMIClientCoreL1Tests
     GTest::gtest_main
@@ -204,7 +204,7 @@ target_include_directories(OpenCDMIAdapterRdkL1Tests
 target_link_directories(OpenCDMIAdapterRdkL1Tests
     PUBLIC
     ${CMAKE_INSTALL_PREFIX}/lib
-    ${CMAKE_INSTALL_PREFIX}/lib/wpeframework/plugins
+    ${CMAKE_INSTALL_PREFIX}/lib/thunder/plugins
 )
 
 target_link_libraries(OpenCDMIAdapterRdkL1Tests

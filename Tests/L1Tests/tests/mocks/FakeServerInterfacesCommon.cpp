@@ -83,7 +83,7 @@ Exchange::OCDM_RESULT FakeOpenCDMAccessor::GetSupportedRobustness(
     robustness = nullptr;
 
     if (supportedRobustnessResult == Exchange::OCDM_RESULT::OCDM_SUCCESS) {
-        robustness = new WPEFramework::Plugin::FakeStringIterator(
+        robustness = new Thunder::Plugin::FakeStringIterator(
             supportedRobustnessValues);
     }
     return supportedRobustnessResult;

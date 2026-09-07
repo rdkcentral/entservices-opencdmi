@@ -27,11 +27,11 @@
 
 #include "FakeServerInterfaces.h"
 
-using WPEFramework::Core::JSON::ArrayType;
-using WPEFramework::Core::JSON::String;
-using WPEFramework::JsonData::OCDM::DrmData;
-using WPEFramework::Plugin::FakeContentDecryption;
-using WPEFramework::Plugin::OCDM;
+using Thunder::Core::JSON::ArrayType;
+using Thunder::Core::JSON::String;
+using Thunder::JsonData::OCDM::DrmData;
+using Thunder::Plugin::FakeContentDecryption;
+using Thunder::Plugin::OCDM;
 
 namespace {
 
@@ -47,7 +47,7 @@ public:
     {
         const uint32_t value = --_refCount;
 
-        return (value == 0 ? WPEFramework::Core::ERROR_DESTRUCTION_SUCCEEDED : WPEFramework::Core::ERROR_NONE);
+        return (value == 0 ? Thunder::Core::ERROR_DESTRUCTION_SUCCEEDED : Thunder::Core::ERROR_NONE);
     }
 
 private:
@@ -67,7 +67,7 @@ TEST(PluginOcdmJsonRpcInterfaceL1Tests, GetDrmsReturnsSystemsAndDesignators)
     ArrayType<DrmData> response;
     const uint32_t rc = plugin.get_drms(response);
 
-    EXPECT_EQ(WPEFramework::Core::ERROR_NONE, rc);
+    EXPECT_EQ(Thunder::Core::ERROR_NONE, rc);
     EXPECT_EQ(2u, response.Length());
 
     auto it = response.Elements();
@@ -89,7 +89,7 @@ TEST(PluginOcdmJsonRpcInterfaceL1Tests, GetDrmsReturnsEmptyListWhenNoSystemsAvai
     ArrayType<DrmData> response;
     const uint32_t rc = plugin.get_drms(response);
 
-    EXPECT_EQ(WPEFramework::Core::ERROR_NONE, rc);
+    EXPECT_EQ(Thunder::Core::ERROR_NONE, rc);
     EXPECT_EQ(0u, response.Length());
 
     fake->Release();
@@ -107,7 +107,7 @@ TEST(PluginOcdmJsonRpcInterfaceL1Tests, GetDrmsKeepsSystemWhenDesignatorsUnavail
     ArrayType<DrmData> response;
     const uint32_t rc = plugin.get_drms(response);
 
-    EXPECT_EQ(WPEFramework::Core::ERROR_NONE, rc);
+    EXPECT_EQ(Thunder::Core::ERROR_NONE, rc);
     ASSERT_EQ(1u, response.Length());
 
     auto it = response.Elements();
@@ -130,7 +130,7 @@ TEST(PluginOcdmJsonRpcInterfaceL1Tests, GetKeysystemsForKnownSystemReturnsList)
     ArrayType<String> response;
     const uint32_t rc = plugin.get_keysystems("widevine", response);
 
-    EXPECT_EQ(WPEFramework::Core::ERROR_NONE, rc);
+    EXPECT_EQ(Thunder::Core::ERROR_NONE, rc);
     EXPECT_EQ(2u, response.Length());
 
     fake->Release();
@@ -147,7 +147,7 @@ TEST(PluginOcdmJsonRpcInterfaceL1Tests, GetKeysystemsForUnknownSystemReturnsBadR
     ArrayType<String> response;
     const uint32_t rc = plugin.get_keysystems("unknown", response);
 
-    EXPECT_EQ(WPEFramework::Core::ERROR_BAD_REQUEST, rc);
+    EXPECT_EQ(Thunder::Core::ERROR_BAD_REQUEST, rc);
     EXPECT_EQ(0u, response.Length());
 
     fake->Release();
@@ -165,7 +165,7 @@ TEST(PluginOcdmJsonRpcInterfaceL1Tests, GetKeysystemsForKnownSystemCanReturnEmpt
     ArrayType<String> response;
     const uint32_t rc = plugin.get_keysystems("playready", response);
 
-    EXPECT_EQ(WPEFramework::Core::ERROR_NONE, rc);
+    EXPECT_EQ(Thunder::Core::ERROR_NONE, rc);
     EXPECT_EQ(0u, response.Length());
 
     fake->Release();
@@ -188,7 +188,7 @@ TEST(PluginOcdmJsonRpcInterfaceL1Tests, GetKeysystemsWithEmptySystemNameReturnsB
     ArrayType<String> response;
     const uint32_t rc = plugin.get_keysystems("", response);
 
-    EXPECT_EQ(WPEFramework::Core::ERROR_BAD_REQUEST, rc);
+    EXPECT_EQ(Thunder::Core::ERROR_BAD_REQUEST, rc);
     EXPECT_EQ(0u, response.Length());
 
     fake->Release();
@@ -199,8 +199,8 @@ TEST(PluginOcdmJsonRpcInterfaceL1Tests, FakeContentDecryptionInitializeResetAndD
 {
     auto* fake = new FakeContentDecryption();
 
-    EXPECT_EQ(WPEFramework::Core::ERROR_NONE, fake->Initialize(nullptr));
-    EXPECT_EQ(WPEFramework::Core::ERROR_NONE, fake->Reset());
+    EXPECT_EQ(Thunder::Core::ERROR_NONE, fake->Initialize(nullptr));
+    EXPECT_EQ(Thunder::Core::ERROR_NONE, fake->Reset());
     fake->Deinitialize(nullptr);
 
     fake->Release();

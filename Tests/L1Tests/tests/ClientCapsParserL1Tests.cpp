@@ -24,7 +24,7 @@
 
 #include "CapsParser.h"
 
-using WPEFramework::Plugin::CapsParser;
+using Thunder::Plugin::CapsParser;
 
 namespace {
 

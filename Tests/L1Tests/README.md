@@ -53,11 +53,15 @@ The runner performs these steps:
 3. Builds and installs the test executable into `Tests/L1Tests/install`.
 4. Runs the discovered L1 test executable.
 
-Test results are written to per-runner JSON files under:
+Test results are written to per-runner JSON files under:
 
-- `Tests/L1Tests/build/OpenCDMIL1Tests.json`
-- `Tests/L1Tests/build/OpenCDMIClientCoreL1Tests.json`
-- `Tests/L1Tests/build/OpenCDMIAdapterRdkL1Tests.json`
+
+- `Tests/L1Tests/build/OpenCDMIL1Tests.json`
+
+- `Tests/L1Tests/build/OpenCDMIClientCoreL1Tests.json`
+
+- `Tests/L1Tests/build/OpenCDMIAdapterRdkL1Tests.json`
+
 
 - Tests/L1Tests/build/OpenCDMIAdapterRdkL1Tests.json
 
@@ -111,17 +115,17 @@ The runner searches these locations by default:
 ```text
 <repository>/install/usr/lib/cmake
 <repository>/install/lib/cmake
-/usr/local/lib/cmake
+/usr/local/lib/cmakeThunderThunder
 /usr/lib/cmake
 ```
 
-It expects to find at least `WPEFrameworkConfig.cmake` and the WPEFramework plugins package configuration below one of those roots.
+It expects to find at least `ThunderConfig.cmake` and the Thunder plugins package configuration below one of those roots.
 
-## Troubleshooting
+## TroubleshootingThunderThunder
 
 ### Missing CMake package configs
 
-If the runner reports missing `WPEFrameworkConfig.cmake` or `WPEFrameworkPluginsConfig.cmake`, build the dependencies first:
+If the runner reports missing `ThunderConfig.cmake` or `ThunderPluginsConfig.cmake`, build the dependencies first:
 
 ```bash
 sudo ./build_dependencies.sh

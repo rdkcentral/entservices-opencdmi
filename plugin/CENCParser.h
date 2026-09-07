@@ -23,7 +23,7 @@
 #include "Module.h"
 #include "Protobuf.h"
 
-namespace WPEFramework {
+namespace Thunder {
 namespace Plugin {
 
     //This class is not Thread Safe. The user of this class must ensure thread saftey (single thread access) !!!!
@@ -606,6 +606,6 @@ namespace Plugin {
         std::list<KeyId> _keyIds;
     };
 }
-} // namespace WPEFramework::Plugin
+} // namespace Thunder::Plugin
 
 #endif // __CENCPARSER_H

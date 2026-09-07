@@ -24,7 +24,7 @@ OpenCDMError opencdm_parse_keysystem(std::string& keySystemDomain);
 
 MODULE_NAME_DECLARATION(BUILD_REFERENCE)
 
-using namespace WPEFramework;
+using namespace Thunder;
 
 Core::CriticalSection _systemLock;
 const char EmptyString[] = { '\0' };

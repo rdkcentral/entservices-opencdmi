@@ -35,7 +35,7 @@ extern "C" {
 typedef ::CDMi::ISystemFactory* (*GetDRMSystemFunction)();
 }
 
-namespace WPEFramework {
+namespace Thunder {
 
 namespace Plugin {
 
@@ -1649,4 +1649,4 @@ namespace Plugin {
 
     SERVICE_REGISTRATION(OCDMImplementation, 1, 0);
 }
-} /* namespace WPEFramework::Plugin */
+} /* namespace Thunder::Plugin */

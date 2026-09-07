@@ -24,7 +24,7 @@
 #define API_VERSION_NUMBER_MINOR 0
 #define API_VERSION_NUMBER_PATCH 4
 
-namespace WPEFramework {
+namespace Thunder {
 
 namespace {
 
@@ -138,7 +138,7 @@ namespace Plugin {
 
             if (connection != nullptr) {
 
-                _memory = WPEFramework::OCDM::MemoryObserver(connection);
+                _memory = Thunder::OCDM::MemoryObserver(connection);
                 ASSERT(_memory != nullptr);
 
                 connection->Release();
@@ -304,4 +304,4 @@ namespace Plugin {
         }
     }
 }
-} //namespace WPEFramework::Plugin
+} //namespace Thunder::Plugin

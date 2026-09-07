@@ -2,7 +2,7 @@
 
 ## Overview
 
-The OpenCDMi (Open Content Decryption Module interface) plugin is a WPEFramework component that provides content decryption and Digital Rights Management (DRM) capabilities for RDK devices. It serves as a standardized interface between media applications and various DRM systems (PlayReady, Widevine, ClearKey) enabling secure playback of premium encrypted content across different platforms.
+The OpenCDMi (Open Content Decryption Module interface) plugin is a Thunder component that provides content decryption and Digital Rights Management (DRM) capabilities for RDK devices. It serves as a standardized interface between media applications and various DRM systems (PlayReady, Widevine, ClearKey) enabling secure playback of premium encrypted content across different platforms.
 
 ## System Architecture
 
