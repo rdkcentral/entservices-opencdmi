@@ -651,6 +651,31 @@ EXTERNAL OpenCDMError opencdm_session_decrypt_v2(struct OpenCDMSession* session,
     const MediaProperties* streamProperties);
 
 /**
+ * \brief Performs decryption.
+ *
+ * This method accepts encrypted data and will typically decrypt it
+ * out-of-process (for security reasons). The actual data copying is performed
+ * using a memory-mapped file (for performance reasons). If the DRM system
+ * allows access to decrypted data (i.e. decrypting is not
+ * performed in a TEE), the decryption is performed in-place.
+ * \param session \ref OpenCDMSession instance.
+ * \param encrypted Buffer containing encrypted data. If applicable, decrypted
+ * data will be stored here after this call returns.
+ * \param encryptedLength Length of encrypted data buffer (in bytes).
+ * \param sampleInfo An array of per sample information needed to decrypt the content
+ * \param sampleInfoLength Number of samples to be decrypted
+ * \param streamProperties Provides info about current stream - related to all samples in sampleInfo array
+ * \return Zero on success, non-zero on error.
+ */
+
+EXTERNAL OpenCDMError opencdm_session_decrypt_v3(struct OpenCDMSession* session,
+    uint8_t encrypted[],
+    const uint32_t encryptedLength,
+    const SampleInfo* sampleInfo,
+    const uint32_t sampleInfoLength,
+    const MediaProperties* streamProperties);
+
+/**
  * @brief Close the cached open connection if it exists.
  *
  */

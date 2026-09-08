@@ -549,6 +549,64 @@ private:
             return (ret);
         }
 
+        // RDKDEV-1281: multi-sample decrypt, added alongside Decrypt() above (which is left
+        // untouched) rather than extending it. Requires a corresponding additive SetSamples(...)
+        // method on Exchange::DataExchange (entservices-apis) next to the existing SetIV/KeyId/
+        // SubSample/SetEncScheme/SetEncPattern/InitWithLast15 setters used by Decrypt().
+        uint32_t DecryptMulti(uint8_t* encryptedData, uint32_t encryptedDataLength,
+            const ::SampleInfo* sampleInfo, const uint32_t sampleInfoLength,
+            uint32_t initWithLast15,
+            const ::MediaProperties* properties)
+        {
+            int ret = 0;
+
+            _systemLock.Lock();
+
+            _busy = true;
+
+            if (RequestProduce(Core::infinite) == Core::ERROR_NONE) {
+
+                if (sampleInfo != nullptr) {
+                    //Here there is translation of ::SampleInfo into CDMi::SampleInfo.
+                    //A cast is used since the definitions of those structures are exactly the same.
+                    //This applies to sub-structures, data types used, enumerations, order of fields, etc.
+                    //In case this is not satisfied - cast may give unexpected results and e.g. decryption may fail with
+                    //difficult to identify reasons.
+                    //When extending any of the structures consider extending the other or introduce some kind of translation between them.
+                    const CDMi::SampleInfo* samples = reinterpret_cast<const CDMi::SampleInfo *>(sampleInfo);
+                    SetSamples(sampleInfoLength, samples, initWithLast15);
+                }
+                if (properties != nullptr) {
+                    SetMediaProperties(properties->height, properties->width, properties->media_type);
+                }
+
+                Write(encryptedDataLength, encryptedData);
+
+                // This will trigger the OpenCDMIServer to decrypt this memory...
+                Produced();
+
+                // Now we should wait till it is decrypted, that happens if the
+                // Producer, can run again.
+                if (RequestProduce(Core::infinite) == Core::ERROR_NONE) {
+
+                    // For nowe we just copy the clear data..
+                    Read(encryptedDataLength, encryptedData);
+
+                    // Get the status of the last decrypt.
+                    ret = Status();
+
+                    // And free the lock, for the next production Scenario..
+                    Consumed();
+                }
+            }
+
+            _busy = false;
+
+            _systemLock.Unlock();
+
+            return (ret);
+        }
+
     private:
         bool _busy;
     };
@@ -734,6 +792,37 @@ public:
             if(result)
             {
                 TRACE_L1("Decrypt() failed with return code: %x", result);
+                result = OpenCDMError::ERROR_UNKNOWN;
+            }
+        }
+        return (result);
+    }
+
+    // RDKDEV-1281: multi-sample decrypt, added alongside Decrypt() above rather than
+    // extending its signature, so existing single-sample callers/behaviour are unaffected.
+    uint32_t DecryptMulti(uint8_t* encryptedData, const uint32_t encryptedDataLength,
+        const ::SampleInfo* sampleInfo, const uint32_t sampleInfoLength,
+        uint32_t initWithLast15,
+        const ::MediaProperties* properties)
+    {
+        uint32_t result = OpenCDMError::ERROR_INVALID_DECRYPT_BUFFER;
+
+        // lazy create decryptbuffer
+        if(_decryptSession == nullptr) {
+            DecryptSession(_session);
+        }
+
+        // prevent unnecesary double atomic access
+        DataExchange* decryptSession = _decryptSession;
+
+        if (decryptSession != nullptr) {
+            result = decryptSession->DecryptMulti(encryptedData, encryptedDataLength,
+                sampleInfo, sampleInfoLength,
+                initWithLast15,
+                properties);
+            if(result)
+            {
+                TRACE_L1("DecryptMulti() failed with return code: %x", result);
                 result = OpenCDMError::ERROR_UNKNOWN;
             }
         }
