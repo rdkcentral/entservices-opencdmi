@@ -252,9 +252,21 @@ OpenCDMError opencdm_gstreamer_session_decrypt_buffer_multi(struct OpenCDMSessio
         std::vector<uint8_t> keyId;
         copyKeyIdFromProtectionMeta(vbuff[0], keyId);
 
-        result = decryptWithOutputRestrictedRetry(session, keyId, [=]() {
-            return opencdm_gstreamer_session_decrypt_buffer_multi_once(session, vbuff, caps);
-        });
+        if (gst_svp_is_multiple_decrypt_supported()) {
+            result = decryptWithOutputRestrictedRetry(session, keyId, [=]() {
+                return opencdm_gstreamer_session_decrypt_buffer_multi_once(session, vbuff, caps);
+            });
+        } else {
+            for (size_t vBuffIdx = 0; vBuffIdx < vbuff.size(); ++vBuffIdx) {
+                const std::vector<GstBuffer*> tmpVec {vbuff[vBuffIdx]};
+                result = decryptWithOutputRestrictedRetry(session, keyId, [=]() {
+                    return opencdm_gstreamer_session_decrypt_buffer_multi_once(session, tmpVec, caps);
+                });
+                if (result != ERROR_NONE) {
+                    break;
+                }
+            }
+        }
     }
     return result;
 }

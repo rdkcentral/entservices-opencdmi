@@ -678,8 +678,14 @@ OpenCDMError opencdm_gstreamer_session_decrypt_buffer_multi_once(struct OpenCDMS
 
                    if(result == ERROR_NONE) {
                        GstPerf* svpTransform_perf3 = new GstPerf("opencdm_svp_transform_subsample");
-                       if (!gst_buffer_vector_append_svp_transform(session->SessionPrivateData(), vbuffToDecrypt, svpData, totalBytesToDecrypt)) {
-                           result = ERROR_FAIL;
+                       if (vbuffToDecrypt.size() == 1) {
+                           if (!gst_buffer_append_svp_transform(session->SessionPrivateData(), vbuffToDecrypt[0], vProtectionInfo[0].subSamplesGstBuf, vProtectionInfo[0].subSamplesCount, svpData, totalBytesToDecrypt)) {
+                               result = ERROR_FAIL;
+                           }
+                       } else {
+                           if (!gst_buffer_vector_append_svp_transform(session->SessionPrivateData(), vbuffToDecrypt, svpData, totalBytesToDecrypt)) {
+                               result = ERROR_FAIL;
+                           }
                        }
                        delete svpTransform_perf3;
                    }
