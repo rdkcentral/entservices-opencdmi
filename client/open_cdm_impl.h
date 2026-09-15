@@ -549,6 +549,7 @@ private:
             return (ret);
         }
 
+#ifdef ENABLE_MULTI_DECRYPT
         // RDKDEV-1281: multi-sample decrypt, added alongside Decrypt() above (which is left
         // untouched) rather than extending it. Requires a corresponding additive SetSamples(...)
         // method on Exchange::DataExchange (entservices-apis) next to the existing SetIV/KeyId/
@@ -606,6 +607,7 @@ private:
 
             return (ret);
         }
+#endif // ENABLE_MULTI_DECRYPT
 
     private:
         bool _busy;
@@ -798,6 +800,7 @@ public:
         return (result);
     }
 
+#ifdef ENABLE_MULTI_DECRYPT
     // RDKDEV-1281: multi-sample decrypt, added alongside Decrypt() above rather than
     // extending its signature, so existing single-sample callers/behaviour are unaffected.
     uint32_t DecryptMulti(uint8_t* encryptedData, const uint32_t encryptedDataLength,
@@ -828,6 +831,7 @@ public:
         }
         return (result);
     }
+#endif // ENABLE_MULTI_DECRYPT
 
     void* SessionPrivateData() const
     {

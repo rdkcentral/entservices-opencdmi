@@ -658,6 +658,7 @@ exit:
 // independent on purpose so existing single-decrypt behaviour/tests are
 // unaffected by this addition.
 // ============================================================================
+#ifdef ENABLE_MULTI_DECRYPT
 
 namespace {
 
@@ -1145,3 +1146,4 @@ OpenCDMError opencdm_gstreamer_session_decrypt_buffer_multi_once(struct OpenCDMS
 
     return result;
 }
+#endif // ENABLE_MULTI_DECRYPT

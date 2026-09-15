@@ -243,6 +243,7 @@ OpenCDMError opencdm_gstreamer_session_decrypt_buffer(struct OpenCDMSession* ses
     });
 }
 
+#ifdef ENABLE_MULTI_DECRYPT
 OpenCDMError opencdm_gstreamer_session_decrypt_buffer_multi(struct OpenCDMSession* session, const std::vector<GstBuffer*> &vbuff, GstCaps* caps)
 {
     RDKPerf(__FUNCTION__);
@@ -258,3 +259,4 @@ OpenCDMError opencdm_gstreamer_session_decrypt_buffer_multi(struct OpenCDMSessio
     }
     return result;
 }
+#endif // ENABLE_MULTI_DECRYPT
