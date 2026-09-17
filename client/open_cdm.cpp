@@ -736,7 +736,7 @@ OpenCDMError opencdm_session_decrypt_v3(struct OpenCDMSession* session,
     uint8_t encrypted[],
     const uint32_t encryptedLength,
     const SampleInfo* sampleInfo,
-    const uint32_t sampleInfoLength,
+    const uint32_t sampleInfoLength = 1,
     const MediaProperties* properties) {
 
     OpenCDMError result(OpenCDMError::ERROR_INVALID_SESSION);
