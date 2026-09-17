@@ -728,6 +728,30 @@ OpenCDMError opencdm_session_decrypt_v2(struct OpenCDMSession* session,
     return (result);
 }
 
+#ifdef ENABLE_MULTI_DECRYPT
+// RDKDEV-1281: multi-sample decrypt. Implemented as an independent function/call-chain
+// (session->DecryptMulti(...)) rather than extending opencdm_session_decrypt_v2()/session->Decrypt(),
+// so the existing single-sample flow above is left untouched.
+OpenCDMError opencdm_session_decrypt_v3(struct OpenCDMSession* session,
+    uint8_t encrypted[],
+    const uint32_t encryptedLength,
+    const SampleInfo* sampleInfo,
+    const uint32_t sampleInfoLength = 1,
+    const MediaProperties* properties) {
+
+    OpenCDMError result(OpenCDMError::ERROR_INVALID_SESSION);
+    ASSERT(session != nullptr);
+
+    if (session != nullptr) {
+        uint32_t initWithLast15 = 0;
+        result = encryptedLength > 0 ? static_cast<OpenCDMError>(session->DecryptMulti(
+            encrypted, encryptedLength, sampleInfo, sampleInfoLength, initWithLast15, properties)) : OpenCDMError::ERROR_NONE;
+    }
+
+    return (result);
+}
+#endif // ENABLE_MULTI_DECRYPT
+
 /**
  * \brief Get metrics associated with a DRM session.
  *

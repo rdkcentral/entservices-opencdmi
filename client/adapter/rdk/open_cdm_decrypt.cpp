@@ -242,3 +242,21 @@ OpenCDMError opencdm_gstreamer_session_decrypt_buffer(struct OpenCDMSession* ses
         return opencdm_gstreamer_session_decrypt_buffer_once(session, buffer, caps);
     });
 }
+
+#ifdef ENABLE_MULTI_DECRYPT
+OpenCDMError opencdm_gstreamer_session_decrypt_buffer_multi(struct OpenCDMSession* session, const std::vector<GstBuffer*> &vbuff, GstCaps* caps)
+{
+    RDKPerf(__FUNCTION__);
+    OpenCDMError result(OpenCDMError::ERROR_INVALID_ARG);
+
+    if (!vbuff.empty()) {
+        std::vector<uint8_t> keyId;
+        copyKeyIdFromProtectionMeta(vbuff[0], keyId);
+
+        result = decryptWithOutputRestrictedRetry(session, keyId, [=]() {
+            return opencdm_gstreamer_session_decrypt_buffer_multi_once(session, vbuff, caps);
+        });
+    }
+    return result;
+}
+#endif // ENABLE_MULTI_DECRYPT
