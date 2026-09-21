@@ -35,233 +35,12 @@
 typedef gboolean (*svp_set_value_fn_t)(void *, const char *, void *, const size_t);
 static svp_set_value_fn_t s_svpSetValueFn = nullptr;
 
-namespace {
-    void swapIVBytes(uint8_t *mappedIV,uint32_t mappedIVSize)
-    {
-        for (uint32_t i = 0; i < mappedIVSize / 2; i++) {
-            uint8_t buf = mappedIV[i];
-            mappedIV[i] = mappedIV[mappedIVSize - i - 1];
-            mappedIV[mappedIVSize - i - 1] = buf;
-        }
-    }
+namespace
+{
+constexpr uint32_t kMaxIvSize = 16;
 
-    bool mapBuffer(GstBuffer *buffer, GstMapFlags flags, GstMapInfo *map, uint8_t **data, uint32_t *size)
-    {
-        bool ret{false};
-        if (gst_buffer_map (buffer, map, flags)) {
-            *data = reinterpret_cast<uint8_t* >(map->data);
-            *size = static_cast<uint32_t >(map->size);
-            ret = true;
-        }
-        return ret;
-    }
+} // namespace
 
-    struct ProtectionMetaInfo
-    {
-        gboolean encrypted{};
-        uint8_t *dataBuf{nullptr};
-        uint32_t dataSize{};
-        GstMapInfo dataBufMap{};
-        uint8_t *ivBuf{nullptr};
-        uint32_t ivSize{};
-        GstMapInfo ivBufMap{};
-        GstBuffer *ivGstBuf{nullptr};
-        uint8_t *keyIdBuf{nullptr};
-        uint32_t keyIdSize{};
-        GstMapInfo keyIdBufMap{};
-        GstBuffer *keyIdGstBuf{nullptr};
-        uint8_t *subSamplesBuf{nullptr};
-        uint32_t subSamplesSize{};
-        GstMapInfo subSamplesBufMap{};
-        GstBuffer *subSamplesGstBuf{nullptr};
-        uint32_t subSamplesCount{};
-        EncryptionPattern pattern{0, 0};
-        EncryptionScheme encScheme{EncryptionScheme::Clear};
-    };
-
-    OpenCDMError extractProtectionMeta(std::vector<GstBuffer*> const& vbuff, std::vector<ProtectionMetaInfo>& metaInfo)
-    {
-        OpenCDMError result{ERROR_NONE};
-        const GValue* value{nullptr};
-
-        ASSERT(vbuff.size() == metaInfo.size());
-
-        for (size_t vBuffIdx = 0; vBuffIdx < vbuff.size(); ++vBuffIdx) {
-            GstProtectionMeta* protectionMeta = gst_buffer_get_protection_meta(vbuff[vBuffIdx]);
-            if (protectionMeta) {
-                if (!gst_structure_get_uint(protectionMeta->info, "subsample_count", &metaInfo[vBuffIdx].subSamplesCount)) {
-                    TRACE_L1("Missing subsample count in protectionMeta");
-                }
-                if (metaInfo[vBuffIdx].subSamplesCount) {
-                    value = gst_structure_get_value(protectionMeta->info, "subsamples");
-                    if (value) {
-                        metaInfo[vBuffIdx].subSamplesGstBuf = gst_value_get_buffer(value);
-                        if (metaInfo[vBuffIdx].subSamplesGstBuf && (mapBuffer(metaInfo[vBuffIdx].subSamplesGstBuf, GST_MAP_READ,
-                                &metaInfo[vBuffIdx].subSamplesBufMap, &metaInfo[vBuffIdx].subSamplesBuf, &metaInfo[vBuffIdx].subSamplesSize) == false)) {
-
-                            TRACE_L1("Invalid subsamples buffer");
-                            result = ERROR_INVALID_DECRYPT_BUFFER;
-                            break;
-                        }
-                    } else {
-                        TRACE_L1("Missing subsamples buffer");
-                        result = ERROR_INVALID_DECRYPT_BUFFER;
-                        break;
-                    }
-                }
-
-                value = gst_structure_get_value(protectionMeta->info, "iv");
-                if (value) {
-                    metaInfo[vBuffIdx].ivGstBuf = gst_value_get_buffer(value);
-                    if(metaInfo[vBuffIdx].ivGstBuf && (mapBuffer(metaInfo[vBuffIdx].ivGstBuf, GST_MAP_READ, &metaInfo[vBuffIdx].ivBufMap,
-                            &metaInfo[vBuffIdx].ivBuf, &metaInfo[vBuffIdx].ivSize) == false)) {
-                        TRACE_L1("Invalid IV buffer");
-                        result = ERROR_INVALID_DECRYPT_BUFFER;
-                        break;
-                    }
-                } else {
-                    TRACE_L1("Missing IV buffer");
-                    result = ERROR_INVALID_DECRYPT_BUFFER;
-                    break;
-                }
-
-                unsigned initWithLast15 = 0;
-                if (!gst_structure_get_uint(protectionMeta->info, "initWithLast15", &initWithLast15)) {
-                    TRACE_L3("Missing initWithLast15 value.");
-                }
-                if (initWithLast15 == 1) {
-                    swapIVBytes(metaInfo[vBuffIdx].ivBuf, metaInfo[vBuffIdx].ivSize);
-                }
-
-                if(mapBuffer(vbuff[vBuffIdx], GST_MAP_READWRITE, &metaInfo[vBuffIdx].dataBufMap, &metaInfo[vBuffIdx].dataBuf, &metaInfo[vBuffIdx].dataSize) == false) {
-                    TRACE_L1("Invalid buffer");
-                    result = ERROR_INVALID_DECRYPT_BUFFER;
-                    break;
-                }
-
-                value = gst_structure_get_value(protectionMeta->info, "kid");
-                if (value) {
-                    metaInfo[vBuffIdx].keyIdGstBuf = gst_value_get_buffer(value);
-                    if(metaInfo[vBuffIdx].keyIdGstBuf && (mapBuffer(metaInfo[vBuffIdx].keyIdGstBuf, GST_MAP_READ, &metaInfo[vBuffIdx].keyIdBufMap,
-                            &metaInfo[vBuffIdx].keyIdBuf, &metaInfo[vBuffIdx].keyIdSize) == false)) {
-                        TRACE_L1("Invalid key id buffer");
-                        result = ERROR_INVALID_DECRYPT_BUFFER;
-                        break;
-                    }
-                } else {
-                    TRACE_L1("Missing key id buffer");
-                    result = ERROR_INVALID_DECRYPT_BUFFER;
-                    break;
-                }
-
-                //Get Enc Scheme and Pattern
-                metaInfo[vBuffIdx].encScheme = AesCtr_Cenc;
-                if (gst_structure_has_name(protectionMeta->info, "application/x-cbcs")) {
-                    metaInfo[vBuffIdx].encScheme = AesCbc_Cbcs;
-                } else {
-                    const char* cipherModeBuf = gst_structure_get_string(protectionMeta->info, "cipher-mode");
-                    if(g_strcmp0(cipherModeBuf, "cbcs") == 0) {
-                        metaInfo[vBuffIdx].encScheme = AesCbc_Cbcs;
-                    }
-                }
-                gst_structure_get_uint(protectionMeta->info, "crypt_byte_block", &metaInfo[vBuffIdx].pattern.encrypted_blocks);
-                gst_structure_get_uint(protectionMeta->info, "skip_byte_block", &metaInfo[vBuffIdx].pattern.clear_blocks);
-            } else {
-                TRACE_L1("Missing Protection Metadata");
-            }
-        }
-
-        return result;
-    }
-
-    void extractMediaInfo(const GstCaps* caps, MediaProperties &streamProperties, bool &isSecureMemoryDisabled)
-    {
-        //Get Stream Properties from GstCaps
-        gchar *capsStr = gst_caps_to_string (caps);
-        if (capsStr != nullptr) {
-            WPEFramework::Plugin::CapsParser capsParser;
-            capsParser.Parse(reinterpret_cast<const uint8_t*>(capsStr), strlen(capsStr));
-            streamProperties.height = capsParser.GetHeight();
-            streamProperties.width = capsParser.GetWidth();
-            switch (capsParser.GetMediaType()) {
-                case CDMi::MediaType::Video:
-                    streamProperties.media_type = MediaType_Video;
-                    if (capsParser.IsSecureMemoryDisabled()) {
-                        isSecureMemoryDisabled = true;
-                        TRACE_L1("Secure Memory Preallocation disabled as decrypt-to-host is set\n");
-                    }
-                    break;
-
-                case CDMi::MediaType::Audio:
-                    streamProperties.media_type = MediaType_Audio;
-                    break;
-
-                case CDMi::MediaType::Data:
-                    streamProperties.media_type = MediaType_Data;
-                    break;
-
-                default:
-                    streamProperties.media_type = MediaType_Unknown;
-                    break;
-            }
-
-            g_free(capsStr);
-        } else {
-            TRACE_L1("Could not convert caps to string");
-        }
-    }
-
-    media_type toMediaType(const MediaProperties &streamProperties)
-    {
-        media_type mediaType {Unknown};
-        switch(streamProperties.media_type) {
-            case MediaType_Video:
-                mediaType = Video;
-                break;
-            case MediaType_Audio:
-                mediaType = Audio;
-                break;
-            case MediaType_Data:
-                mediaType = Data;
-                break;
-            case MediaType_Unknown:
-                mediaType = Unknown;
-                break;
-        }
-        return mediaType;
-    }
-
-    std::string toString(const media_type &mediaType)
-    {
-        std::string typeStr;
-        switch(mediaType) {
-            case Video:
-                typeStr = "Video";
-                break;
-            case Audio:
-                typeStr = "Audio";
-                break;
-            case Data:
-                typeStr = "Data";
-                break;
-            case Unknown:
-                typeStr = "Unknown";
-                break;
-        }
-        return typeStr;
-    }
-
-    bool keyIdsEqual(uint8_t *lhsBuf, uint32_t lhsSize, uint8_t *rhsBuf, uint32_t rhsSize)
-    {
-        bool equal = true;
-        if ( (lhsSize != rhsSize) || (lhsBuf == nullptr) || (rhsBuf == nullptr)) {
-            equal = false;
-        } else {
-            equal = (memcmp(lhsBuf, rhsBuf, lhsSize) == 0);
-        }
-        return equal;
-    }
-}
 
 EXTERNAL OpenCDMError opencdm_gstreamer_transform_caps(GstCaps** caps)
 {
@@ -271,6 +50,17 @@ EXTERNAL OpenCDMError opencdm_gstreamer_transform_caps(GstCaps** caps)
         result = ERROR_UNKNOWN;
 
     return (result);
+}
+
+bool swapIVBytes(uint8_t *mappedIV,uint32_t mappedIVSize)
+{
+    for (uint32_t i = 0; i < mappedIVSize / 2; i++) {
+        uint8_t buf = mappedIV[i];
+        mappedIV[i] = mappedIV[mappedIVSize - i - 1];
+        mappedIV[mappedIVSize - i - 1] = buf;
+    }
+
+    return true;
 }
 
 uint32_t opencdm_construct_session_private(struct OpenCDMSession* session, void* &pvtData)
@@ -459,7 +249,639 @@ OpenCDMError opencdm_gstreamer_session_decrypt_once(struct OpenCDMSession* sessi
     return (result);
 }
 
-void extend_subsample_map(std::vector<SubSampleInfo> &subSampleVector, uint32_t frameSize, uint32_t totalSubsampleBytes)
+OpenCDMError extend_subsample_map(SubSampleInfo** subSampleInfoPtr, unsigned int* subSampleCount, uint32_t bufferSize, uint32_t totalBytes)
+{
+    SubSampleInfo* subSampleInfoPtrLocal = *subSampleInfoPtr;
+
+    RDKPerf perf_subsample(__FUNCTION__);
+
+    // Add an extra subsample(s) entry to account for the size mismatch
+    uint32_t additional_bytes = bufferSize - totalBytes;
+    uint32_t extra_subsamples = 0;
+    // Calculate how many extra subsamples are needed to fit 16bit clear data size
+    while (additional_bytes > 0) {
+        uint16_t clear_bytes = 0;
+        if (additional_bytes > 0xFFFF) {
+            clear_bytes = 0xFFFF;
+        } else {
+            clear_bytes = static_cast<uint16_t>(additional_bytes);
+        }
+        additional_bytes -= clear_bytes;
+        extra_subsamples += 1;
+    }
+    uint32_t newSubSampleCount = *subSampleCount + extra_subsamples;
+    SubSampleInfo* tmp = reinterpret_cast<SubSampleInfo*>(realloc(subSampleInfoPtrLocal, newSubSampleCount * sizeof(SubSampleInfo)));
+    if(tmp != nullptr) {
+        subSampleInfoPtrLocal = tmp;
+        *subSampleCount = newSubSampleCount;
+        while(extra_subsamples > 1) {
+            // Fill in the extra subsample entries with max clear size
+            subSampleInfoPtrLocal[*subSampleCount - extra_subsamples].clear_bytes = 0xFFFF;
+            subSampleInfoPtrLocal[*subSampleCount - extra_subsamples].encrypted_bytes = 0;
+            extra_subsamples--;
+            totalBytes += 0xFFFF;
+        }
+        subSampleInfoPtrLocal[*subSampleCount - 1].clear_bytes = bufferSize - totalBytes;
+        subSampleInfoPtrLocal[*subSampleCount - 1].encrypted_bytes = 0;
+    } else {
+        RDKPerf perf_alloc_fail("SubsampleSizeFixAllocFail");
+        TRACE_L1("extend_subsample_map: Memory allocation failed when adjusting subsample mapping.");
+
+        return ERROR_OUT_OF_MEMORY;
+    }
+    // Copy the newly allocated subsample info back to the caller
+    *subSampleInfoPtr = subSampleInfoPtrLocal;
+    return ERROR_NONE;
+}
+
+OpenCDMError validate_subsample_map(SubSampleInfo** subSampleInfoPtr, unsigned int* subSampleCount, uint32_t frameSize, uint32_t totalMappedBytes)
+{
+    OpenCDMError retVal = ERROR_NONE;
+
+    if(frameSize == 0 || subSampleInfoPtr == nullptr || *subSampleInfoPtr == nullptr || subSampleCount == nullptr || *subSampleCount == 0) {
+        // Unable to fully validate the subsample map, but nothing to validate against
+       // return ERROR_NONE and use the existing code path
+        return retVal;
+    }
+    if(frameSize == totalMappedBytes) {
+        // Perfect match, no need to adjust anything
+        retVal = ERROR_NONE;
+    }
+    else if(frameSize > totalMappedBytes) {
+        TRACE_L3("opencdm_gstreamer_session_decrypt_buffer: Subsample mapping size mismatch. FrameSize: %u, TotalBytes from SubsampleInfo: %u",
+                 frameSize, totalMappedBytes);
+        retVal = extend_subsample_map(subSampleInfoPtr, subSampleCount, frameSize, totalMappedBytes);
+    }
+    else if(frameSize < totalMappedBytes) {
+        TRACE_L1("opencdm_gstreamer_session_decrypt_buffer: Subsample mapping size exceeds data size. FrameSize: %u, TotalBytes from SubsampleInfo: %u",
+                 frameSize, totalMappedBytes);
+        retVal = ERROR_INVALID_DECRYPT_BUFFER;
+    }
+
+    return retVal;
+}
+
+OpenCDMError opencdm_gstreamer_session_decrypt_buffer_once(struct OpenCDMSession* session, GstBuffer* buffer, GstCaps* caps) {
+
+    OpenCDMError result (ERROR_INVALID_SESSION);
+
+    if (session != nullptr) {
+
+        GstMapInfo dataMap = { 0 };
+        if (gst_buffer_map(buffer, &dataMap, (GstMapFlags) GST_MAP_READWRITE) == false) {
+
+            TRACE_L1("opencdm_gstreamer_session_decrypt_buffer: Invalid buffer.");
+            result = ERROR_INVALID_DECRYPT_BUFFER;
+            goto exit;
+        }
+
+        media_type mediaType = Data;
+        uint8_t *mappedData = reinterpret_cast<uint8_t* >(dataMap.data);
+        uint32_t mappedDataSize = static_cast<uint32_t >(dataMap.size);
+
+        //Check if Protection Metadata is available in Buffer
+        GstProtectionMeta* protectionMeta = reinterpret_cast<GstProtectionMeta*>(gst_buffer_get_protection_meta(buffer));
+        if (protectionMeta != nullptr) {
+            const GValue* value;
+
+            //Get Subsample mapping
+            unsigned subSampleCount = 0;
+            if (!gst_structure_get_uint(protectionMeta->info, "subsample_count", &subSampleCount)) {
+                TRACE_L1("No Subsample Count.\n");
+            }
+
+            GstBuffer* subSample = nullptr;
+            GstMapInfo sampleMap = { 0 };
+            uint8_t *mappedSubSample = nullptr;
+            uint32_t mappedSubSampleSize = 0;
+            if (subSampleCount > 0) {
+                value = gst_structure_get_value(protectionMeta->info, "subsamples");
+                if (!value) {
+                    TRACE_L1("opencdm_gstreamer_session_decrypt_buffer: No subsample buffer.");
+                    gst_buffer_unmap(buffer, &dataMap);
+                    result = ERROR_INVALID_DECRYPT_BUFFER;
+                    goto exit;
+                }
+
+                subSample = gst_value_get_buffer(value);
+                if (subSample != nullptr && gst_buffer_map(subSample, &sampleMap, GST_MAP_READ) == false) {
+                    TRACE_L1("opencdm_gstreamer_session_decrypt_buffer: Invalid subsample buffer.");
+                    gst_buffer_unmap(buffer, &dataMap);
+                    result = ERROR_INVALID_DECRYPT_BUFFER;
+                    goto exit;
+                }
+                mappedSubSample = reinterpret_cast<uint8_t* >(sampleMap.data);
+                mappedSubSampleSize = static_cast<uint32_t >(sampleMap.size);
+            }
+
+            //Get IV
+            value = gst_structure_get_value(protectionMeta->info, "iv");
+            if (!value) {
+                TRACE_L1("opencdm_gstreamer_session_decrypt_buffer: Missing IV buffer.");
+                gst_buffer_unmap(buffer, &dataMap);
+                gst_buffer_unmap(subSample, &sampleMap);
+                result = ERROR_INVALID_DECRYPT_BUFFER;
+                goto exit;
+            }
+            GstBuffer* IV = gst_value_get_buffer(value);
+
+            GstMapInfo ivMap = { 0 };
+            if (IV != nullptr && gst_buffer_map(IV, &ivMap, (GstMapFlags) GST_MAP_READ) == false) {
+                TRACE_L1("opencdm_gstreamer_session_decrypt_buffer: Invalid IV buffer.");
+                gst_buffer_unmap(buffer, &dataMap);
+                gst_buffer_unmap(subSample, &sampleMap);
+                result = ERROR_INVALID_DECRYPT_BUFFER;
+                goto exit;
+            }
+            uint8_t *mappedIV = reinterpret_cast<uint8_t* >(ivMap.data);
+            uint32_t mappedIVSize = static_cast<uint32_t >(ivMap.size);
+
+            unsigned InitWithLast15 = 0;
+            if (!gst_structure_get_uint(protectionMeta->info, "initWithLast15", &InitWithLast15)) {
+                TRACE_L3("opencdm_gstreamer_session_decrypt_buffer: Missing initWithLast15 value.");
+            }
+            if (InitWithLast15 == 1) {
+                swapIVBytes(mappedIV,mappedIVSize);
+            }
+
+            //Get Key ID
+            value = gst_structure_get_value(protectionMeta->info, "kid");
+            if (!value) {
+                TRACE_L1("opencdm_gstreamer_session_decrypt_buffer: Missing KeyId buffer.");
+                gst_buffer_unmap(buffer, &dataMap);
+                gst_buffer_unmap(subSample, &sampleMap);
+                gst_buffer_unmap(IV, &ivMap);
+                result = ERROR_INVALID_DECRYPT_BUFFER;
+                goto exit;
+            }
+
+            GstBuffer* keyID = gst_value_get_buffer(value);
+
+            uint8_t *mappedKeyID = nullptr;
+            uint32_t mappedKeyIDSize = 0;
+            GstMapInfo keyIDMap = { 0 };
+            if (keyID != nullptr && gst_buffer_map(keyID, &keyIDMap, (GstMapFlags) GST_MAP_READ) == false) {
+                TRACE_L1("Invalid keyID buffer.");
+                gst_buffer_unmap(buffer, &dataMap);
+                gst_buffer_unmap(subSample, &sampleMap);
+                gst_buffer_unmap(IV, &ivMap);
+                result = ERROR_INVALID_DECRYPT_BUFFER;
+                goto exit;
+            }
+            mappedKeyID = reinterpret_cast<uint8_t* >(keyIDMap.data);
+            mappedKeyIDSize = static_cast<uint32_t >(keyIDMap.size);
+
+            std::string perfString(__FUNCTION__);
+            //Get Stream Properties from GstCaps
+            MediaProperties streamProperties = {0};
+            WPEFramework::Plugin::CapsParser capsParser;
+
+            bool isSecureMemoryDisabled = false;
+            if(caps != nullptr){
+                gchar *capsStr = gst_caps_to_string (caps);
+                if (capsStr != nullptr) {
+                    capsParser.Parse(reinterpret_cast<const uint8_t*>(capsStr), strlen(capsStr));
+                    streamProperties.height = capsParser.GetHeight();
+                    streamProperties.width = capsParser.GetWidth();
+                    switch (capsParser.GetMediaType()) {
+                        case CDMi::MediaType::Video:
+                            streamProperties.media_type = MediaType_Video;
+                            mediaType = Video;
+                            if (capsParser.IsSecureMemoryDisabled()) {
+                                isSecureMemoryDisabled = true;
+                                TRACE_L1("Secure Memory Preallocation disabled as decrypt-to-host is set\n");
+                            }
+                            perfString += "_Video";
+                        break;
+
+                        case CDMi::MediaType::Audio:
+                            streamProperties.media_type = MediaType_Audio;
+                            mediaType = Audio;
+                            perfString += "_Audio";
+                        break;
+
+                        case CDMi::MediaType::Data:
+                            streamProperties.media_type = MediaType_Data;
+                            mediaType = Data;
+                            perfString += "_Data";
+                        break;
+
+                        default:
+                            streamProperties.media_type = MediaType_Unknown;
+                            perfString += "_Unknown";
+                        break;
+                    }
+
+                    if (subSample == nullptr && IV == nullptr && keyID == nullptr) {
+                       perfString += "_clearData";
+                    }
+
+                    g_free(capsStr);
+                } else {
+                    perfString += "_NoGstCaps";
+                    TRACE_L1("Could not convert caps to string\n");
+                }
+            }
+            RDKPerf perf(perfString.c_str());
+
+            if (s_svpSetValueFn && session->NeedsDecryptToHostUpdate(capsParser.IsSecureMemoryDisabled())) {
+                const gboolean decryptToHost = capsParser.IsSecureMemoryDisabled() ? TRUE : FALSE;
+                if (!s_svpSetValueFn(session->SessionPrivateData(),
+                                "decryptToHost",
+                                (void*)&decryptToHost,
+                                sizeof(decryptToHost))) {
+                    TRACE_L1("Failed to set decryptToHost=%s in SVP context\n", decryptToHost ? "true" : "false");
+                }
+            }
+
+            if (subSample == nullptr && IV == nullptr && keyID == nullptr) {
+            // no encrypted data, skip decryption...
+            // But still need to transform buffer for SVP support
+                gst_buffer_svp_transform_from_cleardata(session->SessionPrivateData(), buffer, mediaType);
+                gst_buffer_unmap(buffer, &dataMap);
+                return(ERROR_NONE);
+            }
+
+            //Get Encryption Scheme and Pattern
+            EncryptionScheme encScheme = AesCtr_Cenc;
+            EncryptionPattern pattern = {0, 0};
+            const char* cipherModeBuf = gst_structure_get_string(protectionMeta->info, "cipher-mode");
+            if(g_strcmp0(cipherModeBuf,"cbcs") == 0) {
+                encScheme = AesCbc_Cbcs;
+            }
+            gst_structure_get_uint(protectionMeta->info, "crypt_byte_block", &pattern.encrypted_blocks);
+            gst_structure_get_uint(protectionMeta->info, "skip_byte_block", &pattern.clear_blocks);
+
+            //Create a SubSampleInfo Array with mapping
+            SubSampleInfo * subSampleInfoPtr = nullptr;
+            uint32_t total_encrypted_bytes = 0;
+            uint32_t total_mapped_bytes = 0;
+            if (subSample != nullptr) {
+                GstByteReader* reader = gst_byte_reader_new(mappedSubSample, mappedSubSampleSize);
+                subSampleInfoPtr = reinterpret_cast<SubSampleInfo*>(malloc(subSampleCount * sizeof(SubSampleInfo)));
+                for (unsigned int position = 0; position < subSampleCount; position++) {
+
+                    gst_byte_reader_get_uint16_be(reader, &subSampleInfoPtr[position].clear_bytes);
+                    gst_byte_reader_get_uint32_be(reader, &subSampleInfoPtr[position].encrypted_bytes);
+                    total_encrypted_bytes += subSampleInfoPtr[position].encrypted_bytes;
+                    total_mapped_bytes += subSampleInfoPtr[position].clear_bytes + subSampleInfoPtr[position].encrypted_bytes;
+                }
+                // Validate that the subsample mapping matches the data size
+                result = validate_subsample_map(&subSampleInfoPtr, &subSampleCount, mappedDataSize, total_mapped_bytes);
+                if(result != ERROR_NONE) {
+                    TRACE_L1("opencdm_gstreamer_session_decrypt_buffer: Failed to correct subsample mapping.");
+                    gst_buffer_unmap(buffer, &dataMap);
+                    gst_buffer_unmap(subSample, &sampleMap);
+                    gst_buffer_unmap(IV, &ivMap);
+                    gst_buffer_unmap(keyID, &keyIDMap);
+                    free(subSampleInfoPtr);
+                    subSampleInfoPtr = nullptr;
+                    gst_byte_reader_free(reader);
+                    goto exit;
+                 }
+                gst_byte_reader_set_pos(reader, 0);
+                gst_byte_reader_free(reader);
+            } else {
+                 total_encrypted_bytes = mappedDataSize;
+            }
+
+            SampleInfo sampleInfo;
+            sampleInfo.subSample = subSampleInfoPtr;
+            sampleInfo.subSampleCount = subSampleCount;
+            sampleInfo.scheme = encScheme;
+            sampleInfo.pattern.clear_blocks = pattern.clear_blocks;
+            sampleInfo.pattern.encrypted_blocks = pattern.encrypted_blocks;
+            sampleInfo.iv = mappedIV;
+            sampleInfo.ivLength = mappedIVSize;
+            sampleInfo.keyId = mappedKeyID;
+            sampleInfo.keyIdLength = mappedKeyIDSize;
+
+            if(total_encrypted_bytes > 0) {
+               uint8_t* svpData;
+
+              const gboolean needSecureMemoryPrealloc = (streamProperties.media_type == MediaType_Video)
+                                                      && gst_svp_context_supports_memory_prealloc(session->SessionPrivateData())
+                                                      && (!isSecureMemoryDisabled);
+
+              uint32_t dataBlockSize = gst_svp_allocate_data_block(session->SessionPrivateData(),
+                                                                   (void**) &svpData,
+                                                                   mappedDataSize,
+                                                                   mappedDataSize,
+                                                                   needSecureMemoryPrealloc);
+
+               void * encryptedData = reinterpret_cast<uint8_t *>(gst_svp_header_get_start_of_data(session->SessionPrivateData(), svpData));
+
+               memcpy(encryptedData, mappedData, mappedDataSize);
+
+               TokenType tokenType = TokenType::InPlace;
+               if (!gst_svp_header_get_field(session->SessionPrivateData(), svpData, SvpHeaderFieldName::Type, (uint32_t*) &tokenType))
+               {
+                  TRACE_L1("Failed to get type from SVP header");
+               }
+
+               const bool isRevokedAllocation = needSecureMemoryPrealloc 
+                                                && tokenType != TokenType::InPlace
+                                                && tokenType != TokenType::Handle
+                                                && tokenType != TokenType::PreAllocatedHandle;
+
+               if (!isRevokedAllocation)
+               {
+                if(isSecureMemoryDisabled)
+                {
+                   TRACE_L1("Secure Memory Preallocation disabled, Setting TokenType to InPlace");
+                   gst_svp_header_set_field(session->SessionPrivateData(), svpData, SvpHeaderFieldName::Type, (uint32_t)TokenType::InPlace);
+                }
+
+                GstPerf* ocdm_perf = new GstPerf("opencdm_session_decrypt_v2");
+                result = opencdm_session_decrypt_v2(session,
+                                                    svpData,
+                                                    dataBlockSize,
+                                                    &sampleInfo,
+                                                    &streamProperties);
+                delete ocdm_perf;
+               }
+               else
+               {
+                    TRACE_L1("Skipping decrypt as resources have been revoked");
+                    result = ERROR_NONE;
+               }
+
+               if(result == ERROR_NONE) {
+                  GstPerf* svpTransform_perf3 = new GstPerf("opencdm_svp_transform_subsample");
+                  gst_buffer_append_svp_transform(session->SessionPrivateData(), buffer, subSample, subSampleCount, svpData, mappedDataSize);
+                  delete svpTransform_perf3;
+               }
+               gst_svp_free_data_block(session->SessionPrivateData(), svpData);
+           } else {
+               // no encrypted data, skip decryption...
+               // But still need to transform buffer for SVP support
+               gst_buffer_svp_transform_from_cleardata(session->SessionPrivateData(), buffer, mediaType);
+               result = ERROR_NONE;
+           }
+
+            //Clean up
+            if(subSampleInfoPtr != nullptr) {
+               free(subSampleInfoPtr);
+            }
+
+            gst_buffer_unmap(buffer, &dataMap);
+
+            if (subSample != nullptr) {
+              gst_buffer_unmap(subSample, &sampleMap);
+            }
+
+            if (IV != nullptr) {
+               gst_buffer_unmap(IV, &ivMap);
+            }
+
+            if (keyID != nullptr) {
+              gst_buffer_unmap(keyID, &keyIDMap);
+            }
+        } else {
+            TRACE_L1("opencdm_gstreamer_session_decrypt_buffer: Missing Protection Metadata.");
+            result = ERROR_INVALID_DECRYPT_BUFFER;
+        }
+
+    }
+
+exit:
+    return (result);
+}
+
+// ============================================================================
+// RDKDEV-1281: Multi-frame decrypt implementation.
+//
+// Everything below this point is a self-contained addition for
+// opencdm_gstreamer_session_decrypt_buffer_multi_once(). It does not modify,
+// call into, or get called by opencdm_gstreamer_session_decrypt_buffer_once()
+// (single buffer decrypt) above - the two implementations are kept
+// independent on purpose so existing single-decrypt behaviour/tests are
+// unaffected by this addition.
+// ============================================================================
+#ifdef ENABLE_MULTI_DECRYPT
+
+namespace {
+
+    bool mapBuffer(GstBuffer *buffer, GstMapFlags flags, GstMapInfo *map, uint8_t **data, uint32_t *size)
+    {
+        bool ret{false};
+        if (gst_buffer_map (buffer, map, flags)) {
+            *data = reinterpret_cast<uint8_t* >(map->data);
+            *size = static_cast<uint32_t >(map->size);
+            ret = true;
+        }
+        return ret;
+    }
+
+    struct ProtectionMetaInfo
+    {
+        gboolean encrypted{};
+        uint8_t *dataBuf{nullptr};
+        uint32_t dataSize{};
+        GstMapInfo dataBufMap{};
+        uint8_t *ivBuf{nullptr};
+        uint32_t ivSize{};
+        GstMapInfo ivBufMap{};
+        GstBuffer *ivGstBuf{nullptr};
+        uint8_t *keyIdBuf{nullptr};
+        uint32_t keyIdSize{};
+        GstMapInfo keyIdBufMap{};
+        GstBuffer *keyIdGstBuf{nullptr};
+        uint8_t *subSamplesBuf{nullptr};
+        uint32_t subSamplesSize{};
+        GstMapInfo subSamplesBufMap{};
+        GstBuffer *subSamplesGstBuf{nullptr};
+        uint32_t subSamplesCount{};
+        EncryptionPattern pattern{0, 0};
+        EncryptionScheme encScheme{EncryptionScheme::Clear};
+    };
+
+    OpenCDMError extractProtectionMetaMulti(std::vector<GstBuffer*> const& vbuff, std::vector<ProtectionMetaInfo>& metaInfo)
+    {
+        OpenCDMError result{ERROR_NONE};
+        const GValue* value{nullptr};
+
+        ASSERT(vbuff.size() == metaInfo.size());
+
+        for (size_t vBuffIdx = 0; vBuffIdx < vbuff.size(); ++vBuffIdx) {
+            GstProtectionMeta* protectionMeta = gst_buffer_get_protection_meta(vbuff[vBuffIdx]);
+            if (protectionMeta) {
+                if (!gst_structure_get_uint(protectionMeta->info, "subsample_count", &metaInfo[vBuffIdx].subSamplesCount)) {
+                    TRACE_L1("Missing subsample count in protectionMeta");
+                }
+                if (metaInfo[vBuffIdx].subSamplesCount) {
+                    value = gst_structure_get_value(protectionMeta->info, "subsamples");
+                    if (value) {
+                        metaInfo[vBuffIdx].subSamplesGstBuf = gst_value_get_buffer(value);
+                        if (metaInfo[vBuffIdx].subSamplesGstBuf && (mapBuffer(metaInfo[vBuffIdx].subSamplesGstBuf, GST_MAP_READ,
+                                &metaInfo[vBuffIdx].subSamplesBufMap, &metaInfo[vBuffIdx].subSamplesBuf, &metaInfo[vBuffIdx].subSamplesSize) == false)) {
+
+                            TRACE_L1("Invalid subsamples buffer");
+                            result = ERROR_INVALID_DECRYPT_BUFFER;
+                            break;
+                        }
+                    } else {
+                        TRACE_L1("Missing subsamples buffer");
+                        result = ERROR_INVALID_DECRYPT_BUFFER;
+                        break;
+                    }
+                }
+
+                value = gst_structure_get_value(protectionMeta->info, "iv");
+                if (value) {
+                    metaInfo[vBuffIdx].ivGstBuf = gst_value_get_buffer(value);
+                    if(metaInfo[vBuffIdx].ivGstBuf && (mapBuffer(metaInfo[vBuffIdx].ivGstBuf, GST_MAP_READ, &metaInfo[vBuffIdx].ivBufMap,
+                            &metaInfo[vBuffIdx].ivBuf, &metaInfo[vBuffIdx].ivSize) == false)) {
+                        TRACE_L1("Invalid IV buffer");
+                        result = ERROR_INVALID_DECRYPT_BUFFER;
+                        break;
+                    }
+                } else {
+                    TRACE_L1("Missing IV buffer");
+                    result = ERROR_INVALID_DECRYPT_BUFFER;
+                    break;
+                }
+
+                unsigned initWithLast15 = 0;
+                if (!gst_structure_get_uint(protectionMeta->info, "initWithLast15", &initWithLast15)) {
+                    TRACE_L3("Missing initWithLast15 value.");
+                }
+                if (initWithLast15 == 1) {
+                    swapIVBytes(metaInfo[vBuffIdx].ivBuf, metaInfo[vBuffIdx].ivSize);
+                }
+
+                if(mapBuffer(vbuff[vBuffIdx], GST_MAP_READWRITE, &metaInfo[vBuffIdx].dataBufMap, &metaInfo[vBuffIdx].dataBuf, &metaInfo[vBuffIdx].dataSize) == false) {
+                    TRACE_L1("Invalid buffer");
+                    result = ERROR_INVALID_DECRYPT_BUFFER;
+                    break;
+                }
+
+                value = gst_structure_get_value(protectionMeta->info, "kid");
+                if (value) {
+                    metaInfo[vBuffIdx].keyIdGstBuf = gst_value_get_buffer(value);
+                    if(metaInfo[vBuffIdx].keyIdGstBuf && (mapBuffer(metaInfo[vBuffIdx].keyIdGstBuf, GST_MAP_READ, &metaInfo[vBuffIdx].keyIdBufMap,
+                            &metaInfo[vBuffIdx].keyIdBuf, &metaInfo[vBuffIdx].keyIdSize) == false)) {
+                        TRACE_L1("Invalid key id buffer");
+                        result = ERROR_INVALID_DECRYPT_BUFFER;
+                        break;
+                    }
+                } else {
+                    TRACE_L1("Missing key id buffer");
+                    result = ERROR_INVALID_DECRYPT_BUFFER;
+                    break;
+                }
+
+                //Get Enc Scheme and Pattern
+                metaInfo[vBuffIdx].encScheme = AesCtr_Cenc;
+                if (gst_structure_has_name(protectionMeta->info, "application/x-cbcs")) {
+                    metaInfo[vBuffIdx].encScheme = AesCbc_Cbcs;
+                } else {
+                    const char* cipherModeBuf = gst_structure_get_string(protectionMeta->info, "cipher-mode");
+                    if(g_strcmp0(cipherModeBuf, "cbcs") == 0) {
+                        metaInfo[vBuffIdx].encScheme = AesCbc_Cbcs;
+                    }
+                }
+                gst_structure_get_uint(protectionMeta->info, "crypt_byte_block", &metaInfo[vBuffIdx].pattern.encrypted_blocks);
+                gst_structure_get_uint(protectionMeta->info, "skip_byte_block", &metaInfo[vBuffIdx].pattern.clear_blocks);
+            } else {
+                TRACE_L1("Missing Protection Metadata");
+            }
+        }
+
+        return result;
+    }
+
+    void extractMediaInfoMulti(const GstCaps* caps, MediaProperties &streamProperties, bool &isSecureMemoryDisabled)
+    {
+        //Get Stream Properties from GstCaps
+        gchar *capsStr = gst_caps_to_string (caps);
+        if (capsStr != nullptr) {
+            WPEFramework::Plugin::CapsParser capsParser;
+            capsParser.Parse(reinterpret_cast<const uint8_t*>(capsStr), strlen(capsStr));
+            streamProperties.height = capsParser.GetHeight();
+            streamProperties.width = capsParser.GetWidth();
+            switch (capsParser.GetMediaType()) {
+                case CDMi::MediaType::Video:
+                    streamProperties.media_type = MediaType_Video;
+                    if (capsParser.IsSecureMemoryDisabled()) {
+                        isSecureMemoryDisabled = true;
+                        TRACE_L1("Secure Memory Preallocation disabled as decrypt-to-host is set\n");
+                    }
+                    break;
+
+                case CDMi::MediaType::Audio:
+                    streamProperties.media_type = MediaType_Audio;
+                    break;
+
+                case CDMi::MediaType::Data:
+                    streamProperties.media_type = MediaType_Data;
+                    break;
+
+                default:
+                    streamProperties.media_type = MediaType_Unknown;
+                    break;
+            }
+
+            g_free(capsStr);
+        } else {
+            TRACE_L1("Could not convert caps to string");
+        }
+    }
+
+    media_type toMediaTypeMulti(const MediaProperties &streamProperties)
+    {
+        media_type mediaType {Unknown};
+        switch(streamProperties.media_type) {
+            case MediaType_Video:
+                mediaType = Video;
+                break;
+            case MediaType_Audio:
+                mediaType = Audio;
+                break;
+            case MediaType_Data:
+                mediaType = Data;
+                break;
+            case MediaType_Unknown:
+                mediaType = Unknown;
+                break;
+        }
+        return mediaType;
+    }
+
+    std::string toStringMulti(const media_type &mediaType)
+    {
+        std::string typeStr;
+        switch(mediaType) {
+            case Video:
+                typeStr = "Video";
+                break;
+            case Audio:
+                typeStr = "Audio";
+                break;
+            case Data:
+                typeStr = "Data";
+                break;
+            case Unknown:
+                typeStr = "Unknown";
+                break;
+        }
+        return typeStr;
+    }
+
+    bool keyIdsEqual(uint8_t *lhsBuf, uint32_t lhsSize, uint8_t *rhsBuf, uint32_t rhsSize)
+    {
+        bool equal = true;
+        if ( (lhsSize != rhsSize) || (lhsBuf == nullptr) || (rhsBuf == nullptr)) {
+            equal = false;
+        } else {
+            equal = (memcmp(lhsBuf, rhsBuf, lhsSize) == 0);
+        }
+        return equal;
+    }
+
+} // namespace
+
+void extend_subsample_map_multi(std::vector<SubSampleInfo> &subSampleVector, uint32_t frameSize, uint32_t totalSubsampleBytes)
 {
     ASSERT(frameSize > totalSubsampleBytes);
 
@@ -480,7 +902,7 @@ void extend_subsample_map(std::vector<SubSampleInfo> &subSampleVector, uint32_t 
     }
 }
 
-OpenCDMError validate_subsample_map(std::vector<SubSampleInfo> &subSampleVector, uint32_t frameSize, uint32_t totalSubsampleBytes)
+OpenCDMError validate_subsample_map_multi(std::vector<SubSampleInfo> &subSampleVector, uint32_t frameSize, uint32_t totalSubsampleBytes)
 {
     OpenCDMError retVal = ERROR_NONE;
 
@@ -489,7 +911,7 @@ OpenCDMError validate_subsample_map(std::vector<SubSampleInfo> &subSampleVector,
     }
     else if(frameSize > totalSubsampleBytes) {
         TRACE_L3("Subsample mapping size mismatch. FrameSize: %u, TotalBytes from SubsampleInfo: %u", frameSize, totalSubsampleBytes);
-        extend_subsample_map(subSampleVector, frameSize, totalSubsampleBytes);
+        extend_subsample_map_multi(subSampleVector, frameSize, totalSubsampleBytes);
     }
     else if(frameSize < totalSubsampleBytes) {
         TRACE_L1("Subsample mapping size exceeds data size. FrameSize: %u, TotalBytes from SubsampleInfo: %u", frameSize, totalSubsampleBytes);
@@ -499,6 +921,9 @@ OpenCDMError validate_subsample_map(std::vector<SubSampleInfo> &subSampleVector,
     return retVal;
 }
 
+// Decrypts a vector of GstBuffer-s (all sharing the same KID) in a single call. This is the
+// multi-frame counterpart of opencdm_gstreamer_session_decrypt_buffer_once() above, implemented
+// independently so the single-buffer path is not affected by this feature.
 OpenCDMError opencdm_gstreamer_session_decrypt_buffer_multi_once(struct OpenCDMSession* session, const std::vector<GstBuffer*> &vbuff, GstCaps* caps)
 {
     OpenCDMError result{ERROR_NONE};
@@ -506,7 +931,7 @@ OpenCDMError opencdm_gstreamer_session_decrypt_buffer_multi_once(struct OpenCDMS
     if (session != nullptr) {
 
         std::vector<ProtectionMetaInfo> vProtectionInfo(vbuff.size());
-        result = extractProtectionMeta(vbuff, vProtectionInfo);
+        result = extractProtectionMetaMulti(vbuff, vProtectionInfo);
 
         if (result == ERROR_NONE) {
             std::vector<SampleInfo> vSampleInfo;
@@ -564,7 +989,7 @@ OpenCDMError opencdm_gstreamer_session_decrypt_buffer_multi_once(struct OpenCDMS
                         totalSubSampleBytes += inClear + inEncrypted;
                     }
                     gst_byte_reader_free(reader);
-                    result = validate_subsample_map(vSubSampleInfo[vBuffIdx], vProtectionInfo[vBuffIdx].dataSize, totalSubSampleBytes);
+                    result = validate_subsample_map_multi(vSubSampleInfo[vBuffIdx], vProtectionInfo[vBuffIdx].dataSize, totalSubSampleBytes);
                     if(result != ERROR_NONE) {
                         break;
                     }
@@ -603,14 +1028,14 @@ OpenCDMError opencdm_gstreamer_session_decrypt_buffer_multi_once(struct OpenCDMS
             media_type mediaType = Data;
             bool isSecureMemoryDisabled = false;
             if(caps != nullptr){
-                extractMediaInfo(caps, streamProperties, isSecureMemoryDisabled);
-                mediaType = toMediaType(streamProperties);
+                extractMediaInfoMulti(caps, streamProperties, isSecureMemoryDisabled);
+                mediaType = toMediaTypeMulti(streamProperties);
                 if (totalBytesToDecrypt == 0) {
                     perfString += "_clearData";
                 } else if (streamProperties.media_type == MediaType_Unknown) {
                     perfString += "_NoGstCaps";
                 } else {
-                    perfString += "_" + toString(mediaType);
+                    perfString += "_" + toStringMulti(mediaType);
                 }
             }
             RDKPerf perf(perfString.c_str());
@@ -726,9 +1151,4 @@ OpenCDMError opencdm_gstreamer_session_decrypt_buffer_multi_once(struct OpenCDMS
 
     return result;
 }
-
-OpenCDMError opencdm_gstreamer_session_decrypt_buffer_once(struct OpenCDMSession* session, GstBuffer* buffer, GstCaps* caps)
-{
-    std::vector<GstBuffer*> vbuff{buffer};
-    return opencdm_gstreamer_session_decrypt_buffer_multi_once(session, vbuff, caps);
-}
+#endif // ENABLE_MULTI_DECRYPT

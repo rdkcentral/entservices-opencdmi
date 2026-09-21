@@ -163,6 +163,7 @@ EXTERNAL uint32_t opencdm_destruct_session_private(struct OpenCDMSession* sessio
  * \param vbuff vector of gstreamer buffers containing encrypted data and related meta data. If applicable, decrypted data will be stored here after this call returns.
  * \return Zero on success, non-zero on error.
  */
+#ifdef ENABLE_MULTI_DECRYPT
     EXTERNAL OpenCDMError opencdm_gstreamer_session_decrypt_buffer_multi(struct OpenCDMSession* session, const std::vector<GstBuffer*> &vbuff, GstCaps* caps);
 
 /**
@@ -171,6 +172,7 @@ EXTERNAL uint32_t opencdm_destruct_session_private(struct OpenCDMSession* sessio
  * This is version of @see opencdm_gstreamer_session_decrypt_buffer_multi() that performs single decryption - without any retries.
  */
     EXTERNAL OpenCDMError opencdm_gstreamer_session_decrypt_buffer_multi_once(struct OpenCDMSession* session, const std::vector<GstBuffer*> &vbuff, GstCaps* caps);
+#endif // ENABLE_MULTI_DECRYPT
 
 /**
  * \brief adds SVP related features to the caps structure (only if needed by the platform)

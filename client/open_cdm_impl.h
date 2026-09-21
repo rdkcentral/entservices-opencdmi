@@ -471,7 +471,7 @@ private:
 
     public:
         uint32_t Decrypt(uint8_t* encryptedData, uint32_t encryptedDataLength,
-            const ::SampleInfo* sampleInfo, const uint32_t sampleInfoLength,
+            const ::SampleInfo* sampleInfo,
             uint32_t initWithLast15,
             const ::MediaProperties* properties)
         {
@@ -491,17 +491,33 @@ private:
 
             if (RequestProduce(Core::infinite) == Core::ERROR_NONE) {
 
+                CDMi::SubSampleInfo* subSample = nullptr;
+                uint8_t subSampleCount = 0;
+                CDMi::EncryptionScheme encScheme = CDMi::EncryptionScheme::AesCtr_Cenc;
+                CDMi::EncryptionPattern pattern = {0 , 0};
+                uint8_t* ivData = nullptr;
+                uint8_t ivDataLength = 0;
+                uint8_t* keyId = nullptr;
+                uint8_t keyIdLength = 0;
+
                 if(sampleInfo != nullptr) {
-                    //Here there is translation of ::SampleInfo into CDMi::SampleInfo.
-                    //A cast is used since the definitions of those structures are exactly the same.
-                    //This applies to sub-structures, data types used, enumerations, order of fields, etc.
-                    //In case this is not satisfied - cast may give unexpected results and e.g. decryption may fail with
-                    //difficult to identify reasons.
-                    //When extending any of the structures consider extending the other or introduce some kind of translation between them.
-                    const CDMi::SampleInfo* samples = reinterpret_cast<const CDMi::SampleInfo *>(sampleInfo);
-                    SetSamples(sampleInfoLength, samples, initWithLast15);
+                    subSample = reinterpret_cast<CDMi::SubSampleInfo*>(sampleInfo->subSample);
+                    subSampleCount = sampleInfo->subSampleCount;
+                    ivData = sampleInfo->iv;
+                    ivDataLength = sampleInfo->ivLength;
+                    keyId = sampleInfo->keyId;
+                    keyIdLength = sampleInfo->keyIdLength;
+                    encScheme = static_cast<CDMi::EncryptionScheme>(sampleInfo->scheme);
+                    pattern.clear_blocks = sampleInfo->pattern.clear_blocks;
+                    pattern.encrypted_blocks = sampleInfo->pattern.encrypted_blocks;
                 }
 
+                SetIV(static_cast<uint8_t>(ivDataLength), ivData);
+                KeyId(static_cast<uint8_t>(keyIdLength), keyId);
+                SubSample(subSampleCount, subSample);
+                SetEncScheme(static_cast<uint8_t>(encScheme));
+                SetEncPattern(pattern.encrypted_blocks,pattern.clear_blocks);
+                InitWithLast15(initWithLast15);
                 if(properties != nullptr) {
                     SetMediaProperties(properties->height, properties->width, properties->media_type);
                 }
@@ -532,6 +548,67 @@ private:
 
             return (ret);
         }
+
+#ifdef ENABLE_MULTI_DECRYPT
+        // RDKDEV-1281: multi-sample decrypt, added alongside Decrypt() above (which is left
+        // untouched) rather than extending it. Requires a corresponding additive SetSamples(...)
+        // method on Exchange::DataExchange (entservices-apis) next to the existing SetIV/KeyId/
+        // SubSample/SetEncScheme/SetEncPattern/InitWithLast15 setters used by Decrypt().
+        uint32_t DecryptMulti(uint8_t* encryptedData, uint32_t encryptedDataLength,
+            const ::SampleInfo* sampleInfo, const uint32_t sampleInfoLength,
+            uint32_t initWithLast15,
+            const ::MediaProperties* properties)
+        {
+            int ret = 0;
+
+            _systemLock.Lock();
+
+            _busy = true;
+
+            if (RequestProduce(Core::infinite) == Core::ERROR_NONE) {
+
+                if (sampleInfo != nullptr) {
+                    //Here there is translation of ::SampleInfo into CDMi::SampleInfo.
+                    //A cast is used since the definitions of those structures are exactly the same.
+                    //This applies to sub-structures, data types used, enumerations, order of fields, etc.
+                    //In case this is not satisfied - cast may give unexpected results and e.g. decryption may fail with
+                    //difficult to identify reasons.
+                    //When extending any of the structures consider extending the other or introduce some kind of translation between them.
+                    const CDMi::SampleInfo* samples = reinterpret_cast<const CDMi::SampleInfo *>(sampleInfo);
+                    SetSamples(sampleInfoLength, samples, initWithLast15);
+                }
+
+                if (properties != nullptr) {
+                    SetMediaProperties(properties->height, properties->width, properties->media_type);
+                }
+
+                Write(encryptedDataLength, encryptedData);
+
+                // This will trigger the OpenCDMIServer to decrypt this memory...
+                Produced();
+
+                // Now we should wait till it is decrypted, that happens if the
+                // Producer, can run again.
+                if (RequestProduce(Core::infinite) == Core::ERROR_NONE) {
+
+                    // For nowe we just copy the clear data..
+                    Read(encryptedDataLength, encryptedData);
+
+                    // Get the status of the last decrypt.
+                    ret = Status();
+
+                    // And free the lock, for the next production Scenario..
+                    Consumed();
+                }
+            }
+
+            _busy = false;
+
+            _systemLock.Unlock();
+
+            return (ret);
+        }
+#endif // ENABLE_MULTI_DECRYPT
 
     private:
         bool _busy;
@@ -696,7 +773,7 @@ public:
         }
     }
     uint32_t Decrypt(uint8_t* encryptedData, const uint32_t encryptedDataLength,
-        const ::SampleInfo* sampleInfo, const uint32_t sampleInfoLength,
+        const ::SampleInfo* sampleInfo,
         uint32_t initWithLast15,
         const ::MediaProperties* properties)
     {
@@ -712,7 +789,7 @@ public:
 
         if (decryptSession != nullptr) {
             result = decryptSession->Decrypt(encryptedData, encryptedDataLength, 
-                sampleInfo, sampleInfoLength,
+                sampleInfo,
                 initWithLast15,
                 properties);
             if(result)
@@ -723,6 +800,39 @@ public:
         }
         return (result);
     }
+
+#ifdef ENABLE_MULTI_DECRYPT
+    // RDKDEV-1281: multi-sample decrypt, added alongside Decrypt() above rather than
+    // extending its signature, so existing single-sample callers/behaviour are unaffected.
+    uint32_t DecryptMulti(uint8_t* encryptedData, const uint32_t encryptedDataLength,
+        const ::SampleInfo* sampleInfo, const uint32_t sampleInfoLength,
+        uint32_t initWithLast15,
+        const ::MediaProperties* properties)
+    {
+        uint32_t result = OpenCDMError::ERROR_INVALID_DECRYPT_BUFFER;
+
+        // lazy create decryptbuffer
+        if(_decryptSession == nullptr) {
+            DecryptSession(_session);
+        }
+
+        // prevent unnecesary double atomic access
+        DataExchange* decryptSession = _decryptSession;
+
+        if (decryptSession != nullptr) {
+            result = decryptSession->DecryptMulti(encryptedData, encryptedDataLength,
+                sampleInfo, sampleInfoLength,
+                initWithLast15,
+                properties);
+            if(result)
+            {
+                TRACE_L1("DecryptMulti() failed with return code: %x", result);
+                result = OpenCDMError::ERROR_UNKNOWN;
+            }
+        }
+        return (result);
+    }
+#endif // ENABLE_MULTI_DECRYPT
 
     void* SessionPrivateData() const
     {

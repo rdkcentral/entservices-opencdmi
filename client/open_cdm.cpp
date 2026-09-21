@@ -702,9 +702,8 @@ OpenCDMError opencdm_session_decrypt(struct OpenCDMSession* session,
         sampleInfo.ivLength = static_cast<uint8_t>(IVLength);
         sampleInfo.keyId = const_cast<uint8_t*>(keyId);
         sampleInfo.keyIdLength = static_cast<uint8_t>(keyIdLength);
-        const uint32_t sampleInfoLength = 1;
         result = encryptedLength > 0 ? static_cast<OpenCDMError>(session->Decrypt(
-            encrypted, encryptedLength, const_cast<const SampleInfo*>(&sampleInfo), sampleInfoLength, initWithLast15, nullptr)) : OpenCDMError::ERROR_NONE;
+            encrypted, encryptedLength, const_cast<const SampleInfo*>(&sampleInfo), initWithLast15, nullptr)) : OpenCDMError::ERROR_NONE;
     }
 
     return (result);
@@ -717,15 +716,27 @@ OpenCDMError opencdm_session_decrypt_v2(struct OpenCDMSession* session,
     const SampleInfo* sampleInfo,
     const MediaProperties* properties) {
 
-    const uint32_t sampleInfoLength = 1;
-    return opencdm_session_decrypt_v3(session, encrypted, encryptedLength, sampleInfo, sampleInfoLength, properties);
+    OpenCDMError result(OpenCDMError::ERROR_INVALID_SESSION);
+    ASSERT(session != nullptr);
+
+    if (session != nullptr) {
+        uint32_t initWithLast15 = 0;
+        result = encryptedLength > 0 ? static_cast<OpenCDMError>(session->Decrypt(
+            encrypted, encryptedLength, sampleInfo, initWithLast15, properties)) : OpenCDMError::ERROR_NONE;
+    }
+
+    return (result);
 }
 
+#ifdef ENABLE_MULTI_DECRYPT
+// RDKDEV-1281: multi-sample decrypt. Implemented as an independent function/call-chain
+// (session->DecryptMulti(...)) rather than extending opencdm_session_decrypt_v2()/session->Decrypt(),
+// so the existing single-sample flow above is left untouched.
 OpenCDMError opencdm_session_decrypt_v3(struct OpenCDMSession* session,
     uint8_t encrypted[],
     const uint32_t encryptedLength,
     const SampleInfo* sampleInfo,
-    const uint32_t sampleInfoLength,
+    const uint32_t sampleInfoLength = 1,
     const MediaProperties* properties)
 {
     OpenCDMError result(OpenCDMError::ERROR_INVALID_SESSION);
@@ -733,12 +744,13 @@ OpenCDMError opencdm_session_decrypt_v3(struct OpenCDMSession* session,
 
     if (session != nullptr) {
         uint32_t initWithLast15 = 0;
-        result = encryptedLength > 0 ? static_cast<OpenCDMError>(session->Decrypt(
+        result = encryptedLength > 0 ? static_cast<OpenCDMError>(session->DecryptMulti(
             encrypted, encryptedLength, sampleInfo, sampleInfoLength, initWithLast15, properties)) : OpenCDMError::ERROR_NONE;
     }
 
     return (result);
 }
+#endif // ENABLE_MULTI_DECRYPT
 
 /**
  * \brief Get metrics associated with a DRM session.
