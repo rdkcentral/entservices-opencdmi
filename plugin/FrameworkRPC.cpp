@@ -127,11 +127,7 @@ namespace Plugin {
             }
 
         private:
-#ifndef USE_THUNDER_R4
-            virtual void* Aquire(const string&, const uint32_t interfaceId, const uint32_t versionId)
-#else
             virtual void* Acquire(const string&, const uint32_t interfaceId, const uint32_t versionId)
-#endif /* USE_THUNDER_R4 */
             {
                 void* result = nullptr;
 
@@ -692,11 +688,7 @@ namespace Plugin {
                     TRACE(Trace::Information, (_T("ResetOutputProtection! %p"), this));
                     _mediaKeySession->ResetOutputProtection();
                 }
-#ifdef USE_THUNDER_R4
-                virtual void SetParameter(const std::string& name, const std::string& value)
-#else
                 virtual void SetParameter(const std::string& name, const std::string& value) override
-#endif /* USE_THUNDER_R4 */
                 {
                     TRACE(Trace::Information, (_T("SetParameter! %p"), this));
                     _mediaKeySession->SetParameter(name, value);
