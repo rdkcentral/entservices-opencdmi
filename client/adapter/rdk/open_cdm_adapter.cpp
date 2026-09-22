@@ -1005,6 +1005,17 @@ OpenCDMError opencdm_gstreamer_session_decrypt_buffer_multi_once(struct OpenCDMS
                     result = ERROR_INVALID_DECRYPT_BUFFER;
                     break;
                 }
+                if (vProtectionInfo[0].encScheme != vProtectionInfo[vBuffIdx].encScheme) {
+                    TRACE_L1("Encryption scheme needs to be same for all GstBuffers");
+                    result = ERROR_INVALID_DECRYPT_BUFFER;
+                    break;
+                }
+                if (vProtectionInfo[0].pattern.encrypted_blocks != vProtectionInfo[vBuffIdx].pattern.encrypted_blocks ||
+                    vProtectionInfo[0].pattern.clear_blocks != vProtectionInfo[vBuffIdx].pattern.clear_blocks) {
+                    TRACE_L1("Encryption pattern needs to be same for all GstBuffers");
+                    result = ERROR_INVALID_DECRYPT_BUFFER;
+                    break;
+                }
 
                 if (vSubSampleInfo[vBuffIdx].size() > 255) {
                     TRACE_L1("Max number of sub samples exceeded %zu", vSubSampleInfo[vBuffIdx].size());
@@ -1103,14 +1114,8 @@ OpenCDMError opencdm_gstreamer_session_decrypt_buffer_multi_once(struct OpenCDMS
 
                    if(result == ERROR_NONE) {
                        GstPerf* svpTransform_perf3 = new GstPerf("opencdm_svp_transform_subsample");
-                       if (vbuffToDecrypt.size() == 1) {
-                           if (!gst_buffer_append_svp_transform(session->SessionPrivateData(), vbuffToDecrypt[0], vProtectionInfo[0].subSamplesGstBuf, vProtectionInfo[0].subSamplesCount, svpData, totalBytesToDecrypt)) {
-                               result = ERROR_FAIL;
-                           }
-                       } else {
-                           if (!gst_buffer_vector_append_svp_transform(session->SessionPrivateData(), vbuffToDecrypt, svpData, totalBytesToDecrypt)) {
-                               result = ERROR_FAIL;
-                           }
+                       if (!gst_buffer_vector_append_svp_transform(session->SessionPrivateData(), vbuffToDecrypt, svpData, totalBytesToDecrypt)) {
+                           result = ERROR_FAIL;
                        }
                        delete svpTransform_perf3;
                    }

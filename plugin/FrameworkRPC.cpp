@@ -332,7 +332,7 @@ namespace Plugin {
                                 // RDKDEV-1281: multi-sample decrypt requests are routed through a
                                 // separate branch/implementation, kept independent of the legacy
                                 // single-sample path below (which is unmodified). SampleLength()
-                                // is a new accessor (paired with the client-side SetSamples(...))
+                                // is a new accessor (paired with the client-side SetSample(...))
                                 // that defaults to 0 for legacy/single-sample requests, so existing
                                 // callers always fall through to the unchanged else-branch.
                                 const uint16_t sampleCount = SampleLength();

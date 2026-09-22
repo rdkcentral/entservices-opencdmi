@@ -673,7 +673,7 @@ EXTERNAL OpenCDMError opencdm_session_decrypt_v3(struct OpenCDMSession* session,
     uint8_t encrypted[],
     const uint32_t encryptedLength,
     const SampleInfo* sampleInfo,
-    const uint32_t sampleInfoLength,
+    const uint16_t sampleInfoLength,
     const MediaProperties* streamProperties);
 #endif // ENABLE_MULTI_DECRYPT
 

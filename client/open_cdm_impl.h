@@ -551,12 +551,11 @@ private:
 
 #ifdef ENABLE_MULTI_DECRYPT
         // RDKDEV-1281: multi-sample decrypt, added alongside Decrypt() above (which is left
-        // untouched) rather than extending it. Requires a corresponding additive SetSamples(...)
+        // untouched) rather than extending it. Requires a corresponding additive SetSample(...)
         // method on Exchange::DataExchange (entservices-apis) next to the existing SetIV/KeyId/
         // SubSample/SetEncScheme/SetEncPattern/InitWithLast15 setters used by Decrypt().
         uint32_t DecryptMulti(uint8_t* encryptedData, uint32_t encryptedDataLength,
-            const ::SampleInfo* sampleInfo, const uint32_t sampleInfoLength,
-            uint32_t initWithLast15,
+            const ::SampleInfo* sampleInfo, const uint16_t sampleInfoLength,
             const ::MediaProperties* properties)
         {
             int ret = 0;
@@ -567,15 +566,29 @@ private:
 
             if (RequestProduce(Core::infinite) == Core::ERROR_NONE) {
 
-                if (sampleInfo != nullptr) {
-                    //Here there is translation of ::SampleInfo into CDMi::SampleInfo.
-                    //A cast is used since the definitions of those structures are exactly the same.
-                    //This applies to sub-structures, data types used, enumerations, order of fields, etc.
-                    //In case this is not satisfied - cast may give unexpected results and e.g. decryption may fail with
-                    //difficult to identify reasons.
-                    //When extending any of the structures consider extending the other or introduce some kind of translation between them.
-                    const CDMi::SampleInfo* samples = reinterpret_cast<const CDMi::SampleInfo *>(sampleInfo);
-                    SetSamples(sampleInfoLength, samples, initWithLast15);
+                CDMi::SubSampleInfo* subSample = nullptr;
+                CDMi::EncryptionScheme encScheme = CDMi::EncryptionScheme::AesCtr_Cenc;
+                CDMi::EncryptionPattern pattern = {0 , 0};
+                uint8_t* keyId = nullptr;
+                uint8_t keyIdLength = 0;
+
+                if (sampleInfo != nullptr && sampleInfoLength > 0) {
+                    keyId = sampleInfo->keyId;
+                    keyIdLength = sampleInfo->keyIdLength;
+                    encScheme = static_cast<CDMi::EncryptionScheme>(sampleInfo->scheme);
+                    pattern.clear_blocks = sampleInfo->pattern.clear_blocks;
+                    pattern.encrypted_blocks = sampleInfo->pattern.encrypted_blocks;
+
+                    KeyId(static_cast<uint8_t>(keyIdLength), keyId);
+                    SetEncScheme(static_cast<uint8_t>(encScheme));
+                    SetEncPattern(pattern.encrypted_blocks,pattern.clear_blocks);
+
+                    SubSample(0, nullptr);
+                    SetSampleLength(sampleInfoLength);
+                    for (uint16_t idx = 0; idx < sampleInfoLength; idx++) {
+                        subSample = reinterpret_cast<CDMi::SubSampleInfo*>(sampleInfo[idx].subSample);
+                        SetSample(idx, sampleInfo[idx].ivLength, sampleInfo[idx].iv, sampleInfo[idx].subSampleCount, subSample);
+                    }
                 }
 
                 if (properties != nullptr) {
@@ -805,8 +818,7 @@ public:
     // RDKDEV-1281: multi-sample decrypt, added alongside Decrypt() above rather than
     // extending its signature, so existing single-sample callers/behaviour are unaffected.
     uint32_t DecryptMulti(uint8_t* encryptedData, const uint32_t encryptedDataLength,
-        const ::SampleInfo* sampleInfo, const uint32_t sampleInfoLength,
-        uint32_t initWithLast15,
+        const ::SampleInfo* sampleInfo, const uint16_t sampleInfoLength,
         const ::MediaProperties* properties)
     {
         uint32_t result = OpenCDMError::ERROR_INVALID_DECRYPT_BUFFER;
@@ -822,7 +834,6 @@ public:
         if (decryptSession != nullptr) {
             result = decryptSession->DecryptMulti(encryptedData, encryptedDataLength,
                 sampleInfo, sampleInfoLength,
-                initWithLast15,
                 properties);
             if(result)
             {

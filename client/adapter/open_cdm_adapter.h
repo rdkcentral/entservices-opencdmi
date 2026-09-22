@@ -138,7 +138,7 @@ EXTERNAL uint32_t opencdm_destruct_session_private(struct OpenCDMSession* sessio
  * \brief Performs decryption based on adapter implementation.
  *
  * This version accepts a vector of GstBuffer-s allowing decryption of multiple A/V frames in one call.
- * Passed GstBuffer-s need to be encrypted with the same KID - otherwise an error is reported.
+ * Passed GstBuffer-s need to share the same: KID, encryption scheme and encryption pattern - otherwise an error is reported.
  * Typically decrypt happens out-of-process (for security reasons). The actual data copying is performed
  * using a memory-mapped file (for performance reasons). If the DRM system allows access to decrypted data (i.e. decrypting is not
  * performed in a TEE), the decryption is performed in-place.

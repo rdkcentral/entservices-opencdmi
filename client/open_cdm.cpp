@@ -736,16 +736,15 @@ OpenCDMError opencdm_session_decrypt_v3(struct OpenCDMSession* session,
     uint8_t encrypted[],
     const uint32_t encryptedLength,
     const SampleInfo* sampleInfo,
-    const uint32_t sampleInfoLength = 1,
+    const uint16_t sampleInfoLength,
     const MediaProperties* properties)
 {
     OpenCDMError result(OpenCDMError::ERROR_INVALID_SESSION);
     ASSERT(session != nullptr);
 
     if (session != nullptr) {
-        uint32_t initWithLast15 = 0;
         result = encryptedLength > 0 ? static_cast<OpenCDMError>(session->DecryptMulti(
-            encrypted, encryptedLength, sampleInfo, sampleInfoLength, initWithLast15, properties)) : OpenCDMError::ERROR_NONE;
+            encrypted, encryptedLength, sampleInfo, sampleInfoLength, properties)) : OpenCDMError::ERROR_NONE;
     }
 
     return (result);
