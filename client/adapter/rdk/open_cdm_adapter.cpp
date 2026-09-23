@@ -662,6 +662,8 @@ exit:
 
 namespace {
 
+    constexpr uint32_t maxUint{std::numeric_limits<std::uint32_t>::max()};
+
     bool mapBuffer(GstBuffer *buffer, GstMapFlags flags, GstMapInfo *map, uint8_t **data, uint32_t *size)
     {
         bool ret{false};
@@ -711,11 +713,10 @@ namespace {
                 }
                 if (metaInfo[vBuffIdx].subSamplesCount) {
                     value = gst_structure_get_value(protectionMeta->info, "subsamples");
-                    if (value) {
-                        metaInfo[vBuffIdx].subSamplesGstBuf = gst_value_get_buffer(value);
-                        if (metaInfo[vBuffIdx].subSamplesGstBuf && (mapBuffer(metaInfo[vBuffIdx].subSamplesGstBuf, GST_MAP_READ,
-                                &metaInfo[vBuffIdx].subSamplesBufMap, &metaInfo[vBuffIdx].subSamplesBuf, &metaInfo[vBuffIdx].subSamplesSize) == false)) {
-
+                    metaInfo[vBuffIdx].subSamplesGstBuf = gst_value_get_buffer(value);
+                    if (value && metaInfo[vBuffIdx].subSamplesGstBuf) {
+                        if (mapBuffer(metaInfo[vBuffIdx].subSamplesGstBuf, GST_MAP_READ, &metaInfo[vBuffIdx].subSamplesBufMap,
+                                &metaInfo[vBuffIdx].subSamplesBuf, &metaInfo[vBuffIdx].subSamplesSize) == false) {
                             TRACE_L1("Invalid subsamples buffer");
                             result = ERROR_INVALID_DECRYPT_BUFFER;
                             break;
@@ -728,10 +729,10 @@ namespace {
                 }
 
                 value = gst_structure_get_value(protectionMeta->info, "iv");
-                if (value) {
-                    metaInfo[vBuffIdx].ivGstBuf = gst_value_get_buffer(value);
-                    if(metaInfo[vBuffIdx].ivGstBuf && (mapBuffer(metaInfo[vBuffIdx].ivGstBuf, GST_MAP_READ, &metaInfo[vBuffIdx].ivBufMap,
-                            &metaInfo[vBuffIdx].ivBuf, &metaInfo[vBuffIdx].ivSize) == false)) {
+                metaInfo[vBuffIdx].ivGstBuf = gst_value_get_buffer(value);
+                if (value && metaInfo[vBuffIdx].ivGstBuf) {
+                    if(mapBuffer(metaInfo[vBuffIdx].ivGstBuf, GST_MAP_READ, &metaInfo[vBuffIdx].ivBufMap, &metaInfo[vBuffIdx].ivBuf,
+                            &metaInfo[vBuffIdx].ivSize) == false) {
                         TRACE_L1("Invalid IV buffer");
                         result = ERROR_INVALID_DECRYPT_BUFFER;
                         break;
@@ -757,10 +758,10 @@ namespace {
                 }
 
                 value = gst_structure_get_value(protectionMeta->info, "kid");
-                if (value) {
-                    metaInfo[vBuffIdx].keyIdGstBuf = gst_value_get_buffer(value);
-                    if(metaInfo[vBuffIdx].keyIdGstBuf && (mapBuffer(metaInfo[vBuffIdx].keyIdGstBuf, GST_MAP_READ, &metaInfo[vBuffIdx].keyIdBufMap,
-                            &metaInfo[vBuffIdx].keyIdBuf, &metaInfo[vBuffIdx].keyIdSize) == false)) {
+                metaInfo[vBuffIdx].keyIdGstBuf = gst_value_get_buffer(value);
+                if (value && metaInfo[vBuffIdx].keyIdGstBuf) {
+                    if(mapBuffer(metaInfo[vBuffIdx].keyIdGstBuf, GST_MAP_READ, &metaInfo[vBuffIdx].keyIdBufMap, &metaInfo[vBuffIdx].keyIdBuf,
+                            &metaInfo[vBuffIdx].keyIdSize) == false) {
                         TRACE_L1("Invalid key id buffer");
                         result = ERROR_INVALID_DECRYPT_BUFFER;
                         break;
@@ -938,6 +939,7 @@ OpenCDMError opencdm_gstreamer_session_decrypt_buffer_multi_once(struct OpenCDMS
             std::vector<std::vector<SubSampleInfo>> vSubSampleInfo(vbuff.size());
             std::vector<GstBuffer*> vbuffToDecrypt;
             uint32_t totalBytesToDecrypt{};
+            uint32_t refIdx{maxUint};
 
             for (size_t vBuffIdx = 0; vBuffIdx < vbuff.size(); ++vBuffIdx) {
 
@@ -999,19 +1001,23 @@ OpenCDMError opencdm_gstreamer_session_decrypt_buffer_multi_once(struct OpenCDMS
                     vSubSampleInfo[vBuffIdx].emplace_back(SubSampleInfo{inClear, inEncrypted});
                 }
 
-                if (!keyIdsEqual(vProtectionInfo[0].keyIdBuf, vProtectionInfo[0].keyIdSize,
+                if (refIdx == maxUint) {
+                    refIdx = vBuffIdx;
+                }
+
+                if (!keyIdsEqual(vProtectionInfo[refIdx].keyIdBuf, vProtectionInfo[refIdx].keyIdSize,
                         vProtectionInfo[vBuffIdx].keyIdBuf, vProtectionInfo[vBuffIdx].keyIdSize)) {
                     TRACE_L1("Key id needs to be same for all GstBuffers");
                     result = ERROR_INVALID_DECRYPT_BUFFER;
                     break;
                 }
-                if (vProtectionInfo[0].encScheme != vProtectionInfo[vBuffIdx].encScheme) {
+                if (vProtectionInfo[refIdx].encScheme != vProtectionInfo[vBuffIdx].encScheme) {
                     TRACE_L1("Encryption scheme needs to be same for all GstBuffers");
                     result = ERROR_INVALID_DECRYPT_BUFFER;
                     break;
                 }
-                if (vProtectionInfo[0].pattern.encrypted_blocks != vProtectionInfo[vBuffIdx].pattern.encrypted_blocks ||
-                    vProtectionInfo[0].pattern.clear_blocks != vProtectionInfo[vBuffIdx].pattern.clear_blocks) {
+                if (vProtectionInfo[refIdx].pattern.encrypted_blocks != vProtectionInfo[vBuffIdx].pattern.encrypted_blocks ||
+                    vProtectionInfo[refIdx].pattern.clear_blocks != vProtectionInfo[vBuffIdx].pattern.clear_blocks) {
                     TRACE_L1("Encryption pattern needs to be same for all GstBuffers");
                     result = ERROR_INVALID_DECRYPT_BUFFER;
                     break;

@@ -604,7 +604,7 @@ private:
                 // Producer, can run again.
                 if (RequestProduce(Core::infinite) == Core::ERROR_NONE) {
 
-                    // For nowe we just copy the clear data..
+                    // For now we just copy the clear data..
                     Read(encryptedDataLength, encryptedData);
 
                     // Get the status of the last decrypt.
@@ -613,6 +613,7 @@ private:
                     // And free the lock, for the next production Scenario..
                     Consumed();
                 }
+                SetSampleLength(0);
             }
 
             _busy = false;
@@ -828,7 +829,7 @@ public:
             DecryptSession(_session);
         }
 
-        // prevent unnecesary double atomic access
+        // prevent unnecessary double atomic access
         DataExchange* decryptSession = _decryptSession;
 
         if (decryptSession != nullptr) {

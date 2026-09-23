@@ -157,7 +157,7 @@ EXTERNAL uint32_t opencdm_destruct_session_private(struct OpenCDMSession* sessio
  *      "crypt_byte_block"    G_TYPE_UINT     (Present only if cipher-mode is "cbcs")
  *      "skip_byte_block"     G_TYPE_UINT     (Present only cipher-mode is "cbcs")
  *
- * This method passes on the subsample mapping to the DRM implementation and assumes that the DRM implementaion will handle the decryption based on subsample mapping.
+ * This method passes on the subsample mapping to the DRM implementation and assumes that the DRM implementation will handle the decryption based on subsample mapping.
  *
  * \param session \ref OpenCDMSession instance.
  * \param vbuff vector of gstreamer buffers containing encrypted data and related meta data. If applicable, decrypted data will be stored here after this call returns.
