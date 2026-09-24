@@ -663,7 +663,7 @@ exit:
 
 namespace {
 
-    constexpr uint32_t maxUint{std::numeric_limits<std::uint32_t>::max()};
+    constexpr uint32_t invalidRefId{std::numeric_limits<std::uint32_t>::max()};
 
     bool mapBuffer(GstBuffer *buffer, GstMapFlags flags, GstMapInfo *map, uint8_t **data, uint32_t *size)
     {
@@ -713,6 +713,13 @@ namespace {
                     TRACE_L1("Missing subsample count in protectionMeta");
                 }
                 if (metaInfo[vBuffIdx].subSamplesCount) {
+                    //Both SampleInfo::subSampleCount and CDMi::SampleInfo::subSampleCount are uint8_t - hence below check
+                    //attempt of passing larger amount of sub-samles may result in unexpected behaviour
+                    if (metaInfo[vBuffIdx].subSamplesCount > std::numeric_limits<std::uint8_t>::max()) {
+                        TRACE_L1("Max number of sub-sample count exceeded");
+                        result = ERROR_INVALID_DECRYPT_BUFFER;
+                        break;
+                    }
                     value = gst_structure_get_value(protectionMeta->info, "subsamples");
                     metaInfo[vBuffIdx].subSamplesGstBuf = gst_value_get_buffer(value);
                     if (value && metaInfo[vBuffIdx].subSamplesGstBuf) {
@@ -940,7 +947,7 @@ OpenCDMError opencdm_gstreamer_session_decrypt_buffer_multi_once(struct OpenCDMS
             std::vector<std::vector<SubSampleInfo>> vSubSampleInfo(count);
             std::vector<GstBuffer*> vbuffToDecrypt;
             uint32_t totalBytesToDecrypt{};
-            uint32_t refIdx{maxUint};
+            uint32_t refIdx{invalidRefId};
 
             for (size_t vBuffIdx = 0; vBuffIdx < count; ++vBuffIdx) {
                 //====================================================
@@ -957,14 +964,21 @@ OpenCDMError opencdm_gstreamer_session_decrypt_buffer_multi_once(struct OpenCDMS
                         uint16_t inClear = 0;
                         uint32_t inEncrypted = 0;
                         for (uint32_t index = 0; index < vProtectionInfo[vBuffIdx].subSamplesCount; index++) {
-                            gst_byte_reader_get_uint16_be(reader, &inClear);
-                            gst_byte_reader_get_uint32_be(reader, &inEncrypted);
+                            if (!gst_byte_reader_get_uint16_be(reader, &inClear) ||
+                                !gst_byte_reader_get_uint32_be(reader, &inEncrypted)) {
+                                TRACE_L1("Error reading sub-samples");
+                                result = ERROR_INVALID_DECRYPT_BUFFER;
+                                break;
+                            }
                             if (inEncrypted) {
                                 encryptedSubSampleCount++;
                                 break;
                             }
                         }
                         gst_byte_reader_free(reader);
+                        if (result != ERROR_NONE) {
+                            break;
+                        }
                         if (encryptedSubSampleCount == 0) {
                             TRACE_L1("Nothing to decrypt in subSamples, sample id: %zu", vBuffIdx);
                             continue;
@@ -984,13 +998,21 @@ OpenCDMError opencdm_gstreamer_session_decrypt_buffer_multi_once(struct OpenCDMS
                     uint32_t inEncrypted = 0;
                     uint32_t totalSubSampleBytes = 0;
                     for (uint32_t index = 0; index < vProtectionInfo[vBuffIdx].subSamplesCount; index++) {
-                        gst_byte_reader_get_uint16_be(reader, &inClear);
-                        gst_byte_reader_get_uint32_be(reader, &inEncrypted);
+                        if (!gst_byte_reader_get_uint16_be(reader, &inClear) ||
+                            !gst_byte_reader_get_uint32_be(reader, &inEncrypted)) {
+                            TRACE_L1("Error reading sub-samples");
+                            result = ERROR_INVALID_DECRYPT_BUFFER;
+                            break;
+                        }
 
                         vSubSampleInfo[vBuffIdx].emplace_back(SubSampleInfo{inClear, inEncrypted});
                         totalSubSampleBytes += inClear + inEncrypted;
                     }
                     gst_byte_reader_free(reader);
+                    if(result != ERROR_NONE) {
+                        break;
+                    }
+
                     result = validate_subsample_map_multi(vSubSampleInfo[vBuffIdx], vProtectionInfo[vBuffIdx].dataSize, totalSubSampleBytes);
                     if(result != ERROR_NONE) {
                         break;
@@ -1001,7 +1023,7 @@ OpenCDMError opencdm_gstreamer_session_decrypt_buffer_multi_once(struct OpenCDMS
                     vSubSampleInfo[vBuffIdx].emplace_back(SubSampleInfo{inClear, inEncrypted});
                 }
 
-                if (refIdx == maxUint) {
+                if (refIdx == invalidRefId) {
                     refIdx = vBuffIdx;
                 }
 

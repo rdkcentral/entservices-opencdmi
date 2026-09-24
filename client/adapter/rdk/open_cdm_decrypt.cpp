@@ -266,7 +266,11 @@ OpenCDMError opencdm_gstreamer_session_decrypt_buffer_multi(struct OpenCDMSessio
 
     if (count > 0) {
         std::vector<uint8_t> keyId;
-        copyKeyIdFromProtectionMeta(buffers[0], keyId);
+        for (GstBuffer* buff : vbuff) {
+            if (copyKeyIdFromProtectionMeta(buff, keyId)) {
+                break;
+            }
+        }
 
         result = decryptWithOutputRestrictedRetry(session, keyId, [=]() {
             return opencdm_gstreamer_session_decrypt_buffer_multi_once(session, buffers, count, caps);
