@@ -28,6 +28,7 @@
 
 #include <cstdint>
 #include <cstring>
+#include <vector>
 
 #include <gst_svp_meta.h>
 #include "../CapsParser.h"
@@ -698,15 +699,15 @@ namespace {
         EncryptionScheme encScheme{EncryptionScheme::Clear};
     };
 
-    OpenCDMError extractProtectionMetaMulti(std::vector<GstBuffer*> const& vbuff, std::vector<ProtectionMetaInfo>& metaInfo)
+    OpenCDMError extractProtectionMetaMulti(GstBuffer* buffers[], const uint16_t count, std::vector<ProtectionMetaInfo>& metaInfo)
     {
         OpenCDMError result{ERROR_NONE};
         const GValue* value{nullptr};
 
-        ASSERT(vbuff.size() == metaInfo.size());
+        ASSERT(count == metaInfo.size());
 
-        for (size_t vBuffIdx = 0; vBuffIdx < vbuff.size(); ++vBuffIdx) {
-            GstProtectionMeta* protectionMeta = gst_buffer_get_protection_meta(vbuff[vBuffIdx]);
+        for (size_t vBuffIdx = 0; vBuffIdx < count; ++vBuffIdx) {
+            GstProtectionMeta* protectionMeta = gst_buffer_get_protection_meta(buffers[vBuffIdx]);
             if (protectionMeta) {
                 if (!gst_structure_get_uint(protectionMeta->info, "subsample_count", &metaInfo[vBuffIdx].subSamplesCount)) {
                     TRACE_L1("Missing subsample count in protectionMeta");
@@ -751,7 +752,7 @@ namespace {
                     swapIVBytes(metaInfo[vBuffIdx].ivBuf, metaInfo[vBuffIdx].ivSize);
                 }
 
-                if(mapBuffer(vbuff[vBuffIdx], GST_MAP_READWRITE, &metaInfo[vBuffIdx].dataBufMap, &metaInfo[vBuffIdx].dataBuf, &metaInfo[vBuffIdx].dataSize) == false) {
+                if(mapBuffer(buffers[vBuffIdx], GST_MAP_READWRITE, &metaInfo[vBuffIdx].dataBufMap, &metaInfo[vBuffIdx].dataBuf, &metaInfo[vBuffIdx].dataSize) == false) {
                     TRACE_L1("Invalid buffer");
                     result = ERROR_INVALID_DECRYPT_BUFFER;
                     break;
@@ -925,24 +926,23 @@ OpenCDMError validate_subsample_map_multi(std::vector<SubSampleInfo> &subSampleV
 // Decrypts a vector of GstBuffer-s (all sharing the same KID) in a single call. This is the
 // multi-frame counterpart of opencdm_gstreamer_session_decrypt_buffer_once() above, implemented
 // independently so the single-buffer path is not affected by this feature.
-OpenCDMError opencdm_gstreamer_session_decrypt_buffer_multi_once(struct OpenCDMSession* session, const std::vector<GstBuffer*> &vbuff, GstCaps* caps)
+OpenCDMError opencdm_gstreamer_session_decrypt_buffer_multi_once(struct OpenCDMSession* session, GstBuffer* buffers[], const uint16_t count, GstCaps* caps)
 {
     OpenCDMError result{ERROR_NONE};
 
     if (session != nullptr) {
 
-        std::vector<ProtectionMetaInfo> vProtectionInfo(vbuff.size());
-        result = extractProtectionMetaMulti(vbuff, vProtectionInfo);
+        std::vector<ProtectionMetaInfo> vProtectionInfo(count);
+        result = extractProtectionMetaMulti(buffers, count, vProtectionInfo);
 
         if (result == ERROR_NONE) {
             std::vector<SampleInfo> vSampleInfo;
-            std::vector<std::vector<SubSampleInfo>> vSubSampleInfo(vbuff.size());
+            std::vector<std::vector<SubSampleInfo>> vSubSampleInfo(count);
             std::vector<GstBuffer*> vbuffToDecrypt;
             uint32_t totalBytesToDecrypt{};
             uint32_t refIdx{maxUint};
 
-            for (size_t vBuffIdx = 0; vBuffIdx < vbuff.size(); ++vBuffIdx) {
-
+            for (size_t vBuffIdx = 0; vBuffIdx < count; ++vBuffIdx) {
                 //====================================================
                 //Check if there is anything to decrypt in the sample
 
@@ -1036,8 +1036,8 @@ OpenCDMError opencdm_gstreamer_session_decrypt_buffer_multi_once(struct OpenCDMS
                 totalBytesToDecrypt += vProtectionInfo[vBuffIdx].dataSize;
                 vProtectionInfo[vBuffIdx].encrypted = true;
 
-                vbuffToDecrypt.push_back(vbuff[vBuffIdx]);
-            }//for vbuff
+                vbuffToDecrypt.push_back(buffers[vBuffIdx]);
+            }//for buffers
 
             std::string perfString(__FUNCTION__);
             //Get Stream Properties from GstCaps
@@ -1082,7 +1082,7 @@ OpenCDMError opencdm_gstreamer_session_decrypt_buffer_multi_once(struct OpenCDMS
                    uint8_t* encryptedData = reinterpret_cast<uint8_t *>(gst_svp_header_get_start_of_data(session->SessionPrivateData(), svpData));
                    uint8_t* encryptedDataIter = encryptedData;
 
-                   for (size_t vBuffIdx = 0; vBuffIdx < vbuff.size(); ++vBuffIdx) {
+                   for (size_t vBuffIdx = 0; vBuffIdx < count; ++vBuffIdx) {
                        if (vProtectionInfo[vBuffIdx].encrypted) {
                            memcpy(encryptedDataIter, vProtectionInfo[vBuffIdx].dataBuf, vProtectionInfo[vBuffIdx].dataSize);
                            encryptedDataIter += vProtectionInfo[vBuffIdx].dataSize;
@@ -1120,7 +1120,8 @@ OpenCDMError opencdm_gstreamer_session_decrypt_buffer_multi_once(struct OpenCDMS
 
                    if(result == ERROR_NONE) {
                        GstPerf* svpTransform_perf3 = new GstPerf("opencdm_svp_transform_subsample");
-                       if (!gst_buffer_vector_append_svp_transform(session->SessionPrivateData(), vbuffToDecrypt, svpData, totalBytesToDecrypt)) {
+                       if (!gst_buffer_vector_append_svp_transform(session->SessionPrivateData(), vbuffToDecrypt.data(),
+                                                                   vbuffToDecrypt.size(), svpData, totalBytesToDecrypt)) {
                            result = ERROR_FAIL;
                        }
                        delete svpTransform_perf3;
@@ -1133,17 +1134,17 @@ OpenCDMError opencdm_gstreamer_session_decrypt_buffer_multi_once(struct OpenCDMS
             }
 
             if (result == ERROR_NONE) {
-                for (size_t vBuffIdx = 0; vBuffIdx < vbuff.size(); ++vBuffIdx) {
+                for (size_t vBuffIdx = 0; vBuffIdx < count; ++vBuffIdx) {
                     if (vProtectionInfo[vBuffIdx].encrypted == false) {
-                        gst_buffer_svp_transform_from_cleardata(session->SessionPrivateData(), vbuff[vBuffIdx], mediaType);
+                        gst_buffer_svp_transform_from_cleardata(session->SessionPrivateData(), buffers[vBuffIdx], mediaType);
                     }
                 }
             }
         } //if protection meta valid
 
-        for (size_t vBuffIdx = 0; vBuffIdx < vbuff.size(); ++vBuffIdx) {
+        for (size_t vBuffIdx = 0; vBuffIdx < count; ++vBuffIdx) {
             if (vProtectionInfo[vBuffIdx].dataBufMap.data) {
-                gst_buffer_unmap(vbuff[vBuffIdx], &vProtectionInfo[vBuffIdx].dataBufMap);
+                gst_buffer_unmap(buffers[vBuffIdx], &vProtectionInfo[vBuffIdx].dataBufMap);
             }
             if (vProtectionInfo[vBuffIdx].ivBufMap.data) {
                 gst_buffer_unmap(vProtectionInfo[vBuffIdx].ivGstBuf, &vProtectionInfo[vBuffIdx].ivBufMap);

@@ -21,7 +21,6 @@
 #define __OPEN_CDM_ADAPTER_H
 
 #include "open_cdm.h"
-#include <vector>
 
 struct _GstBuffer;
 typedef struct _GstBuffer GstBuffer;
@@ -160,18 +159,18 @@ EXTERNAL uint32_t opencdm_destruct_session_private(struct OpenCDMSession* sessio
  * This method passes on the subsample mapping to the DRM implementation and assumes that the DRM implementation will handle the decryption based on subsample mapping.
  *
  * \param session \ref OpenCDMSession instance.
- * \param vbuff vector of gstreamer buffers containing encrypted data and related meta data. If applicable, decrypted data will be stored here after this call returns.
+ * \param buffers array of gstreamer buffers containing encrypted data and related meta data. If applicable, decrypted data will be stored here after this call returns.
+ * \param count number of entries in the buffers array.
  * \return Zero on success, non-zero on error.
  */
 #ifdef ENABLE_MULTI_DECRYPT
-    EXTERNAL OpenCDMError opencdm_gstreamer_session_decrypt_buffer_multi(struct OpenCDMSession* session, const std::vector<GstBuffer*> &vbuff, GstCaps* caps);
-
+    EXTERNAL OpenCDMError opencdm_gstreamer_session_decrypt_buffer_multi(struct OpenCDMSession* session, GstBuffer* buffers[], const uint16_t count, GstCaps* caps);
 /**
  * \brief Performs decryption based on adapter implementation.
  *
  * This is version of @see opencdm_gstreamer_session_decrypt_buffer_multi() that performs single decryption - without any retries.
  */
-    EXTERNAL OpenCDMError opencdm_gstreamer_session_decrypt_buffer_multi_once(struct OpenCDMSession* session, const std::vector<GstBuffer*> &vbuff, GstCaps* caps);
+    EXTERNAL OpenCDMError opencdm_gstreamer_session_decrypt_buffer_multi_once(struct OpenCDMSession* session, GstBuffer* buffers[], const uint16_t count, GstCaps* caps);
 #endif // ENABLE_MULTI_DECRYPT
 
 /**

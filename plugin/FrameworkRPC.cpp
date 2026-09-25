@@ -292,6 +292,7 @@ namespace Plugin {
                         , Core::Thread(Core::Thread::DefaultStackSize(), _T("DRMSessionThread"))
                         , _mediaKeys(mediaKeys)
                         , _mediaKeysExt(dynamic_cast<CDMi::IMediaKeySessionExt*>(mediaKeys))
+                        , _mediaKeysBatch(dynamic_cast<CDMi::IMediaKeySessionBatch*>(mediaKeys))
                         , _sessionKey(nullptr)
                         , _sessionKeyLength(0)
                     {
@@ -336,7 +337,11 @@ namespace Plugin {
                                 // that defaults to 0 for legacy/single-sample requests, so existing
                                 // callers always fall through to the unchanged else-branch.
                                 const uint16_t sampleCount = SampleLength();
-                                if (sampleCount > 0) {
+                                if ((sampleCount > 0) && (_mediaKeysBatch == nullptr)) {
+                                    // No batch interface: fail rather than fall through to the
+                                    // single-sample path, which a batch request never populates.
+                                    cr = CDMi::CDMi_METHOD_NOT_IMPLEMENTED;
+                                } else if (sampleCount > 0) {
 
                                     std::vector<CDMi::SampleInfo> sampleInfoVec(sampleCount);
                                     Samples(sampleInfoVec.data(), sampleCount);
@@ -346,7 +351,7 @@ namespace Plugin {
                                     MediaProperties(height, width, type);
                                     const MediaStreamProperties streamProperties(height, width, static_cast<CDMi::MediaType>(type));
 
-                                    cr = _mediaKeys->DecryptMulti(
+                                    cr = _mediaKeysBatch->DecryptMulti(
                                             payloadBuffer,
                                             BytesWritten(),
                                             &clearContent,
@@ -409,6 +414,7 @@ namespace Plugin {
                 private:
                     CDMi::IMediaKeySession* _mediaKeys;
                     CDMi::IMediaKeySessionExt* _mediaKeysExt;
+                    CDMi::IMediaKeySessionBatch* _mediaKeysBatch;
                     uint8_t* _sessionKey;
                     uint32_t _sessionKeyLength;
                 };
