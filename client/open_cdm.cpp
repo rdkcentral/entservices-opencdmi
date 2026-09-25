@@ -728,6 +728,26 @@ OpenCDMError opencdm_session_decrypt_v2(struct OpenCDMSession* session,
     return (result);
 }
 
+#ifdef ENABLE_MULTI_DECRYPT
+OpenCDMError opencdm_session_decrypt_v3(struct OpenCDMSession* session,
+    uint8_t encrypted[],
+    const uint32_t encryptedLength,
+    const SampleInfo* sampleInfo,
+    const uint16_t sampleInfoLength,
+    const MediaProperties* properties)
+{
+    OpenCDMError result(OpenCDMError::ERROR_INVALID_SESSION);
+    ASSERT(session != nullptr);
+
+    if (session != nullptr) {
+        result = encryptedLength > 0 ? static_cast<OpenCDMError>(session->DecryptMulti(
+            encrypted, encryptedLength, sampleInfo, sampleInfoLength, properties)) : OpenCDMError::ERROR_NONE;
+    }
+
+    return (result);
+}
+#endif // ENABLE_MULTI_DECRYPT
+
 /**
  * \brief Get metrics associated with a DRM session.
  *

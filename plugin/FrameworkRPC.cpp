@@ -292,6 +292,7 @@ namespace Plugin {
                         , Core::Thread(Core::Thread::DefaultStackSize(), _T("DRMSessionThread"))
                         , _mediaKeys(mediaKeys)
                         , _mediaKeysExt(dynamic_cast<CDMi::IMediaKeySessionExt*>(mediaKeys))
+                        , _mediaKeysBatch(dynamic_cast<CDMi::IMediaKeySessionBatch*>(mediaKeys))
                         , _sessionKey(nullptr)
                         , _sessionKeyLength(0)
                     {
@@ -327,28 +328,61 @@ namespace Plugin {
                             if (IsRunning() == true) {
                                 uint8_t *payloadBuffer = Buffer();
 
-                                CDMi::SampleInfo sampleInfo;
-                                sampleInfo.scheme = static_cast<CDMi::EncryptionScheme>(EncScheme());
-                                EncPattern(sampleInfo.pattern.encrypted_blocks,sampleInfo.pattern.clear_blocks);
-                                sampleInfo.iv = const_cast<uint8_t *>(IVKey());
-                                sampleInfo.ivLength = IVKeyLength();
-                                sampleInfo.keyId = const_cast<uint8_t *>(KeyId(sampleInfo.keyIdLength));
-                                sampleInfo.subSample = const_cast<CDMi::SubSampleInfo *>(SubSamples());
-                                sampleInfo.subSampleCount = SubSampleLength();
+                                int cr = 0;
 
-                                uint16_t width = 0, height = 0;
-                                uint8_t type = 0;
-                                MediaProperties(height, width, type);
-                                const MediaStreamProperties streamProperties(height, width, static_cast<CDMi::MediaType>(type));
+                                // Multi-sample decrypt requests are routed through a
+                                // separate branch/implementation, kept independent of the legacy
+                                // single-sample path below (which is unmodified). SampleLength()
+                                // is a new accessor (paired with the client-side SetSample(...))
+                                // that defaults to 0 for legacy/single-sample requests, so existing
+                                // callers always fall through to the unchanged else-branch.
+                                const uint16_t sampleCount = SampleLength();
+                                if (sampleCount > 0) {
+                                    if (_mediaKeysBatch) {
+                                        std::vector<CDMi::SampleInfo> sampleInfoVec(sampleCount);
+                                        Samples(sampleInfoVec.data(), sampleCount);
 
-                                int cr = _mediaKeys->Decrypt(
-                                        payloadBuffer,
-                                        BytesWritten(),
-                                        &clearContent,
-                                        &clearContentSize,
-                                        const_cast<CDMi::SampleInfo *>(&sampleInfo),
-                                        dynamic_cast<const CDMi::IStreamProperties *>(&streamProperties));
-                                
+                                        uint16_t width = 0, height = 0;
+                                        uint8_t type = 0;
+                                        MediaProperties(height, width, type);
+                                        const MediaStreamProperties streamProperties(height, width, static_cast<CDMi::MediaType>(type));
+
+                                        cr = _mediaKeysBatch->DecryptMulti(
+                                                payloadBuffer,
+                                                BytesWritten(),
+                                                &clearContent,
+                                                &clearContentSize,
+                                                sampleInfoVec.data(),
+                                                sampleCount,
+                                                dynamic_cast<const CDMi::IStreamProperties *>(&streamProperties));
+                                    } else {
+                                        cr = CDMi::CDMi_METHOD_NOT_IMPLEMENTED;
+                                    }
+                                } else {
+                                    // ---- Legacy single-sample decrypt path (unchanged) ----
+                                    CDMi::SampleInfo sampleInfo;
+                                    sampleInfo.scheme = static_cast<CDMi::EncryptionScheme>(EncScheme());
+                                    EncPattern(sampleInfo.pattern.encrypted_blocks,sampleInfo.pattern.clear_blocks);
+                                    sampleInfo.iv = const_cast<uint8_t *>(IVKey());
+                                    sampleInfo.ivLength = IVKeyLength();
+                                    sampleInfo.keyId = const_cast<uint8_t *>(KeyId(sampleInfo.keyIdLength));
+                                    sampleInfo.subSample = const_cast<CDMi::SubSampleInfo *>(SubSamples());
+                                    sampleInfo.subSampleCount = SubSampleLength();
+
+                                    uint16_t width = 0, height = 0;
+                                    uint8_t type = 0;
+                                    MediaProperties(height, width, type);
+                                    const MediaStreamProperties streamProperties(height, width, static_cast<CDMi::MediaType>(type));
+
+                                    cr = _mediaKeys->Decrypt(
+                                            payloadBuffer,
+                                            BytesWritten(),
+                                            &clearContent,
+                                            &clearContentSize,
+                                            const_cast<CDMi::SampleInfo *>(&sampleInfo),
+                                            dynamic_cast<const CDMi::IStreamProperties *>(&streamProperties));
+                                }
+
                                 if ((cr == 0) && (clearContentSize != 0)) {
                                     if (clearContentSize != BytesWritten()) {
                                         TRACE(Trace::Information, (_T("Returned clear sample size (%d) differs from encrypted buffer size (%d)"), clearContentSize, BytesWritten()));
@@ -378,6 +412,7 @@ namespace Plugin {
                 private:
                     CDMi::IMediaKeySession* _mediaKeys;
                     CDMi::IMediaKeySessionExt* _mediaKeysExt;
+                    CDMi::IMediaKeySessionBatch* _mediaKeysBatch;
                     uint8_t* _sessionKey;
                     uint32_t _sessionKeyLength;
                 };

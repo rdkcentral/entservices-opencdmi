@@ -245,7 +245,7 @@ cd ..
 
 clone_if_missing ThunderClientLibraries --branch R4.4.2 https://github.com/rdkcentral/ThunderClientLibraries.git
 
-clone_if_missing entservices-apis --branch main https://github.com/rdkcentral/entservices-apis.git
+clone_if_missing entservices-apis --branch feature/RDKDEV-1281 https://github.com/rdkcentral/entservices-apis.git
 
 clone_if_missing entservices-testframework --branch 2.0.0 https://github.com/rdkcentral/entservices-testframework.git
 
