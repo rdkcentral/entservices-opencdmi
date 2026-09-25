@@ -250,10 +250,8 @@ OpenCDMError opencdm_gstreamer_session_decrypt_buffer_multi(struct OpenCDMSessio
     RDKPerf(__FUNCTION__);
     OpenCDMError result(OpenCDMError::ERROR_INVALID_ARG);
 
-    // RDKDEV-1281: ENABLE_MULTI_DECRYPT is an opencdmi build flag, but the batch SVP
-    // transform lives in the platform's gst-svp-ext, which knows nothing about it.
     if (!gst_svp_is_multiple_decrypt_supported()) {
-        // Reported once; the capability is fixed when libgstsvpext is loaded.
+        // Reported once; the capability is fixed when libgstsvpext is loaded
         static std::atomic_flag reported = ATOMIC_FLAG_INIT;
         if (!reported.test_and_set()) {
             LOGDECRYPT(ERROR, "Batch decrypt unavailable: libocdm was built with "
@@ -264,10 +262,10 @@ OpenCDMError opencdm_gstreamer_session_decrypt_buffer_multi(struct OpenCDMSessio
         return ERROR_METHOD_NOT_IMPLEMENTED;
     }
 
-    if (count > 0) {
+    if ((count > 0) && (buffers != nullptr)) {
         std::vector<uint8_t> keyId;
-        for (GstBuffer* buff : vbuff) {
-            if (copyKeyIdFromProtectionMeta(buff, keyId)) {
+        for (uint16_t buffIdx = 0; buffIdx < count; ++buffIdx) {
+           if (copyKeyIdFromProtectionMeta(buffers[buffIdx], keyId)) {
                 break;
             }
         }

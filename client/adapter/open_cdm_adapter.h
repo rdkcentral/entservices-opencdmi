@@ -136,7 +136,7 @@ EXTERNAL uint32_t opencdm_destruct_session_private(struct OpenCDMSession* sessio
 /**
  * \brief Performs decryption based on adapter implementation.
  *
- * This version accepts a vector of GstBuffer-s allowing decryption of multiple A/V frames in one call.
+ * This version accepts an array of GstBuffer-s allowing decryption of multiple A/V frames in one call.
  * Passed GstBuffer-s need to share the same: KID, encryption scheme and encryption pattern - otherwise an error is reported.
  * Typically decrypt happens out-of-process (for security reasons). The actual data copying is performed
  * using a memory-mapped file (for performance reasons). If the DRM system allows access to decrypted data (i.e. decrypting is not
@@ -165,6 +165,7 @@ EXTERNAL uint32_t opencdm_destruct_session_private(struct OpenCDMSession* sessio
  */
 #ifdef ENABLE_MULTI_DECRYPT
     EXTERNAL OpenCDMError opencdm_gstreamer_session_decrypt_buffer_multi(struct OpenCDMSession* session, GstBuffer* buffers[], const uint16_t count, GstCaps* caps);
+
 /**
  * \brief Performs decryption based on adapter implementation.
  *

@@ -330,36 +330,34 @@ namespace Plugin {
 
                                 int cr = 0;
 
-                                // RDKDEV-1281: multi-sample decrypt requests are routed through a
+                                // Multi-sample decrypt requests are routed through a
                                 // separate branch/implementation, kept independent of the legacy
                                 // single-sample path below (which is unmodified). SampleLength()
                                 // is a new accessor (paired with the client-side SetSample(...))
                                 // that defaults to 0 for legacy/single-sample requests, so existing
                                 // callers always fall through to the unchanged else-branch.
                                 const uint16_t sampleCount = SampleLength();
-                                if ((sampleCount > 0) && (_mediaKeysBatch == nullptr)) {
-                                    // No batch interface: fail rather than fall through to the
-                                    // single-sample path, which a batch request never populates.
-                                    cr = CDMi::CDMi_METHOD_NOT_IMPLEMENTED;
-                                } else if (sampleCount > 0) {
+                                if (sampleCount > 0) {
+                                    if (_mediaKeysBatch) {
+                                        std::vector<CDMi::SampleInfo> sampleInfoVec(sampleCount);
+                                        Samples(sampleInfoVec.data(), sampleCount);
 
-                                    std::vector<CDMi::SampleInfo> sampleInfoVec(sampleCount);
-                                    Samples(sampleInfoVec.data(), sampleCount);
+                                        uint16_t width = 0, height = 0;
+                                        uint8_t type = 0;
+                                        MediaProperties(height, width, type);
+                                        const MediaStreamProperties streamProperties(height, width, static_cast<CDMi::MediaType>(type));
 
-                                    uint16_t width = 0, height = 0;
-                                    uint8_t type = 0;
-                                    MediaProperties(height, width, type);
-                                    const MediaStreamProperties streamProperties(height, width, static_cast<CDMi::MediaType>(type));
-
-                                    cr = _mediaKeysBatch->DecryptMulti(
-                                            payloadBuffer,
-                                            BytesWritten(),
-                                            &clearContent,
-                                            &clearContentSize,
-                                            sampleInfoVec.data(),
-                                            sampleCount,
-                                            dynamic_cast<const CDMi::IStreamProperties *>(&streamProperties));
-
+                                        cr = _mediaKeysBatch->DecryptMulti(
+                                                payloadBuffer,
+                                                BytesWritten(),
+                                                &clearContent,
+                                                &clearContentSize,
+                                                sampleInfoVec.data(),
+                                                sampleCount,
+                                                dynamic_cast<const CDMi::IStreamProperties *>(&streamProperties));
+                                    } else {
+                                        cr = CDMi::CDMi_METHOD_NOT_IMPLEMENTED;
+                                    }
                                 } else {
                                     // ---- Legacy single-sample decrypt path (unchanged) ----
                                     CDMi::SampleInfo sampleInfo;

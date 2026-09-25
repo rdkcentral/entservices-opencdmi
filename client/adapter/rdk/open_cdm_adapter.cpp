@@ -650,7 +650,7 @@ exit:
 }
 
 // ============================================================================
-// RDKDEV-1281: Multi-frame decrypt implementation.
+// Multi-frame decrypt implementation.
 //
 // Everything below this point is a self-contained addition for
 // opencdm_gstreamer_session_decrypt_buffer_multi_once(). It does not modify,
@@ -704,27 +704,28 @@ namespace {
         OpenCDMError result{ERROR_NONE};
         const GValue* value{nullptr};
 
+        ASSERT(buffers);
         ASSERT(count == metaInfo.size());
 
-        for (size_t vBuffIdx = 0; vBuffIdx < count; ++vBuffIdx) {
-            GstProtectionMeta* protectionMeta = gst_buffer_get_protection_meta(buffers[vBuffIdx]);
+        for (uint16_t buffIdx = 0; buffIdx < count; ++buffIdx) {
+            GstProtectionMeta* protectionMeta = gst_buffer_get_protection_meta(buffers[buffIdx]);
             if (protectionMeta) {
-                if (!gst_structure_get_uint(protectionMeta->info, "subsample_count", &metaInfo[vBuffIdx].subSamplesCount)) {
+                if (!gst_structure_get_uint(protectionMeta->info, "subsample_count", &metaInfo[buffIdx].subSamplesCount)) {
                     TRACE_L1("Missing subsample count in protectionMeta");
                 }
-                if (metaInfo[vBuffIdx].subSamplesCount) {
+                if (metaInfo[buffIdx].subSamplesCount) {
                     //Both SampleInfo::subSampleCount and CDMi::SampleInfo::subSampleCount are uint8_t - hence below check
-                    //attempt of passing larger amount of sub-samles may result in unexpected behaviour
-                    if (metaInfo[vBuffIdx].subSamplesCount > std::numeric_limits<std::uint8_t>::max()) {
+                    //attempt of passing larger amount of sub-samples may result in unexpected behaviour
+                    if (metaInfo[buffIdx].subSamplesCount > std::numeric_limits<std::uint8_t>::max()) {
                         TRACE_L1("Max number of sub-sample count exceeded");
                         result = ERROR_INVALID_DECRYPT_BUFFER;
                         break;
                     }
                     value = gst_structure_get_value(protectionMeta->info, "subsamples");
-                    metaInfo[vBuffIdx].subSamplesGstBuf = gst_value_get_buffer(value);
-                    if (value && metaInfo[vBuffIdx].subSamplesGstBuf) {
-                        if (mapBuffer(metaInfo[vBuffIdx].subSamplesGstBuf, GST_MAP_READ, &metaInfo[vBuffIdx].subSamplesBufMap,
-                                &metaInfo[vBuffIdx].subSamplesBuf, &metaInfo[vBuffIdx].subSamplesSize) == false) {
+                    metaInfo[buffIdx].subSamplesGstBuf = gst_value_get_buffer(value);
+                    if (value && metaInfo[buffIdx].subSamplesGstBuf) {
+                        if (mapBuffer(metaInfo[buffIdx].subSamplesGstBuf, GST_MAP_READ, &metaInfo[buffIdx].subSamplesBufMap,
+                                &metaInfo[buffIdx].subSamplesBuf, &metaInfo[buffIdx].subSamplesSize) == false) {
                             TRACE_L1("Invalid subsamples buffer");
                             result = ERROR_INVALID_DECRYPT_BUFFER;
                             break;
@@ -737,10 +738,10 @@ namespace {
                 }
 
                 value = gst_structure_get_value(protectionMeta->info, "iv");
-                metaInfo[vBuffIdx].ivGstBuf = gst_value_get_buffer(value);
-                if (value && metaInfo[vBuffIdx].ivGstBuf) {
-                    if(mapBuffer(metaInfo[vBuffIdx].ivGstBuf, GST_MAP_READ, &metaInfo[vBuffIdx].ivBufMap, &metaInfo[vBuffIdx].ivBuf,
-                            &metaInfo[vBuffIdx].ivSize) == false) {
+                metaInfo[buffIdx].ivGstBuf = gst_value_get_buffer(value);
+                if (value && metaInfo[buffIdx].ivGstBuf) {
+                    if(mapBuffer(metaInfo[buffIdx].ivGstBuf, GST_MAP_READ, &metaInfo[buffIdx].ivBufMap, &metaInfo[buffIdx].ivBuf,
+                            &metaInfo[buffIdx].ivSize) == false) {
                         TRACE_L1("Invalid IV buffer");
                         result = ERROR_INVALID_DECRYPT_BUFFER;
                         break;
@@ -751,25 +752,17 @@ namespace {
                     break;
                 }
 
-                unsigned initWithLast15 = 0;
-                if (!gst_structure_get_uint(protectionMeta->info, "initWithLast15", &initWithLast15)) {
-                    TRACE_L3("Missing initWithLast15 value.");
-                }
-                if (initWithLast15 == 1) {
-                    swapIVBytes(metaInfo[vBuffIdx].ivBuf, metaInfo[vBuffIdx].ivSize);
-                }
-
-                if(mapBuffer(buffers[vBuffIdx], GST_MAP_READWRITE, &metaInfo[vBuffIdx].dataBufMap, &metaInfo[vBuffIdx].dataBuf, &metaInfo[vBuffIdx].dataSize) == false) {
+                if(mapBuffer(buffers[buffIdx], GST_MAP_READWRITE, &metaInfo[buffIdx].dataBufMap, &metaInfo[buffIdx].dataBuf, &metaInfo[buffIdx].dataSize) == false) {
                     TRACE_L1("Invalid buffer");
                     result = ERROR_INVALID_DECRYPT_BUFFER;
                     break;
                 }
 
                 value = gst_structure_get_value(protectionMeta->info, "kid");
-                metaInfo[vBuffIdx].keyIdGstBuf = gst_value_get_buffer(value);
-                if (value && metaInfo[vBuffIdx].keyIdGstBuf) {
-                    if(mapBuffer(metaInfo[vBuffIdx].keyIdGstBuf, GST_MAP_READ, &metaInfo[vBuffIdx].keyIdBufMap, &metaInfo[vBuffIdx].keyIdBuf,
-                            &metaInfo[vBuffIdx].keyIdSize) == false) {
+                metaInfo[buffIdx].keyIdGstBuf = gst_value_get_buffer(value);
+                if (value && metaInfo[buffIdx].keyIdGstBuf) {
+                    if(mapBuffer(metaInfo[buffIdx].keyIdGstBuf, GST_MAP_READ, &metaInfo[buffIdx].keyIdBufMap, &metaInfo[buffIdx].keyIdBuf,
+                            &metaInfo[buffIdx].keyIdSize) == false) {
                         TRACE_L1("Invalid key id buffer");
                         result = ERROR_INVALID_DECRYPT_BUFFER;
                         break;
@@ -781,17 +774,17 @@ namespace {
                 }
 
                 //Get Enc Scheme and Pattern
-                metaInfo[vBuffIdx].encScheme = AesCtr_Cenc;
+                metaInfo[buffIdx].encScheme = AesCtr_Cenc;
                 if (gst_structure_has_name(protectionMeta->info, "application/x-cbcs")) {
-                    metaInfo[vBuffIdx].encScheme = AesCbc_Cbcs;
+                    metaInfo[buffIdx].encScheme = AesCbc_Cbcs;
                 } else {
                     const char* cipherModeBuf = gst_structure_get_string(protectionMeta->info, "cipher-mode");
                     if(g_strcmp0(cipherModeBuf, "cbcs") == 0) {
-                        metaInfo[vBuffIdx].encScheme = AesCbc_Cbcs;
+                        metaInfo[buffIdx].encScheme = AesCbc_Cbcs;
                     }
                 }
-                gst_structure_get_uint(protectionMeta->info, "crypt_byte_block", &metaInfo[vBuffIdx].pattern.encrypted_blocks);
-                gst_structure_get_uint(protectionMeta->info, "skip_byte_block", &metaInfo[vBuffIdx].pattern.clear_blocks);
+                gst_structure_get_uint(protectionMeta->info, "crypt_byte_block", &metaInfo[buffIdx].pattern.encrypted_blocks);
+                gst_structure_get_uint(protectionMeta->info, "skip_byte_block", &metaInfo[buffIdx].pattern.clear_blocks);
             } else {
                 TRACE_L1("Missing Protection Metadata");
             }
@@ -930,14 +923,14 @@ OpenCDMError validate_subsample_map_multi(std::vector<SubSampleInfo> &subSampleV
     return retVal;
 }
 
-// Decrypts a vector of GstBuffer-s (all sharing the same KID) in a single call. This is the
+// Decrypts an array of GstBuffer-s (all sharing the same KID) in a single call. This is the
 // multi-frame counterpart of opencdm_gstreamer_session_decrypt_buffer_once() above, implemented
 // independently so the single-buffer path is not affected by this feature.
 OpenCDMError opencdm_gstreamer_session_decrypt_buffer_multi_once(struct OpenCDMSession* session, GstBuffer* buffers[], const uint16_t count, GstCaps* caps)
 {
     OpenCDMError result{ERROR_NONE};
 
-    if (session != nullptr) {
+    if ((session != nullptr) && (count > 0) && (buffers != nullptr)) {
 
         std::vector<ProtectionMetaInfo> vProtectionInfo(count);
         result = extractProtectionMetaMulti(buffers, count, vProtectionInfo);
@@ -949,21 +942,22 @@ OpenCDMError opencdm_gstreamer_session_decrypt_buffer_multi_once(struct OpenCDMS
             uint32_t totalBytesToDecrypt{};
             uint32_t refIdx{invalidRefId};
 
-            for (size_t vBuffIdx = 0; vBuffIdx < count; ++vBuffIdx) {
+            for (uint16_t buffIdx = 0; buffIdx < count; ++buffIdx) {
+
                 //====================================================
                 //Check if there is anything to decrypt in the sample
 
-                if (vProtectionInfo[vBuffIdx].subSamplesGstBuf == nullptr && vProtectionInfo[vBuffIdx].ivGstBuf == nullptr &&
-                        vProtectionInfo[vBuffIdx].keyIdGstBuf == nullptr) {
-                    TRACE_L1("Nothing to decrypt in sample id: %zu", vBuffIdx);
+                if (vProtectionInfo[buffIdx].subSamplesGstBuf == nullptr && vProtectionInfo[buffIdx].ivGstBuf == nullptr &&
+                        vProtectionInfo[buffIdx].keyIdGstBuf == nullptr) {
+                    TRACE_L1("Nothing to decrypt in sample id: %u", buffIdx);
                     continue;
                 } else {
-                    if (vProtectionInfo[vBuffIdx].subSamplesBuf) {
+                    if (vProtectionInfo[buffIdx].subSamplesBuf) {
                         uint32_t encryptedSubSampleCount{};
-                        GstByteReader* reader = gst_byte_reader_new(vProtectionInfo[vBuffIdx].subSamplesBuf, vProtectionInfo[vBuffIdx].subSamplesSize);
+                        GstByteReader* reader = gst_byte_reader_new(vProtectionInfo[buffIdx].subSamplesBuf, vProtectionInfo[buffIdx].subSamplesSize);
                         uint16_t inClear = 0;
                         uint32_t inEncrypted = 0;
-                        for (uint32_t index = 0; index < vProtectionInfo[vBuffIdx].subSamplesCount; index++) {
+                        for (uint32_t index = 0; index < vProtectionInfo[buffIdx].subSamplesCount; index++) {
                             if (!gst_byte_reader_get_uint16_be(reader, &inClear) ||
                                 !gst_byte_reader_get_uint32_be(reader, &inEncrypted)) {
                                 TRACE_L1("Error reading sub-samples");
@@ -980,24 +974,24 @@ OpenCDMError opencdm_gstreamer_session_decrypt_buffer_multi_once(struct OpenCDMS
                             break;
                         }
                         if (encryptedSubSampleCount == 0) {
-                            TRACE_L1("Nothing to decrypt in subSamples, sample id: %zu", vBuffIdx);
+                            TRACE_L1("Nothing to decrypt in subSamples, sample id: %u", buffIdx);
                             continue;
                         }
                     }
-                    if (vProtectionInfo[vBuffIdx].dataSize == 0) {
-                        TRACE_L1("Nothing to decrypt - empty buffer, sample id: %zu", vBuffIdx);
+                    if (vProtectionInfo[buffIdx].dataSize == 0) {
+                        TRACE_L1("Nothing to decrypt - empty buffer, sample id: %u", buffIdx);
                         continue;
                     }
                 }
 
                 //====================================================
                 //Prepare SampleInfo
-                if (vProtectionInfo[vBuffIdx].subSamplesBuf) {
-                    GstByteReader* reader = gst_byte_reader_new(vProtectionInfo[vBuffIdx].subSamplesBuf, vProtectionInfo[vBuffIdx].subSamplesSize);
+                if (vProtectionInfo[buffIdx].subSamplesBuf) {
+                    GstByteReader* reader = gst_byte_reader_new(vProtectionInfo[buffIdx].subSamplesBuf, vProtectionInfo[buffIdx].subSamplesSize);
                     uint16_t inClear = 0;
                     uint32_t inEncrypted = 0;
                     uint32_t totalSubSampleBytes = 0;
-                    for (uint32_t index = 0; index < vProtectionInfo[vBuffIdx].subSamplesCount; index++) {
+                    for (uint32_t index = 0; index < vProtectionInfo[buffIdx].subSamplesCount; index++) {
                         if (!gst_byte_reader_get_uint16_be(reader, &inClear) ||
                             !gst_byte_reader_get_uint32_be(reader, &inEncrypted)) {
                             TRACE_L1("Error reading sub-samples");
@@ -1005,7 +999,7 @@ OpenCDMError opencdm_gstreamer_session_decrypt_buffer_multi_once(struct OpenCDMS
                             break;
                         }
 
-                        vSubSampleInfo[vBuffIdx].emplace_back(SubSampleInfo{inClear, inEncrypted});
+                        vSubSampleInfo[buffIdx].emplace_back(SubSampleInfo{inClear, inEncrypted});
                         totalSubSampleBytes += inClear + inEncrypted;
                     }
                     gst_byte_reader_free(reader);
@@ -1013,52 +1007,52 @@ OpenCDMError opencdm_gstreamer_session_decrypt_buffer_multi_once(struct OpenCDMS
                         break;
                     }
 
-                    result = validate_subsample_map_multi(vSubSampleInfo[vBuffIdx], vProtectionInfo[vBuffIdx].dataSize, totalSubSampleBytes);
+                    result = validate_subsample_map_multi(vSubSampleInfo[buffIdx], vProtectionInfo[buffIdx].dataSize, totalSubSampleBytes);
                     if(result != ERROR_NONE) {
                         break;
                     }
                 } else {
                     uint16_t inClear = 0;
-                    uint32_t inEncrypted = vProtectionInfo[vBuffIdx].dataSize;
-                    vSubSampleInfo[vBuffIdx].emplace_back(SubSampleInfo{inClear, inEncrypted});
+                    uint32_t inEncrypted = vProtectionInfo[buffIdx].dataSize;
+                    vSubSampleInfo[buffIdx].emplace_back(SubSampleInfo{inClear, inEncrypted});
                 }
 
                 if (refIdx == invalidRefId) {
-                    refIdx = vBuffIdx;
+                    refIdx = buffIdx;
                 }
 
                 if (!keyIdsEqual(vProtectionInfo[refIdx].keyIdBuf, vProtectionInfo[refIdx].keyIdSize,
-                        vProtectionInfo[vBuffIdx].keyIdBuf, vProtectionInfo[vBuffIdx].keyIdSize)) {
+                        vProtectionInfo[buffIdx].keyIdBuf, vProtectionInfo[buffIdx].keyIdSize)) {
                     TRACE_L1("Key id needs to be same for all GstBuffers");
                     result = ERROR_INVALID_DECRYPT_BUFFER;
                     break;
                 }
-                if (vProtectionInfo[refIdx].encScheme != vProtectionInfo[vBuffIdx].encScheme) {
+                if (vProtectionInfo[refIdx].encScheme != vProtectionInfo[buffIdx].encScheme) {
                     TRACE_L1("Encryption scheme needs to be same for all GstBuffers");
                     result = ERROR_INVALID_DECRYPT_BUFFER;
                     break;
                 }
-                if (vProtectionInfo[refIdx].pattern.encrypted_blocks != vProtectionInfo[vBuffIdx].pattern.encrypted_blocks ||
-                    vProtectionInfo[refIdx].pattern.clear_blocks != vProtectionInfo[vBuffIdx].pattern.clear_blocks) {
+                if (vProtectionInfo[refIdx].pattern.encrypted_blocks != vProtectionInfo[buffIdx].pattern.encrypted_blocks ||
+                    vProtectionInfo[refIdx].pattern.clear_blocks != vProtectionInfo[buffIdx].pattern.clear_blocks) {
                     TRACE_L1("Encryption pattern needs to be same for all GstBuffers");
                     result = ERROR_INVALID_DECRYPT_BUFFER;
                     break;
                 }
 
-                if (vSubSampleInfo[vBuffIdx].size() > 255) {
-                    TRACE_L1("Max number of sub samples exceeded %zu", vSubSampleInfo[vBuffIdx].size());
+                if (vSubSampleInfo[buffIdx].size() > 255) {
+                    TRACE_L1("Max number of sub samples exceeded %zu", vSubSampleInfo[buffIdx].size());
                     result = ERROR_INVALID_DECRYPT_BUFFER;
                     break;
                 }
-                vSampleInfo.emplace_back(SampleInfo{vProtectionInfo[vBuffIdx].encScheme, vProtectionInfo[vBuffIdx].pattern,
-                    vProtectionInfo[vBuffIdx].ivBuf, static_cast<uint8_t>(vProtectionInfo[vBuffIdx].ivSize),
-                    vProtectionInfo[vBuffIdx].keyIdBuf, static_cast<uint8_t>(vProtectionInfo[vBuffIdx].keyIdSize),
-                    static_cast<uint8_t>(vSubSampleInfo[vBuffIdx].size()), vSubSampleInfo[vBuffIdx].data()});
+                vSampleInfo.emplace_back(SampleInfo{vProtectionInfo[buffIdx].encScheme, vProtectionInfo[buffIdx].pattern,
+                    vProtectionInfo[buffIdx].ivBuf, static_cast<uint8_t>(vProtectionInfo[buffIdx].ivSize),
+                    vProtectionInfo[buffIdx].keyIdBuf, static_cast<uint8_t>(vProtectionInfo[buffIdx].keyIdSize),
+                    static_cast<uint8_t>(vSubSampleInfo[buffIdx].size()), vSubSampleInfo[buffIdx].data()});
 
-                totalBytesToDecrypt += vProtectionInfo[vBuffIdx].dataSize;
-                vProtectionInfo[vBuffIdx].encrypted = true;
+                totalBytesToDecrypt += vProtectionInfo[buffIdx].dataSize;
+                vProtectionInfo[buffIdx].encrypted = true;
 
-                vbuffToDecrypt.push_back(buffers[vBuffIdx]);
+                vbuffToDecrypt.push_back(buffers[buffIdx]);
             }//for buffers
 
             std::string perfString(__FUNCTION__);
@@ -1104,10 +1098,10 @@ OpenCDMError opencdm_gstreamer_session_decrypt_buffer_multi_once(struct OpenCDMS
                    uint8_t* encryptedData = reinterpret_cast<uint8_t *>(gst_svp_header_get_start_of_data(session->SessionPrivateData(), svpData));
                    uint8_t* encryptedDataIter = encryptedData;
 
-                   for (size_t vBuffIdx = 0; vBuffIdx < count; ++vBuffIdx) {
-                       if (vProtectionInfo[vBuffIdx].encrypted) {
-                           memcpy(encryptedDataIter, vProtectionInfo[vBuffIdx].dataBuf, vProtectionInfo[vBuffIdx].dataSize);
-                           encryptedDataIter += vProtectionInfo[vBuffIdx].dataSize;
+                   for (uint16_t buffIdx = 0; buffIdx < count; ++buffIdx) {
+                       if (vProtectionInfo[buffIdx].encrypted) {
+                           memcpy(encryptedDataIter, vProtectionInfo[buffIdx].dataBuf, vProtectionInfo[buffIdx].dataSize);
+                           encryptedDataIter += vProtectionInfo[buffIdx].dataSize;
                        }
                    }
 
@@ -1142,8 +1136,8 @@ OpenCDMError opencdm_gstreamer_session_decrypt_buffer_multi_once(struct OpenCDMS
 
                    if(result == ERROR_NONE) {
                        GstPerf* svpTransform_perf3 = new GstPerf("opencdm_svp_transform_subsample");
-                       if (!gst_buffer_vector_append_svp_transform(session->SessionPrivateData(), vbuffToDecrypt.data(),
-                                                                   vbuffToDecrypt.size(), svpData, totalBytesToDecrypt)) {
+                       if (!gst_buffer_array_append_svp_transform(session->SessionPrivateData(), vbuffToDecrypt.data(), vbuffToDecrypt.size(),
+                               svpData, totalBytesToDecrypt)) {
                            result = ERROR_FAIL;
                        }
                        delete svpTransform_perf3;
@@ -1156,31 +1150,31 @@ OpenCDMError opencdm_gstreamer_session_decrypt_buffer_multi_once(struct OpenCDMS
             }
 
             if (result == ERROR_NONE) {
-                for (size_t vBuffIdx = 0; vBuffIdx < count; ++vBuffIdx) {
-                    if (vProtectionInfo[vBuffIdx].encrypted == false) {
-                        gst_buffer_svp_transform_from_cleardata(session->SessionPrivateData(), buffers[vBuffIdx], mediaType);
+                for (uint16_t buffIdx = 0; buffIdx < count; ++buffIdx) {
+                    if (vProtectionInfo[buffIdx].encrypted == false) {
+                        gst_buffer_svp_transform_from_cleardata(session->SessionPrivateData(), buffers[buffIdx], mediaType);
                     }
                 }
             }
         } //if protection meta valid
 
-        for (size_t vBuffIdx = 0; vBuffIdx < count; ++vBuffIdx) {
-            if (vProtectionInfo[vBuffIdx].dataBufMap.data) {
-                gst_buffer_unmap(buffers[vBuffIdx], &vProtectionInfo[vBuffIdx].dataBufMap);
+        for (uint16_t buffIdx = 0; buffIdx < count; ++buffIdx) {
+            if (vProtectionInfo[buffIdx].dataBufMap.data) {
+                gst_buffer_unmap(buffers[buffIdx], &vProtectionInfo[buffIdx].dataBufMap);
             }
-            if (vProtectionInfo[vBuffIdx].ivBufMap.data) {
-                gst_buffer_unmap(vProtectionInfo[vBuffIdx].ivGstBuf, &vProtectionInfo[vBuffIdx].ivBufMap);
+            if (vProtectionInfo[buffIdx].ivBufMap.data) {
+                gst_buffer_unmap(vProtectionInfo[buffIdx].ivGstBuf, &vProtectionInfo[buffIdx].ivBufMap);
             }
-            if (vProtectionInfo[vBuffIdx].keyIdBufMap.data) {
-                gst_buffer_unmap(vProtectionInfo[vBuffIdx].keyIdGstBuf, &vProtectionInfo[vBuffIdx].keyIdBufMap);
+            if (vProtectionInfo[buffIdx].keyIdBufMap.data) {
+                gst_buffer_unmap(vProtectionInfo[buffIdx].keyIdGstBuf, &vProtectionInfo[buffIdx].keyIdBufMap);
             }
-            if (vProtectionInfo[vBuffIdx].subSamplesBufMap.data) {
-                gst_buffer_unmap(vProtectionInfo[vBuffIdx].subSamplesGstBuf, &vProtectionInfo[vBuffIdx].subSamplesBufMap);
+            if (vProtectionInfo[buffIdx].subSamplesBufMap.data) {
+                gst_buffer_unmap(vProtectionInfo[buffIdx].subSamplesGstBuf, &vProtectionInfo[buffIdx].subSamplesBufMap);
             }
         }
     } else {
         result = ERROR_INVALID_SESSION;
-        TRACE_L1("Invalid session argument");
+        TRACE_L1("Invalid input argument");
     }
 
     return result;
