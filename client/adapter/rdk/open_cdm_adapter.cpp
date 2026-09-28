@@ -930,7 +930,18 @@ OpenCDMError opencdm_gstreamer_session_decrypt_buffer_multi_once(struct OpenCDMS
 {
     OpenCDMError result{ERROR_NONE};
 
-    if ((session != nullptr) && (count > 0) && (buffers != nullptr)) {
+    bool entriesValid{false};
+    if ((count > 0) && (buffers != nullptr)) {
+        entriesValid = true;
+        for (uint16_t buffIdx = 0; buffIdx < count; ++buffIdx) {
+            if (buffers[buffIdx] == nullptr) {
+                entriesValid = false;
+                break;
+            }
+        }
+    }
+
+    if ((session != nullptr) && entriesValid) {
 
         std::vector<ProtectionMetaInfo> vProtectionInfo(count);
         result = extractProtectionMetaMulti(buffers, count, vProtectionInfo);
