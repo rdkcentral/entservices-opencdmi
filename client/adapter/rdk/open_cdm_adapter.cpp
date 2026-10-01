@@ -722,7 +722,7 @@ namespace {
                         break;
                     }
                     value = gst_structure_get_value(protectionMeta->info, "subsamples");
-                    metaInfo[buffIdx].subSamplesGstBuf = gst_value_get_buffer(value);
+                    metaInfo[buffIdx].subSamplesGstBuf = (value != nullptr) ? gst_value_get_buffer(value) : nullptr;
                     if (value && metaInfo[buffIdx].subSamplesGstBuf) {
                         if (mapBuffer(metaInfo[buffIdx].subSamplesGstBuf, GST_MAP_READ, &metaInfo[buffIdx].subSamplesBufMap,
                                 &metaInfo[buffIdx].subSamplesBuf, &metaInfo[buffIdx].subSamplesSize) == false) {
@@ -738,7 +738,7 @@ namespace {
                 }
 
                 value = gst_structure_get_value(protectionMeta->info, "iv");
-                metaInfo[buffIdx].ivGstBuf = gst_value_get_buffer(value);
+                metaInfo[buffIdx].ivGstBuf = (value != nullptr) ? gst_value_get_buffer(value) : nullptr;
                 if (value && metaInfo[buffIdx].ivGstBuf) {
                     if(mapBuffer(metaInfo[buffIdx].ivGstBuf, GST_MAP_READ, &metaInfo[buffIdx].ivBufMap, &metaInfo[buffIdx].ivBuf,
                             &metaInfo[buffIdx].ivSize) == false) {
@@ -759,7 +759,7 @@ namespace {
                 }
 
                 value = gst_structure_get_value(protectionMeta->info, "kid");
-                metaInfo[buffIdx].keyIdGstBuf = gst_value_get_buffer(value);
+                metaInfo[buffIdx].keyIdGstBuf = (value != nullptr) ? gst_value_get_buffer(value) : nullptr;
                 if (value && metaInfo[buffIdx].keyIdGstBuf) {
                     if(mapBuffer(metaInfo[buffIdx].keyIdGstBuf, GST_MAP_READ, &metaInfo[buffIdx].keyIdBufMap, &metaInfo[buffIdx].keyIdBuf,
                             &metaInfo[buffIdx].keyIdSize) == false) {
