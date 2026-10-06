@@ -150,6 +150,12 @@ typedef struct {
     SubSampleInfo*     subSample;       // SubSample mapping - Repeating pair of Clear bytes and Encrypted Bytes representing each subsample.
 } SampleInfo;
 
+//FPS
+typedef struct {
+    uint32_t offset;
+    uint32_t size;
+} FPS_SliceInfo;
+
 // Provides information about the current stream
 typedef struct {
     uint16_t height;
@@ -649,6 +655,21 @@ EXTERNAL OpenCDMError opencdm_session_decrypt_v2(struct OpenCDMSession* session,
     const uint32_t encryptedLength,
     const SampleInfo* sampleInfo,
     const MediaProperties* streamProperties);
+
+
+//FPS decrypt api
+
+EXTERNAL OpenCDMError opencdm_session_decrypt_fps(struct OpenCDMSession* session,
+    uint32_t version,
+    uint64_t movieID,
+    uint64_t cryptorID,
+    uint32_t contentType,
+    uint8_t *buffer,
+    uint32_t bufferSize,
+    const FPS_SliceInfo* sliceInfoArray,
+    uint32_t sliceInfoArrayCount,
+    const uint8_t* iv,
+    void *returnData);
 
 /**
  * @brief Close the cached open connection if it exists.
