@@ -576,6 +576,7 @@ namespace Plugin {
                     , _refCount(1)
                     , _keySystem(keySystem)
                     , _mediaKeySession(mediaKeySession)
+                    , _mediaKeySessionExt(nullptr)
                     , _sink(this)
                     , _buffer(nullptr)
                     , _cencData(*sessionData)
