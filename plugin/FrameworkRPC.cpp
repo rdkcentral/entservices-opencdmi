@@ -19,6 +19,7 @@
 
 #include <regex>
 #include <string>
+#include <utility>
 #include <vector>
 #include <sys/prctl.h>
 
@@ -569,12 +570,12 @@ namespace Plugin {
 
                SessionImplementation(
                     AccessorOCDM* parent,
-                    const std::string keySystem,
+                std::string keySystem,
                     CDMi::IMediaKeySession* mediaKeySession,
                     const CommonEncryptionData* sessionData)
                     : _parent(*parent)
                     , _refCount(1)
-                    , _keySystem(keySystem)
+                    , _keySystem(std::move(keySystem))
                     , _mediaKeySession(mediaKeySession)
                     , _mediaKeySessionExt(nullptr)
                     , _sink(this)
