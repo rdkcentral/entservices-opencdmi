@@ -472,7 +472,7 @@ private:
     public:
         uint32_t Decrypt(uint8_t* encryptedData, uint32_t encryptedDataLength,
             const ::SampleInfo* sampleInfo,
-            uint32_t initWithLast15,
+            uint32_t /* initWithLast15 */,
             const ::MediaProperties* properties)
         {
             int ret = 0;
@@ -517,7 +517,6 @@ private:
                 SubSample(subSampleCount, subSample);
                 SetEncScheme(static_cast<uint8_t>(encScheme));
                 SetEncPattern(pattern.encrypted_blocks,pattern.clear_blocks);
-                InitWithLast15(initWithLast15);
                 if(properties != nullptr) {
                     SetMediaProperties(properties->height, properties->width, properties->media_type);
                 }

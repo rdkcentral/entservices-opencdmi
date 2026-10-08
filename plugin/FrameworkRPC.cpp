@@ -248,11 +248,10 @@ namespace Plugin {
                     MediaStreamProperties() = delete;
                     MediaStreamProperties(const MediaStreamProperties&) = delete;
                     MediaStreamProperties& operator=(const MediaStreamProperties&) = delete;
-                    MediaStreamProperties(uint16_t height, uint16_t width, CDMi::MediaType type, uint8_t initLength = 0)
+                    MediaStreamProperties(uint16_t height, uint16_t width, CDMi::MediaType type)
                         : _height(height)
                         , _width(width)
                         , _type(type)
-                        , _initLength(initLength)
                     {
                     }
 
@@ -268,16 +267,11 @@ namespace Plugin {
                     {
                         return (_type);
                     }
-                    uint8_t InitLength() const override
-                    {
-                        return (_initLength);
-                    }
 
                 private:
                     uint16_t _height;
                     uint16_t _width;
                     CDMi::MediaType _type;
-                    uint8_t _initLength;
                 };
 
                 class DataExchange : public Exchange::DataExchange, public Core::Thread {

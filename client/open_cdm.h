@@ -585,8 +585,7 @@ EXTERNAL OpenCDMError opencdm_session_close(struct OpenCDMSession* session);
  * \param IVLength Length of IV buffer (in bytes).
  * \param keyID keyID to use for decryption
  * \param keyIDLength Length of keyID buffer (in bytes).
- * \param initWithLast15 Whether decryption context needs to be initialized with
- * last 15 bytes. Currently this only applies to PlayReady DRM.
+ * \param initWithLast15 @deprecated No longer used - kept only for backward compatibility
  * \return Zero on success, non-zero on error.
  */
 #ifdef __cplusplus
