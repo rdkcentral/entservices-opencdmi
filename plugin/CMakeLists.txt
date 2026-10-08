@@ -24,14 +24,17 @@ set(PLUGIN_OPENCDMI_MODE "Local" CACHE STRING "Controls if the plugin should run
 set(PLUGIN_OCDM_STARTUPORDER "" CACHE STRING "To configure startup order of OCDM plugin")
 
 # deprecated/legacy flags support
-if(PLUGIN_OPENCDMI_OOP)
-    unset(PLUGIN_OPENCDMI_MODE CACHE)
+if(PLUGIN_OPENCDMI_OOP STREQUAL "false")
+    set(PLUGIN_OPENCDMI_MODE "Off" CACHE STRING "Process mode"  FORCE)
+    unset(PLUGIN_OPENCDMI_OOP CACHE)
 elseif(PLUGIN_OPENCDMI_OUTOFPROCESS STREQUAL "false")
     set(PLUGIN_OPENCDMI_MODE "Off" CACHE STRING "Process mode"  FORCE)
     unset(PLUGIN_OPENCDMI_OUTOFPROCESS CACHE)
 endif()
 
-find_package(ocdm REQUIRED)
+if(NOT TARGET ocdm::ocdm)
+    find_package(ocdm REQUIRED)
+endif()
 find_package(${NAMESPACE}Plugins REQUIRED)
 find_package(CompileSettingsDebug CONFIG REQUIRED)
 
@@ -76,13 +79,7 @@ install(TARGETS ${MODULE_NAME}
 install(TARGETS ${PLUGIN_OCDM_IMPLEMENTATION}
         DESTINATION ${CMAKE_INSTALL_PREFIX}/lib/${STORAGE_DIRECTORY}/plugins)
 
-if("${CMAKE_FIND_ROOT_PATH}" STREQUAL "")
-   # Desktop case: not cross compiling
-   target_link_libraries(${MODULE_NAME} PRIVATE "${CMAKE_INSTALL_PREFIX}/lib/libocdm.so")
-else()
-   # Cross compiling: buildroot
-   target_link_libraries(${MODULE_NAME} PRIVATE ${PLUGINS_LIBRARIES} ${OCDM_LIBRARIES})
-endif()
+target_link_libraries(${MODULE_NAME} PRIVATE ${PLUGINS_LIBRARIES} ${OCDM_LIBRARIES})
 
 # Library installation section
 string(TOLOWER ${NAMESPACE} STORAGENAME)

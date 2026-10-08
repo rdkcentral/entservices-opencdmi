@@ -17,7 +17,9 @@
 # limitations under the License.
 ###
 
-cmake_minimum_required(VERSION 3.3)
+cmake_minimum_required(VERSION 3.10)
+
+project(entservices-opencdmi)
 
 find_package(WPEFramework)
 
@@ -49,6 +51,7 @@ if(RDK_SERVICES_L1_TEST)
 endif()
 
 if(PLUGIN_OPENCDMI)
+    add_subdirectory(client)
     add_subdirectory(plugin)
 endif()
 

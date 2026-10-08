@@ -30,25 +30,20 @@ namespace Plugin {
 
     class OCDM : public PluginHost::IPlugin, public PluginHost::IWeb, public PluginHost::JSONRPC {
     private:
-        OCDM(const OCDM&) = delete;
-        OCDM& operator=(const OCDM&) = delete;
 
         class Notification : public RPC::IRemoteConnection::INotification {
 
-        private:
+        public:
             Notification() = delete;
             Notification(const Notification&) = delete;
             Notification& operator=(const Notification&) = delete;
 
-        public:
             explicit Notification(OCDM* parent)
                 : _parent(*parent)
             {
                 ASSERT(parent != nullptr);
             }
-            ~Notification()
-            {
-            }
+            ~Notification() override = default;
 
         public:
             virtual void Activated(RPC::IRemoteConnection*)
@@ -69,10 +64,6 @@ namespace Plugin {
 
     public:
         class Data : public Core::JSON::Container {
-        private:
-            Data(const Data&) = delete;
-            Data& operator=(const Data&) = delete;
-
         public:
             class System : public Core::JSON::Container {
             private:
@@ -80,14 +71,16 @@ namespace Plugin {
 
             public:
                 System()
-                    : Name()
+                    : Core::JSON::Container()
+                    , Name()
                     , Designators()
                 {
                     Add(_T("name"), &Name);
                     Add(_T("designators"), &Designators);
                 }
                 System(const string& name, RPC::IStringIterator* entries)
-                    : Name()
+                    : Core::JSON::Container()
+                    , Name()
                     , Designators()
                 {
                     Add(_T("name"), &Name);
@@ -99,15 +92,14 @@ namespace Plugin {
                     Load(entries);
                 }
                 System(const System& copy)
-                    : Name(copy.Name)
+                    : Core::JSON::Container()
+                    , Name(copy.Name)
                     , Designators(copy.Designators)
                 {
                     Add(_T("name"), &Name);
                     Add(_T("designators"), &Designators);
                 }
-                virtual ~System()
-                {
-                }
+            ~System() override = default;
 
             public:
                 Core::JSON::String Name;
@@ -126,39 +118,33 @@ namespace Plugin {
             };
 
         public:
+            Data(const Data&) = delete;
+            Data& operator=(const Data&) = delete;
             Data()
                 : Core::JSON::Container()
             {
                 Add(_T("systems"), &Systems);
             }
-            ~Data()
-            {
-            }
+        ~Data() = default;
 
         public:
             Core::JSON::ArrayType<System> Systems;
         };
 
     public:
-        #ifdef __WINDOWS__
-        #pragma warning(disable : 4355)
-        #endif
+        OCDM(const OCDM&) = delete;
+        OCDM& operator=(const OCDM&) = delete;
         OCDM()
             : _skipURL(0)
+            , _connectionId(0)
             , _service(nullptr)
             , _opencdmi(nullptr)
             , _memory(nullptr)
             , _notification(this)
         {
-            RegisterAll();
         }
-        #ifdef __WINDOWS__
-        #pragma warning(default : 4355)
-        #endif
-        virtual ~OCDM()
-        {
-            UnregisterAll();
-        }
+
+        ~OCDM() override = default;
 
     public:
         BEGIN_INTERFACE_MAP(OCDM)

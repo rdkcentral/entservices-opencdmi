@@ -23,44 +23,6 @@ set -e
 GITHUB_WORKSPACE="${PWD}"
 ls -la ${GITHUB_WORKSPACE}
 
-############################
-# Clone meta-rdk-video for patches
-echo "======================================================================================"
-echo "Cloning meta-rdk-video for Thunder R4.4 compatibility patch"
-
-if [ ! -d "meta-rdk-video" ]; then
-    git clone --depth 1 https://github.com/rdkcentral/meta-rdk-video.git
-fi
-
-############################
-# Apply Thunder R4.4 compatibility patch
-echo "======================================================================================"
-echo "Applying Thunder R4.4 compatibility patch to plugin"
-
-cd ${GITHUB_WORKSPACE}
-PATCH_DIR="${GITHUB_WORKSPACE}/meta-rdk-video/recipes-extended/entservices/files"
-
-# Apply OCDM patches in exact order from Yocto recipe (POSIX-compatible)
-apply_patch() {
-    PATCH_NAME="$1"
-    PATCH_FILE="${PATCH_DIR}/${PATCH_NAME}"
-    
-    if [ -f "$PATCH_FILE" ]; then
-        echo "Applying patch: $PATCH_NAME"
-                    
-        # Apply the patch
-        patch -p1 --forward --no-backup-if-mismatch < "$PATCH_FILE" || true
-    fi
-}
-
-# Apply patches in order
-apply_patch "0003-set-OCDM-sharepath-to-tmp-OCDM.patch"
-apply_patch "0001-RDK-31882-Add-GstCaps-parsing-in-OCDM-to-rdkservices.patch"
-apply_patch "0001-add_gstcaps_forcobalt_mediatype.patch"
-apply_patch "0001-rdkservices_cbcs_changes.patch"
-apply_patch "0002-Adding-Support-For-R4.patch"
-apply_patch "0001-Add-a-new-metrics-punch-through-on-the-OCDM-framework-rdkservice.patch"
-apply_patch "0001-set-OCDM-process-thread-name.patch"
 
 ############################
 # Build entservices-opencdmi
@@ -76,6 +38,7 @@ cmake -G Ninja -S "$GITHUB_WORKSPACE" -B build/entservices-opencdmi \
 -DCMAKE_DISABLE_FIND_PACKAGE_RFC=ON \
 -DCMAKE_DISABLE_FIND_PACKAGE_DS=ON \
 -DCOMCAST_CONFIG=OFF \
+-DCDMI_ADAPTER_IMPLEMENTATION="gstreamer" \
 -DRDK_SERVICES_COVERITY=ON \
 -DRDK_SERVICES_L1_TEST=OFF \
 -DPLUGIN_OPENCDMI=ON \
