@@ -115,7 +115,7 @@ The runner searches these locations by default:
 ```text
 <repository>/install/usr/lib/cmake
 <repository>/install/lib/cmake
-/usr/local/lib/cmakeThunderThunder
+/usr/local/lib/cmake
 /usr/lib/cmake
 ```
 
