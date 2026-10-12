@@ -706,6 +706,77 @@ private:
             return (ret);
         }
 
+#ifdef ENABLE_MULTI_DECRYPT
+        uint32_t DecryptMulti(uint8_t* encryptedData, uint32_t encryptedDataLength,
+            const ::SampleInfo* sampleInfo, const uint16_t sampleInfoLength,
+            const ::MediaProperties* properties)
+        {
+            int ret = 0;
+
+            _systemLock.Lock();
+
+            _busy = true;
+
+            if (RequestProduce(Core::infinite) == Core::ERROR_NONE) {
+
+                CDMi::SubSampleInfo* subSample = nullptr;
+                CDMi::EncryptionScheme encScheme = CDMi::EncryptionScheme::AesCtr_Cenc;
+                CDMi::EncryptionPattern pattern = {0 , 0};
+                uint8_t* keyId = nullptr;
+                uint8_t keyIdLength = 0;
+
+                if (sampleInfo != nullptr && sampleInfoLength > 0) {
+                    keyId = sampleInfo->keyId;
+                    keyIdLength = sampleInfo->keyIdLength;
+                    encScheme = static_cast<CDMi::EncryptionScheme>(sampleInfo->scheme);
+                    pattern.clear_blocks = sampleInfo->pattern.clear_blocks;
+                    pattern.encrypted_blocks = sampleInfo->pattern.encrypted_blocks;
+
+                    KeyId(static_cast<uint8_t>(keyIdLength), keyId);
+                    SetEncScheme(static_cast<uint8_t>(encScheme));
+                    SetEncPattern(pattern.encrypted_blocks,pattern.clear_blocks);
+
+                    SubSample(0, nullptr);
+                    SetSampleLength(sampleInfoLength);
+                    for (uint16_t idx = 0; idx < sampleInfoLength; idx++) {
+                        subSample = reinterpret_cast<CDMi::SubSampleInfo*>(sampleInfo[idx].subSample);
+                        SetSample(idx, sampleInfo[idx].ivLength, sampleInfo[idx].iv, sampleInfo[idx].subSampleCount, subSample);
+                    }
+                }
+
+                if (properties != nullptr) {
+                    SetMediaProperties(properties->height, properties->width, properties->media_type);
+                }
+
+                Write(encryptedDataLength, encryptedData);
+
+                // This will trigger the OpenCDMIServer to decrypt this memory...
+                Produced();
+
+                // Now we should wait till it is decrypted, that happens if the
+                // Producer, can run again.
+                if (RequestProduce(Core::infinite) == Core::ERROR_NONE) {
+
+                    // For now we just copy the clear data..
+                    Read(encryptedDataLength, encryptedData);
+
+                    // Get the status of the last decrypt.
+                    ret = Status();
+
+                    // And free the lock, for the next production Scenario..
+                    Consumed();
+                }
+                SetSampleLength(0);
+            }
+
+            _busy = false;
+
+            _systemLock.Unlock();
+
+            return (ret);
+        }
+#endif // ENABLE_MULTI_DECRYPT
+
     private:
         bool _busy;
     };
@@ -897,18 +968,10 @@ public:
         return (result);
     }
 
-//FPS decrypt
-   uint32_t Decrypt_fps(
-    uint32_t version,
-    uint64_t movieID,
-    uint64_t cryptorID,
-    uint32_t contentType,
-    uint8_t *buffer,
-    uint32_t bufferSize,
-    const FPS_SliceInfo* sliceInfoArray,
-    uint32_t sliceInfoArrayCount,
-    const uint8_t* iv,
-    void *returnData)
+#ifdef ENABLE_MULTI_DECRYPT
+    uint32_t DecryptMulti(uint8_t* encryptedData, const uint32_t encryptedDataLength,
+        const ::SampleInfo* sampleInfo, const uint16_t sampleInfoLength,
+        const ::MediaProperties* properties)
     {
         uint32_t result = OpenCDMError::ERROR_INVALID_DECRYPT_BUFFER;
         // lazy create decryptbuffer
@@ -916,25 +979,51 @@ public:
             DecryptSession(_session);
         }
 
-        // prevent unnecesary double atomic access
+        // prevent unnecessary double atomic access
+        DataExchange* decryptSession = _decryptSession;
+
+        if (decryptSession != nullptr) {
+            result = decryptSession->DecryptMulti(encryptedData, encryptedDataLength,
+                sampleInfo, sampleInfoLength,
+                properties);
+            if(result)
+            {
+                TRACE_L1("DecryptMulti() failed with return code: %x", result);
+                result = OpenCDMError::ERROR_UNKNOWN;
+            }
+        }
+        return (result);
+    }
+#endif // ENABLE_MULTI_DECRYPT
+
+    uint32_t Decrypt_fps(
+        uint32_t version,
+        uint64_t movieID,
+        uint64_t cryptorID,
+        uint32_t contentType,
+        uint8_t* buffer,
+        uint32_t bufferSize,
+        const FPS_SliceInfo* sliceInfoArray,
+        uint32_t sliceInfoArrayCount,
+        const uint8_t* iv,
+        void* returnData)
+    {
+        uint32_t result = OpenCDMError::ERROR_INVALID_DECRYPT_BUFFER;
+
+        // lazy create decryptbuffer
+        if (_decryptSession == nullptr) {
+            DecryptSession(_session);
+        }
+
+        // prevent unnecessary double atomic access
         DataExchange* decryptSession = _decryptSession;
 
         if (decryptSession != nullptr) {
             result = decryptSession->Decrypt_fps(
-                  version,
-                  movieID,
-                  cryptorID,
-                  contentType,
-                  buffer,
-                  bufferSize,
-                  sliceInfoArray,
-                  sliceInfoArrayCount,
-                 iv,
-                returnData
-		);
-            if(result)
-            {
-                TRACE_L1("Decrypt() failed with return code: %x", result);
+                version, movieID, cryptorID, contentType, buffer, bufferSize,
+                sliceInfoArray, sliceInfoArrayCount, iv, returnData);
+            if (result) {
+                TRACE_L1("Decrypt_fps() failed with return code: %x", result);
                 result = OpenCDMError::ERROR_UNKNOWN;
             }
         }

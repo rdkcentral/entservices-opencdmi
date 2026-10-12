@@ -23,6 +23,7 @@
                                //   gst_buffer_get_protection_meta, gst_structure_get_value, gst_value_get_buffer
 #include <gst_svp_meta.h>      // RDKPerf (via rdk_perf.h)
 
+#include <atomic>              // std::atomic_flag - one-shot batch capability warning
 #include <chrono>              // std::chrono::milliseconds, seconds, steady_clock
 #include <cstdarg>             // va_list, va_start, va_end — adapter_logging
 #include <cstdint>             // uint8_t, uint32_t
@@ -242,3 +243,37 @@ OpenCDMError opencdm_gstreamer_session_decrypt_buffer(struct OpenCDMSession* ses
         return opencdm_gstreamer_session_decrypt_buffer_once(session, buffer, caps);
     });
 }
+
+#ifdef ENABLE_MULTI_DECRYPT
+OpenCDMError opencdm_gstreamer_session_decrypt_buffer_multi(struct OpenCDMSession* session, GstBuffer* buffers[], const uint16_t count, GstCaps* caps)
+{
+    RDKPerf(__FUNCTION__);
+    OpenCDMError result(OpenCDMError::ERROR_INVALID_ARG);
+
+    if (!gst_svp_is_multiple_decrypt_supported()) {
+        // Reported once; the capability is fixed when libgstsvpext is loaded
+        static std::atomic_flag reported = ATOMIC_FLAG_INIT;
+        if (!reported.test_and_set()) {
+            LOGDECRYPT(ERROR, "Batch decrypt unavailable: libocdm was built with "
+                              "ENABLE_MULTI_DECRYPT but this platform's gst-svp-ext provides no "
+                              "gst_buffer_vector_append_svp_transform() implementation. All "
+                              "batch decrypt requests will fail.");
+        }
+        return ERROR_METHOD_NOT_IMPLEMENTED;
+    }
+
+    if ((count > 0) && (buffers != nullptr)) {
+        std::vector<uint8_t> keyId;
+        for (uint16_t buffIdx = 0; buffIdx < count; ++buffIdx) {
+           if (copyKeyIdFromProtectionMeta(buffers[buffIdx], keyId)) {
+                break;
+            }
+        }
+
+        result = decryptWithOutputRestrictedRetry(session, keyId, [=]() {
+            return opencdm_gstreamer_session_decrypt_buffer_multi_once(session, buffers, count, caps);
+        });
+    }
+    return result;
+}
+#endif // ENABLE_MULTI_DECRYPT
