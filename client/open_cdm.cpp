@@ -374,7 +374,6 @@ opencdm_construct_session(struct OpenCDMSystem* system,
 
     if ((system != nullptr) && (session != nullptr)) {
         TRACE_L1("Creating a Session for %s", system->keySystem().c_str());
-
         result = OpenCDMSession::CreateSession(system,
                                             licenseType,
                                             initDataType,
@@ -727,6 +726,52 @@ OpenCDMError opencdm_session_decrypt_v2(struct OpenCDMSession* session,
 
     return (result);
 }
+
+#ifdef ENABLE_MULTI_DECRYPT
+OpenCDMError opencdm_session_decrypt_v3(struct OpenCDMSession* session,
+    uint8_t encrypted[],
+    const uint32_t encryptedLength,
+    const SampleInfo* sampleInfo,
+    const uint16_t sampleInfoLength,
+    const MediaProperties* properties)
+{
+    OpenCDMError result(OpenCDMError::ERROR_INVALID_SESSION);
+    ASSERT(session != nullptr);
+
+    if (session != nullptr) {
+        result = encryptedLength > 0 ? static_cast<OpenCDMError>(session->DecryptMulti(
+            encrypted, encryptedLength, sampleInfo, sampleInfoLength, properties)) : OpenCDMError::ERROR_NONE;
+    }
+
+    return (result);
+}
+#endif // ENABLE_MULTI_DECRYPT
+
+//FPS decrypt.
+
+ OpenCDMError opencdm_session_decrypt_fps(struct OpenCDMSession* session,
+    uint32_t version,
+    uint64_t movieID,
+    uint64_t cryptorID,
+    uint32_t contentType,
+    uint8_t *buffer,
+    uint32_t bufferSize,
+    const FPS_SliceInfo* sliceInfoArray,
+    uint32_t sliceInfoArrayCount,
+    const uint8_t* iv,
+    void *returnData)
+{
+    OpenCDMError result(OpenCDMError::ERROR_INVALID_SESSION);
+    ASSERT(session != nullptr);
+
+    if (session != nullptr) {
+        result = bufferSize > 0 ? static_cast<OpenCDMError>(session->Decrypt_fps(
+            version, movieID, cryptorID, contentType, buffer, bufferSize, sliceInfoArray, sliceInfoArrayCount, iv, returnData)) : OpenCDMError::ERROR_NONE;
+    }
+
+    return (result);
+}
+
 
 /**
  * \brief Get metrics associated with a DRM session.

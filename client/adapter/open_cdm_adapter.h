@@ -134,6 +134,47 @@ EXTERNAL uint32_t opencdm_destruct_session_private(struct OpenCDMSession* sessio
                                                            GstCaps* caps);
 
 /**
+ * \brief Performs decryption based on adapter implementation.
+ *
+ * This version accepts an array of GstBuffer-s allowing decryption of multiple A/V frames in one call.
+ * Passed GstBuffer-s need to share the same: KID, encryption scheme and encryption pattern - otherwise an error is reported.
+ * Typically decrypt happens out-of-process (for security reasons). The actual data copying is performed
+ * using a memory-mapped file (for performance reasons). If the DRM system allows access to decrypted data (i.e. decrypting is not
+ * performed in a TEE), the decryption is performed in-place.
+ * This version assumes all data required is attached as metadata to the buffers. Specification for this data is as follows:
+ *
+ * Typically, the caller would parse the protection information for a video/audio frame from its input data and use this information to populate the
+ * GstStructure info fields, which is then encapsulated in a GstProtectionMeta object and attached to the corresponding GstBuffer using the
+ * gst_buffer_add_protection_meta function.
+ *
+ * gst_structure [application/x-cenc]
+ *      "iv"                  GST_TYPE_BUFFER
+ *      "kid"                 GST_TYPE_BUFFER
+ *      "subsample_count"     G_TYPE_UINT
+ *      "subsamples"          GST_TYPE_BUFFER
+ *      "cipher-mode"         G_TYPE_STRING   (One of the Four Character Code (FOURCC) Protection schemes as defined in https://www.iso.org/obp/ui/#iso:std:iso-iec:23001:-7:ed-3:v1:en)
+ *      "crypt_byte_block"    G_TYPE_UINT     (Present only if cipher-mode is "cbcs")
+ *      "skip_byte_block"     G_TYPE_UINT     (Present only cipher-mode is "cbcs")
+ *
+ * This method passes on the subsample mapping to the DRM implementation and assumes that the DRM implementation will handle the decryption based on subsample mapping.
+ *
+ * \param session \ref OpenCDMSession instance.
+ * \param buffers array of gstreamer buffers containing encrypted data and related meta data. If applicable, decrypted data will be stored here after this call returns.
+ * \param count number of entries in the buffers array.
+ * \return Zero on success, non-zero on error.
+ */
+#ifdef ENABLE_MULTI_DECRYPT
+    EXTERNAL OpenCDMError opencdm_gstreamer_session_decrypt_buffer_multi(struct OpenCDMSession* session, GstBuffer* buffers[], const uint16_t count, GstCaps* caps);
+
+/**
+ * \brief Performs decryption based on adapter implementation.
+ *
+ * This is version of @see opencdm_gstreamer_session_decrypt_buffer_multi() that performs single decryption - without any retries.
+ */
+    EXTERNAL OpenCDMError opencdm_gstreamer_session_decrypt_buffer_multi_once(struct OpenCDMSession* session, GstBuffer* buffers[], const uint16_t count, GstCaps* caps);
+#endif // ENABLE_MULTI_DECRYPT
+
+/**
  * \brief adds SVP related features to the caps structure (only if needed by the platform)
  *
  * \param caps GstCaps to be updated
