@@ -1278,7 +1278,7 @@ namespace Plugin {
             {
                 CDMi::IMediaKeysExt* systemExt = dynamic_cast<CDMi::IMediaKeysExt*>(_parent.KeySystem(keySystem));
                 if (systemExt) {
-                    return (Exchange::OCDM_RESULT)systemExt->GetDrmSystemTime();
+                    return (Exchange::OCDM_RESULT)systemExt->GetDrmSystemTime(keySystem);
                 }
                 return Exchange::OCDM_RESULT::OCDM_S_FALSE;
             }
@@ -1336,7 +1336,7 @@ namespace Plugin {
             {
                 CDMi::IMediaKeysExt* systemExt = dynamic_cast<CDMi::IMediaKeysExt*>(_parent.KeySystem(keySystem));
                 if (systemExt) {
-                    return (Exchange::OCDM_RESULT)systemExt->GetSecureStopIds(Ids, idsLength, count);
+                    return (Exchange::OCDM_RESULT)systemExt->GetSecureStopIds(keySystem, Ids, idsLength, count);
                 }
                 return Exchange::OCDM_RESULT::OCDM_S_FALSE;
             }
@@ -1350,7 +1350,7 @@ namespace Plugin {
             {
                 CDMi::IMediaKeysExt* systemExt = dynamic_cast<CDMi::IMediaKeysExt*>(_parent.KeySystem(keySystem));
                 if (systemExt) {
-                    return (Exchange::OCDM_RESULT)systemExt->GetSecureStop(sessionID, sessionIDLength, rawData, rawSize);
+                    return (Exchange::OCDM_RESULT)systemExt->GetSecureStop(keySystem, sessionID, sessionIDLength, rawData, rawSize);
                 }
                 return Exchange::OCDM_RESULT::OCDM_S_FALSE;
             }
@@ -1364,7 +1364,7 @@ namespace Plugin {
             {
                 CDMi::IMediaKeysExt* systemExt = dynamic_cast<CDMi::IMediaKeysExt*>(_parent.KeySystem(keySystem));
                 if (systemExt) {
-                    return (Exchange::OCDM_RESULT)systemExt->CommitSecureStop(sessionID, sessionIDLength, serverResponse, serverResponseLength);
+                    return (Exchange::OCDM_RESULT)systemExt->CommitSecureStop(keySystem, sessionID, sessionIDLength, serverResponse, serverResponseLength);
                 }
                 return Exchange::OCDM_RESULT::OCDM_S_FALSE;
             }
@@ -1382,7 +1382,7 @@ namespace Plugin {
             {
                 CDMi::IMediaKeysExt* systemExt = dynamic_cast<CDMi::IMediaKeysExt*>(_parent.KeySystem(keySystem));
                 if (systemExt) {
-                    return (Exchange::OCDM_RESULT)systemExt->DeleteSecureStore();
+                    return (Exchange::OCDM_RESULT)systemExt->DeleteSecureStore(keySystem);
                 }
                 return Exchange::OCDM_RESULT::OCDM_S_FALSE;
             }
@@ -1394,7 +1394,7 @@ namespace Plugin {
             {
                 CDMi::IMediaKeysExt* systemExt = dynamic_cast<CDMi::IMediaKeysExt*>(_parent.KeySystem(keySystem));
                 if (systemExt) {
-                    return (Exchange::OCDM_RESULT)systemExt->GetSecureStoreHash(keyStoreHash, keyStoreHashLength);
+                    return (Exchange::OCDM_RESULT)systemExt->GetSecureStoreHash(keySystem, keyStoreHash, keyStoreHashLength);
                 }
                 return Exchange::OCDM_RESULT::OCDM_S_FALSE;
             }
@@ -1406,7 +1406,7 @@ namespace Plugin {
             {
                 CDMi::IMediaKeysExt* systemExt = dynamic_cast<CDMi::IMediaKeysExt*>(_parent.KeySystem(keySystem));
                 if (systemExt) {
-                    return (Exchange::OCDM_RESULT)systemExt->GetSecureStoreHash(secureStoreHash, secureStoreHashLength);
+                    return (Exchange::OCDM_RESULT)systemExt->GetSecureStoreHash(keySystem, secureStoreHash, secureStoreHashLength);
                 }
                 return Exchange::OCDM_RESULT::OCDM_S_FALSE;
             }
