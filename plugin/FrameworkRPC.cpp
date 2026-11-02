@@ -1677,10 +1677,12 @@ namespace Plugin {
 
                     // Find a factory for the key system:
                     std::map<const string, SystemFactory>::iterator factory(factories.find(system));
+                    Core::JSON::ArrayType<Core::JSON::Variant> designatorsArray;
 
                     while (designators.Next() == true) {
                         const string designator(designators.Current().Value());
                         if (designator.empty() == false) {
+                            designatorsArray.Add(Core::JSON::Variant(designator));
                             if (factory != factories.end()) {
                                 _systemToFactory.insert(std::pair<const std::string, SystemFactory>(designator, factory->second));
 
@@ -1693,8 +1695,18 @@ namespace Plugin {
 
                     //now handle the configuration
                     if (factory != factories.end()) {
+                        Core::JSON::VariantContainer configContainer;
                         const string configuration(index.Current().Configuration.Value());
-                        factory->second.Factory->Initialize(_shell, configuration);
+                        if (configuration.empty() == false) {
+                            configContainer.FromString(configuration);
+                        }
+                        Core::JSON::Variant designators;
+                        designators.Array(designatorsArray);
+                        configContainer.Set(_T("designators"), designators);
+
+                        string initConfiguration;
+                        configContainer.ToString(initConfiguration);
+                        factory->second.Factory->Initialize(_shell, initConfiguration);
                     }
                 }
 
