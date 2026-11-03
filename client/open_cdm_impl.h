@@ -1035,14 +1035,18 @@ public:
         return _pvtData;
     }
 
-    bool NeedsDecryptToHostUpdate(bool decryptToHost)
+    // Deliberately does not latch: the SVP context is only configured once the
+    // set call returns, and concurrent decrypt threads must all enter that call
+    // so that they are ordered behind the resource construction it performs.
+    bool NeedsDecryptToHostUpdate(bool decryptToHost) const
     {
-        if (_decryptToHostSet && (_decryptToHost == decryptToHost)) {
-            return false;
-        }
-        _decryptToHostSet = true;
+        return (_decryptToHostSet == false) || (_decryptToHost != decryptToHost);
+    }
+
+    void DecryptToHostUpdated(bool decryptToHost)
+    {
         _decryptToHost = decryptToHost;
-        return true;
+        _decryptToHostSet = true;
     }
 
     uint32_t SessionIdExt() const
@@ -1222,7 +1226,7 @@ private:
     Exchange::OCDM_RESULT _sysError;
     OpenCDMSystem* _system;
     void* _pvtData;
-    bool _decryptToHostSet;
-    bool _decryptToHost;
+    std::atomic<bool> _decryptToHostSet;
+    std::atomic<bool> _decryptToHost;
 };
 

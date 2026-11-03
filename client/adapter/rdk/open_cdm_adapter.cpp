@@ -492,6 +492,8 @@ OpenCDMError opencdm_gstreamer_session_decrypt_buffer_once(struct OpenCDMSession
                                 (void*)&decryptToHost,
                                 sizeof(decryptToHost))) {
                     TRACE_L1("Failed to set decryptToHost=%s in SVP context\n", decryptToHost ? "true" : "false");
+                } else {
+                    session->DecryptToHostUpdated(decryptToHost == TRUE);
                 }
             }
 
@@ -1091,6 +1093,8 @@ OpenCDMError opencdm_gstreamer_session_decrypt_buffer_multi_once(struct OpenCDMS
                                 (void*)&decryptToHost,
                                 sizeof(decryptToHost))) {
                     TRACE_L1("Failed to set decryptToHost=%s in SVP context\n", decryptToHost ? "true" : "false");
+                } else {
+                    session->DecryptToHostUpdated(decryptToHost == TRUE);
                 }
             }
 
