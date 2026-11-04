@@ -28,6 +28,8 @@
 
 #include <cstdint>
 #include <cstring>
+#include <ctime>
+#include <pthread.h>
 #include <vector>
 
 #include <gst_svp_meta.h>
@@ -35,6 +37,29 @@
 
 typedef gboolean (*svp_set_value_fn_t)(void *, const char *, void *, const size_t);
 static svp_set_value_fn_t s_svpSetValueFn = nullptr;
+
+// RDKEMW-26020 debug instrumentation, grep for "DARKO". The thread id is
+// printed the same way gst-svp-ext does it, so the two logs line up.
+static inline const char* darko_media(media_type type)
+{
+    switch (type) {
+    case Video:   return "VIDEO";
+    case Audio:   return "AUDIO";
+    case Data:    return "data";
+    default:      return "unknown";
+    }
+}
+static inline uint32_t darko_ms()
+{
+    struct timespec ts;
+    clock_gettime(CLOCK_MONOTONIC, &ts);
+    return (uint32_t)(ts.tv_sec * 1000u + ts.tv_nsec / 1000000u);
+}
+#define DARKO_LOG(fmt, ...)                                                        \
+    do {                                                                           \
+        fprintf(stderr, "DARKO %u TID %X %s: " fmt "\n", darko_ms(),               \
+                (uint32_t)pthread_self(), __FUNCTION__, ##__VA_ARGS__);            \
+    } while (0)
 
 namespace
 {
@@ -485,19 +510,28 @@ OpenCDMError opencdm_gstreamer_session_decrypt_buffer_once(struct OpenCDMSession
             }
             RDKPerf perf(perfString.c_str());
 
+            DARKO_LOG("%s frame: size=%u secureDisabled=%d needsUpdate=%d",
+                      darko_media(mediaType), mappedDataSize, (int)capsParser.IsSecureMemoryDisabled(),
+                      (int)(s_svpSetValueFn && session->NeedsDecryptToHostUpdate(capsParser.IsSecureMemoryDisabled())));
+
             if (s_svpSetValueFn && session->NeedsDecryptToHostUpdate(capsParser.IsSecureMemoryDisabled())) {
                 const gboolean decryptToHost = capsParser.IsSecureMemoryDisabled() ? TRUE : FALSE;
+                const uint32_t darkoEnter = darko_ms();
+                DARKO_LOG("%s calling set decryptToHost=%d", darko_media(mediaType), (int)decryptToHost);
                 if (!s_svpSetValueFn(session->SessionPrivateData(),
                                 "decryptToHost",
                                 (void*)&decryptToHost,
                                 sizeof(decryptToHost))) {
+                    DARKO_LOG("%s set decryptToHost FAILED after %u ms, not latching", darko_media(mediaType), darko_ms() - darkoEnter);
                     TRACE_L1("Failed to set decryptToHost=%s in SVP context\n", decryptToHost ? "true" : "false");
                 } else {
+                    DARKO_LOG("%s set decryptToHost returned after %u ms, latching", darko_media(mediaType), darko_ms() - darkoEnter);
                     session->DecryptToHostUpdated(decryptToHost == TRUE);
                 }
             }
 
             if (subSample == nullptr && IV == nullptr && keyID == nullptr) {
+                DARKO_LOG("%s no protection meta, going through the cleardata path", darko_media(mediaType));
             // no encrypted data, skip decryption...
             // But still need to transform buffer for SVP support
                 gst_buffer_svp_transform_from_cleardata(session->SessionPrivateData(), buffer, mediaType);
@@ -582,6 +616,9 @@ OpenCDMError opencdm_gstreamer_session_decrypt_buffer_once(struct OpenCDMSession
                   TRACE_L1("Failed to get type from SVP header");
                }
 
+               DARKO_LOG("%s allocated block: size=%u prealloc=%d tokenType=%d (3 = Fake, i.e. svpext denied the token)",
+                         darko_media(mediaType), dataBlockSize, (int)needSecureMemoryPrealloc, (int)tokenType);
+
                const bool isRevokedAllocation = needSecureMemoryPrealloc 
                                                 && tokenType != TokenType::InPlace
                                                 && tokenType != TokenType::Handle
@@ -602,9 +639,11 @@ OpenCDMError opencdm_gstreamer_session_decrypt_buffer_once(struct OpenCDMSession
                                                     &sampleInfo,
                                                     &streamProperties);
                 delete ocdm_perf;
+                DARKO_LOG("%s decrypt returned %d", darko_media(mediaType), (int)result);
                }
                else
                {
+                    DARKO_LOG("%s SKIPPING decrypt, token revoked - this frame reaches the decoder encrypted", darko_media(mediaType));
                     TRACE_L1("Skipping decrypt as resources have been revoked");
                     result = ERROR_NONE;
                }
@@ -613,6 +652,7 @@ OpenCDMError opencdm_gstreamer_session_decrypt_buffer_once(struct OpenCDMSession
                   GstPerf* svpTransform_perf3 = new GstPerf("opencdm_svp_transform_subsample");
                   gst_buffer_append_svp_transform(session->SessionPrivateData(), buffer, subSample, subSampleCount, svpData, mappedDataSize);
                   delete svpTransform_perf3;
+                  DARKO_LOG("%s handed the buffer to svpext transform", darko_media(mediaType));
                }
                gst_svp_free_data_block(session->SessionPrivateData(), svpData);
            } else {
