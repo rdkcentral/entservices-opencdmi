@@ -80,12 +80,6 @@ while getopts "ct:f:nd" opt; do
     esac
 done
 
-if [[ "${ENABLE_COVERAGE}" -eq 1 && "${BUILD_ONLY}" -eq 0 ]] && \
-    ! command -v lcov >/dev/null 2>&1; then
-    echo "ERROR: -c requires lcov to collect coverage. Install it on the Ubuntu build host."
-    exit 1
-fi
-
 mkdir -p "${BUILD_DIR}" "${INSTALL_DIR}"
 
 # Resolve dependency root when EXT_INSTALL_ROOT is not set explicitly.
@@ -210,6 +204,12 @@ if [[ -z "${_wpe_cfg}" || -z "${_plugins_cfg}" ]]; then
     echo "  string no output variable specified"
     echo "  include could not find requested file: CmakeHelperFunctions"
     echo "  Could not find package: WPEFrameworkPlugins"
+    exit 1
+fi
+
+if [[ "${ENABLE_COVERAGE}" -eq 1 && "${BUILD_ONLY}" -eq 0 ]] && \
+    ! command -v lcov >/dev/null 2>&1; then
+    echo "ERROR: -c requires lcov to collect coverage. Install it on the Ubuntu build host."
     exit 1
 fi
 
