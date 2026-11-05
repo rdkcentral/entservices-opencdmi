@@ -6,3 +6,7 @@
 #pragma once
 
 #define RDKPerf(name) do {} while (0)
+
+#ifdef ENABLE_MULTI_DECRYPT
+bool gst_svp_is_multiple_decrypt_supported();
+#endif

@@ -18,7 +18,8 @@
  */
 
 #include "gst/gst.h"
-#include "open_cdm.h"
+#include "gst_svp_meta.h"
+#include "open_cdm_adapter.h"
 
 #include <cstring>
 #include <vector>
@@ -35,6 +36,34 @@ std::vector<KeyStatus> g_keyStatusSequence = { Usable };
 static size_t          s_keyStatusIdx      = 0;
 
 OpenCDMError g_mockDecryptOnceResult = ERROR_NONE;
+std::vector<OpenCDMError> g_mockDecryptOnceResults;
+int g_decryptOnceCalls = 0;
+int g_keyStatusCalls = 0;
+int g_bufferMapCalls = 0;
+int g_bufferUnmapCalls = 0;
+GstBuffer* g_protectedBuffer = nullptr;
+GstProtectionMeta* g_mockProtectionMeta = nullptr;
+const GValue* g_mockKidValue = nullptr;
+GstBuffer* g_mockKidBuffer = nullptr;
+
+#ifdef ENABLE_MULTI_DECRYPT
+bool g_multipleDecryptSupported = true;
+int g_multiDecryptCalls = 0;
+GstBuffer** g_lastMultiBuffers = nullptr;
+uint16_t g_lastMultiCount = 0;
+GstCaps* g_lastMultiCaps = nullptr;
+#endif
+
+static OpenCDMError nextDecryptResult()
+{
+    const size_t index = static_cast<size_t>(g_decryptOnceCalls++);
+    if (g_mockDecryptOnceResults.empty()) {
+        return g_mockDecryptOnceResult;
+    }
+    return g_mockDecryptOnceResults[
+        index < g_mockDecryptOnceResults.size()
+            ? index : g_mockDecryptOnceResults.size() - 1];
+}
 
 void ResetAdapterMocks()
 {
@@ -44,6 +73,22 @@ void ResetAdapterMocks()
     g_keyStatusSequence     = { Usable };
     s_keyStatusIdx          = 0;
     g_mockDecryptOnceResult = ERROR_NONE;
+    g_mockDecryptOnceResults.clear();
+    g_decryptOnceCalls = 0;
+    g_keyStatusCalls = 0;
+    g_bufferMapCalls = 0;
+    g_bufferUnmapCalls = 0;
+    g_protectedBuffer = nullptr;
+    g_mockProtectionMeta = nullptr;
+    g_mockKidValue = nullptr;
+    g_mockKidBuffer = nullptr;
+#ifdef ENABLE_MULTI_DECRYPT
+    g_multipleDecryptSupported = true;
+    g_multiDecryptCalls = 0;
+    g_lastMultiBuffers = nullptr;
+    g_lastMultiCount = 0;
+    g_lastMultiCaps = nullptr;
+#endif
 }
 
 // ── GStreamer function stubs ──────────────────────────────────────────────────
@@ -52,6 +97,7 @@ extern "C" {
 
 gboolean gst_buffer_map(GstBuffer* buffer, GstMapInfo* info, GstMapFlags)
 {
+    ++g_bufferMapCalls;
     if (buffer == nullptr || info == nullptr || !g_gstBufferMapSucceeds)
         return FALSE;
     info->data = g_mockKeyIdData;
@@ -61,31 +107,34 @@ gboolean gst_buffer_map(GstBuffer* buffer, GstMapInfo* info, GstMapFlags)
 
 void gst_buffer_unmap(GstBuffer*, GstMapInfo* info)
 {
+    ++g_bufferUnmapCalls;
     if (info != nullptr) {
         info->data = nullptr;
         info->size = 0;
     }
 }
 
-GstProtectionMeta* gst_buffer_get_protection_meta(GstBuffer*)
+GstProtectionMeta* gst_buffer_get_protection_meta(GstBuffer* buffer)
 {
-    return nullptr;
+    return buffer != nullptr && buffer == g_protectedBuffer
+        ? g_mockProtectionMeta : nullptr;
 }
 
-const GValue* gst_structure_get_value(const GstStructure*, const gchar*)
+const GValue* gst_structure_get_value(const GstStructure*, const gchar* field)
 {
-    return nullptr;
+    return std::strcmp(field, "kid") == 0 ? g_mockKidValue : nullptr;
 }
 
 GstBuffer* gst_value_get_buffer(const GValue*)
 {
-    return nullptr;
+    return g_mockKidBuffer;
 }
 
 // opencdm_session_status has C linkage (declared extern "C" in open_cdm.h)
 KeyStatus opencdm_session_status(const struct OpenCDMSession* session,
                                   const uint8_t[], uint8_t)
 {
+    ++g_keyStatusCalls;
     if (session == nullptr)
         return InternalError;
     const KeyStatus status =
@@ -111,7 +160,7 @@ OpenCDMError opencdm_gstreamer_session_decrypt_buffer_once(
 {
     if (session == nullptr)
         return ERROR_INVALID_SESSION;
-    return g_mockDecryptOnceResult;
+    return nextDecryptResult();
 }
 } // extern "C"
 
@@ -121,6 +170,27 @@ OpenCDMError opencdm_gstreamer_session_decrypt_once(
 {
     if (session == nullptr)
         return ERROR_INVALID_SESSION;
-    return g_mockDecryptOnceResult;
+    return nextDecryptResult();
 }
+
+#ifdef ENABLE_MULTI_DECRYPT
+bool gst_svp_is_multiple_decrypt_supported()
+{
+    return g_multipleDecryptSupported;
+}
+
+extern "C" OpenCDMError opencdm_gstreamer_session_decrypt_buffer_multi_once(
+    struct OpenCDMSession* session, GstBuffer* buffers[],
+    const uint16_t count, GstCaps* caps)
+{
+    ++g_multiDecryptCalls;
+    g_lastMultiBuffers = buffers;
+    g_lastMultiCount = count;
+    g_lastMultiCaps = caps;
+    if (session == nullptr) {
+        return ERROR_INVALID_SESSION;
+    }
+    return nextDecryptResult();
+}
+#endif
 

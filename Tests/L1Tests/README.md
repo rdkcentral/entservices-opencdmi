@@ -50,17 +50,17 @@ The runner performs these steps:
 
 1. Locates the dependency CMake package files.
 2. Configures the project in `Tests/L1Tests/build`.
-3. Builds and installs the test executable into `Tests/L1Tests/install`.
-4. Runs the discovered L1 test executable.
+3. Builds and installs the five test executables into `Tests/L1Tests/install`.
+4. Runs each L1 test executable.
 
-Test results are written to per-runner JSON files under:
+Test results are written to per-runner JSON files under:
 
-- `Tests/L1Tests/build/OpenCDMIL1Tests.json`
-- `Tests/L1Tests/build/OpenCDMIClientCoreL1Tests.json`
-- `Tests/L1Tests/build/OpenCDMIAdapterRdkL1Tests.json`
 
-- Tests/L1Tests/build/OpenCDMIAdapterRdkL1Tests.json
-
+- `Tests/L1Tests/build/OpenCDMIL1Tests.json`
+- `Tests/L1Tests/build/OpenCDMIClientCoreL1Tests.json`
+- `Tests/L1Tests/build/OpenCDMIClientCoreMultiL1Tests.json`
+- `Tests/L1Tests/build/OpenCDMIAdapterRdkL1Tests.json`
+- `Tests/L1Tests/build/OpenCDMIAdapterRdkMultiL1Tests.json`
 
 The runner sets `PLUGIN_OPENCDMI=OFF` for this L1 build because the tests compile the required OpenCDMI source files and mocks directly. The production OpenCDMI client/plugin shared libraries are not required to run these tests.
 
@@ -72,11 +72,21 @@ Build without executing tests:
 ./Tests/L1Tests/run.sh -n
 ```
 
-Enable coverage compiler flags:
+Instrument tests and collect coverage (requires `lcov`):
 
 ```bash
 ./Tests/L1Tests/run.sh -c
 ```
+
+Coverage collection resets old execution counters, captures an initial baseline
+including unexecuted code, merges the current run, and retains only production
+sources under `client`, `plugin`, and `helpers`. It explicitly checks that
+`client/adapter/rdk/open_cdm_decrypt.cpp` is present. The tracefile is written to
+`Tests/L1Tests/build/coverage/coverage.info`; an HTML report is also generated
+under `Tests/L1Tests/build/coverage/html` when `genhtml` is available. Missing
+`lcov` or a failed collection fails the command rather than reporting successful
+coverage. `-c -n` only builds instrumented binaries and does not collect coverage.
+This is coverage reporting, not a percentage gate.
 
 Run a GoogleTest filter:
 
@@ -148,3 +158,25 @@ The L1 runner intentionally disables the production OpenCDMI subdirectories and 
 Non-Ubuntu platforms are not supported by these scripts.
 Use an Ubuntu environment such as a native machine, VM, container,
 or CI runner for the documented flow.
+
+## Test variants and execution time
+
+The local runner executes five binaries: the original three plus
+`OpenCDMIClientCoreMultiL1Tests` and `OpenCDMIAdapterRdkMultiL1Tests`. Each emits
+its own `<runner-name>.json` under the L1 build directory. CTest discovery also
+includes both variants; multi-decrypt tests have a `MultiDecrypt.` prefix to
+avoid duplicate test names.
+
+On an Ubuntu host with the documented dependencies:
+
+```bash
+# Adapter cases and client API boundaries.
+./Tests/L1Tests/run.sh -f 'AdapterRdkTest.*:ClientOpenCdmCoreApiL1Tests.DecryptFps*:ClientOpenCdmCoreApiL1Tests.DecryptV3*:ClientOpenCdmCoreApiL1Tests.ConstructSessionForwardsMaximumUint16InitData'
+
+# Full L1 regression suite and production-only coverage report.
+./Tests/L1Tests/run.sh -c
+```
+
+Each adapter variant intentionally spends roughly 12 seconds in the two
+permanent-restriction timeout cases; the default 60-second per-binary timeout
+should be retained. Do not shorten it below the six-second retry budget.
