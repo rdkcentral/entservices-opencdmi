@@ -52,9 +52,9 @@ classDef VL stroke:#808080,fill:#F2F2F2,stroke-width:2px;
 
 - **Shared-Memory Data Path**: Each session can create a named `DataExchange` buffer (`Exchange::DataExchange` running on its own `Core::Thread`) under the configured `sharepath`/`sharesize`, letting encrypted samples and decrypted output cross the process boundary without socket copies. A `BufferAdministrator` administers buffer allocation under `_adminLock`.
 
-- **Out-of-Process Service**: `OCDMImplementation` runs inside a dedicated RPC host process. It exposes `AccessorOCDM` over an `RPC::Communicator` (`ExternalAccess`) bound to the `connector` socket (default `/tmp/ocdm`) and publishes `OPEN_CDM_SERVER=<connector>` so libocdm clients can locate it. Crash of the remote connection triggers a `DEACTIVATED` job via `OCDM::Deactivated`.
+- **Out-of-Process Service**: `OCDMImplementation` runs inside a dedicated RPC host process. It exposes `AccessorOCDM` over an `RPC::Communicator` (`ExternalAccess`) bound to the `connector` socket (default `/tmp/ocdm`) and publishes `OPEN_CDM_SERVER=<connector>` in the OCDM host's own environment. Note this does not propagate to separate client processes: `OpenCDMAccessor::Instance()` reads the environment of the process loading libocdm and falls back to `/tmp/ocdm`, so the application launcher must export the matching `OPEN_CDM_SERVER` value when a custom connector is configured. Crash of the remote connection triggers a `DEACTIVATED` job via `OCDM::Deactivated`.
 
-- **Capability and Robustness Queries**: `IContentDecryption` surfaces `Systems()`, `Designators()`, `Sessions()`, `GetSupportedRobustness()` (via the `CDMi::IRobustnessExtension`), `Metadata()`, and per-system metrics (`Metricdata` via `CDMi::IMediaSystemMetrics`).
+- **Capability and Robustness Queries**: `IContentDecryption` surfaces `Systems()`, `Designators()`, and `Sessions()` on the service root, while `IAccessorOCDM` exposes `GetSupportedRobustness()` (via the `CDMi::IRobustnessExtension`), `Metadata()`, and per-system metrics (`Metricdata` via `CDMi::IMediaSystemMetrics`).
 
 - **CENC Metadata Parsing**: `CENCParser`/`CommonEncryptionData` parses Common Encryption init data to extract key IDs, track per-key `KeyStatus`, and match sessions to key systems.
 
@@ -119,7 +119,7 @@ graph TD
   - _`AsyncInitThread`_: A `Core::WorkerPool` job that runs `OCDMImplementation::InitializeAsync()` — scanning `*.drm` libraries, building the designator-to-factory map, creating the `AccessorOCDM` entry point, and starting `ExternalAccess` — so plugin activation is not blocked by CDM loading.
   - _`DataExchange` threads_: Each session's shared-memory exchange object derives from `Core::Thread` and pumps buffer state between the client mapping and the server-side `IMediaKeySession`.
   - _Deactivation job_: `OCDM::Deactivated` submits a `PluginHost::IShell::Job` (`DEACTIVATED`/`FAILURE`) onto the worker pool when the remote RPC connection dies.
-- **Synchronization**: `_adminLock` guards `AccessorOCDM`'s session and buffer administration; `CommonEncryptionData` maintains per-key status atomically within the session; the `Sink` forwards CDM callbacks onto the `Exchange::ISession::ICallback` registered by the client.
+- **Synchronization**: `_adminLock` guards `AccessorOCDM`'s session and buffer administration; `CommonEncryptionData` is explicitly **not** thread-safe (`CENCParser.h` — the caller must ensure single-threaded access to its key-list reads and updates); the `Sink` forwards CDM callbacks onto the `Exchange::ISession::ICallback` registered by the client.
 - **Async / Event Dispatch**: Key-session events originate inside the vendor CDM, surface through `IMediaKeySessionCallback` (`Sink`), and are delivered to the client process over the COM-RPC session channel — no polling loops are used.
 
 ### Prerequisites and Dependencies
@@ -129,7 +129,7 @@ graph TD
 - **Runtime Dependencies**: One or more `*.drm` CDM factory libraries installed under the plugin data path (`config.Location`), each exporting `GetSystemFactory()` returning a `CDMi::ISystemFactory`.
 - **Device Services / HAL**: None directly; secure hardware interaction is delegated to the vendor CDM and its TEE binding.
 - **Configuration Files**: Thunder plugin config generated from `plugin/OCDM.config` / `OCDM.conf.in` (autostart, preconditions, locator, mode, `sharepath`, `systems` array); implementation JSON keys `location`, `connector`, `sharepath`, `sharesize`, `systems`.
-- **Startup Order**: `autostart` defaults to `true`; `preconditions` always include `Provisioning` and add `Platform` when Nexus/PlayReady-SVP/Nagra/Generic variants are enabled; `PLUGIN_OCDM_STARTUPORDER` optionally overrides the activation order.
+- **Startup Order**: `autostart` defaults to `true`. The two config generators differ: `plugin/OCDM.config` always lists `Provisioning` and appends `Platform` for Nexus/Nexus-SVP/Nagra builds, whereas `plugin/OCDM.conf.in` starts from `Provisioning` but replaces the list with only `Platform` for Nexus/Nexus-SVP/Nagra/Generic variants — so `Provisioning` is not a guaranteed activation prerequisite. `PLUGIN_OCDM_STARTUPORDER` optionally overrides the activation order.
 
 ---
 
@@ -225,7 +225,7 @@ sequenceDiagram
     CDM->>SESS: OnKeyStatusUpdate(keyId, Usable)
     SESS->>LIB: key_update_callback / keys_updated_callback
 
-    App->>LIB: opencdm_session_decrypt_v3(buffer)
+    App->>LIB: opencdm_session_decrypt_v2(buffer)
     LIB->>SHM: write encrypted sample to named buffer
     SHM->>CDM: decrypt via IMediaKeySession(DataExchange)
     CDM-->>SHM: decrypted output
@@ -242,7 +242,7 @@ sequenceDiagram
 | `OCDM` (plugin) | Thunder plugin shell. Implements `PluginHost::IPlugin`, `PluginHost::IWeb`, `PluginHost::JSONRPC`; resolves `IContentDecryption` via `IShell::Root`, serves REST GET endpoints (`drms`/`keysystems` properties), watches remote-connection death via `Deactivated`. | `plugin/OCDM.cpp`, `plugin/OCDM.h`, `plugin/OCDMJsonRpc.cpp` |
 | `OCDMImplementation` | COM-RPC `IContentDecryption` service. Loads `*.drm` factories, maps designators, owns `ExternalAccess` communicator and `AccessorOCDM` entry point. | `plugin/FrameworkRPC.cpp` |
 | `ExternalAccess` | `RPC::Communicator` bound to the `connector` node id, publishing `IAccessorOCDM` to libocdm clients and serving invocations on the `RPC::InvokeServer` engine. | `plugin/FrameworkRPC.cpp` |
-| `AccessorOCDM` | Session factory/owner implementing `Exchange::IAccessorOCDM`. Handles `CreateSession`, `Systems`, `Designators`, `Sessions`, `Metricdata`, `GetSupportedRobustness`, movie-session and device-certificate extension methods. | `plugin/FrameworkRPC.cpp` |
+| `AccessorOCDM` | Session factory/owner implementing `Exchange::IAccessorOCDM`. Handles `CreateSession`, `Metricdata`, `GetSupportedRobustness`, movie-session and device-certificate extension methods. (`Systems`/`Designators`/`Sessions` are `IContentDecryption` methods on `OCDMImplementation`, not on this interface.) | `plugin/FrameworkRPC.cpp` |
 | `SessionImplementation` | Per-session `Exchange::ISession` + `Exchange::ISessionExt` wrapper around `CDMi::IMediaKeySession`; owns `CommonEncryptionData` key-status state and the session `DataExchange` buffer. | `plugin/FrameworkRPC.cpp` |
 | `Sink` | `CDMi::IMediaKeySessionCallback` adapter forwarding `OnKeyMessage`, `OnError`, `OnKeyStatusUpdate`, and `OnKeyStatusesUpdated` to the registered `Exchange::ISession::ICallback`. | `plugin/FrameworkRPC.cpp` |
 | `DataExchange` / `BufferAdministrator` | Named shared-memory buffer per session (`Exchange::DataExchange` + `Core::Thread`) administered under `_adminLock`, using `sharepath`/`sharesize` config. | `plugin/FrameworkRPC.cpp` |
@@ -277,7 +277,7 @@ sequenceDiagram
 | API | Type | Description |
 |---|---|---|
 | `drms` | JSON-RPC property (read-only) | Array of `DrmData { name, keysystems[] }` — installed DRM systems and their designators |
-| `keysystems` | JSON-RPC property (read-only) | Designator strings for a named DRM system (`ERROR_BAD_REQUEST` for unknown DRM) |
+| `keysystems` | JSON-RPC property (read-only) | Designator strings for a named DRM system. Note: `OCDMImplementation::Designators()` always returns an iterator, so an unknown DRM name yields `ERROR_NONE` with an empty array — `ERROR_BAD_REQUEST` is only returned if the iterator itself cannot be obtained |
 | `GET /Service/OCDM/` | REST | JSON list of systems and designators |
 | `GET /Service/OCDM/Designators/<system>` | REST | Designators for the requested system |
 | `GET /Service/OCDM/Sessions` | REST | Stub endpoint — returns `Active Sessions` without a payload |
@@ -310,7 +310,7 @@ sequenceDiagram
 | `opencdm_construct_session()` | Create an `OpenCDMSession` with init data + callbacks | `client/open_cdm.cpp` |
 | `opencdm_session_update()` | Deliver a license response into the session | `client/open_cdm.cpp` |
 | `opencdm_session_decrypt()` / `_v2` / `_fps` / `_v3` | Decrypt a sample through the session buffer | `client/open_cdm.cpp`, `client/open_cdm_ext.cpp` |
-| `opencdm_session_load()` / `_remove()` / `_close()` | Persist, purge, and close sessions | `client/open_cdm.cpp` |
+| `opencdm_session_load()` / `_remove()` / `_close()` | Load stored session data into the CDM context, remove persistent data, and close sessions | `client/open_cdm.cpp` |
 | `opencdm_is_type_supported()` / `opencdm_system_get_metadata()` / `opencdm_system_get_drm_time()` | System capability and metadata queries | `client/open_cdm.cpp` |
 | `IContentDecryption::Initialize()` | Implementation-side init (factories + communicator) | `plugin/FrameworkRPC.cpp` |
 | `IAccessorOCDM::CreateSession()` | Server-side session creation with callback wiring | `plugin/FrameworkRPC.cpp` |
