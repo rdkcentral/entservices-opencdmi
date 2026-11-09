@@ -29,6 +29,7 @@
 #include "open_cdm_ext.h"
 #include "open_cdm_impl.h"
 #include "FakeServerInterfaces.h"
+#include "ocdm_perf.h"
 
 std::vector<RDKPerfStubRecord>& RDKPerfStubRecords()
 {
@@ -72,6 +73,16 @@ protected:
 
     FakeOpenCDMAccessor _accessor;
 };
+
+TEST_F(ClientOpenCdmPerfL1Tests, PerfScopeStaysOpenUntilEndOfScope)
+{
+    {
+        OCDM_PERF_SCOPE("scope_under_test");
+        ASSERT_EQ(std::vector<std::string>({ "scope_under_test" }), RecordedNames());
+        EXPECT_TRUE(RDKPerfStubRecords().front().open);
+    }
+    EXPECT_FALSE(RDKPerfStubRecords().front().open);
+}
 
 TEST_F(ClientOpenCdmPerfL1Tests, SystemApisAreInstrumented)
 {
