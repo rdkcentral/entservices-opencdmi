@@ -155,26 +155,32 @@ set (CLIENT_CORE_TEST_SRC
 )
 
 add_executable(OpenCDMIClientCoreL1Tests ${CLIENT_CORE_TEST_SRC})
+add_executable(OpenCDMIClientCoreMultiL1Tests ${CLIENT_CORE_TEST_SRC})
+target_compile_definitions(OpenCDMIClientCoreMultiL1Tests PRIVATE ENABLE_MULTI_DECRYPT)
 
-target_include_directories(OpenCDMIClientCoreL1Tests
-    PUBLIC
-    ${TEST_INC}
-    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
-    $<INSTALL_INTERFACE:include>
-    ${CMAKE_SOURCE_DIR}/entservices-testframework/Tests/mocks
-    ${CMAKE_SOURCE_DIR}/entservices-testframework/Tests/mocks/devicesettings
-    ${CMAKE_SOURCE_DIR}/entservices-testframework/Tests/mocks/thunder
-    ${CMAKE_SOURCE_DIR}/Thunder/Source/plugins
-)
+foreach(client_core_target OpenCDMIClientCoreL1Tests OpenCDMIClientCoreMultiL1Tests)
+    target_include_directories(${client_core_target}
+        PUBLIC
+        ${TEST_INC}
+        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
+        $<INSTALL_INTERFACE:include>
+        ${CMAKE_SOURCE_DIR}/entservices-testframework/Tests/mocks
+        ${CMAKE_SOURCE_DIR}/entservices-testframework/Tests/mocks/devicesettings
+        ${CMAKE_SOURCE_DIR}/entservices-testframework/Tests/mocks/thunder
+        ${CMAKE_SOURCE_DIR}/Thunder/Source/plugins
+    )
 
-target_link_directories(OpenCDMIClientCoreL1Tests PUBLIC ${CMAKE_INSTALL_PREFIX}/lib ${CMAKE_INSTALL_PREFIX}/lib/wpeframework/plugins)
+    target_link_directories(${client_core_target} PUBLIC ${CMAKE_INSTALL_PREFIX}/lib ${CMAKE_INSTALL_PREFIX}/lib/wpeframework/plugins)
 
-target_link_libraries(OpenCDMIClientCoreL1Tests
-    GTest::gtest_main
-    GTest::gtest
-    ${TEST_LIB})
+    target_link_libraries(${client_core_target}
+        GTest::gtest_main
+        GTest::gtest
+        ${TEST_LIB})
+endforeach()
 
 gtest_discover_tests(OpenCDMIClientCoreL1Tests DISCOVERY_MODE PRE_TEST)
+gtest_discover_tests(OpenCDMIClientCoreMultiL1Tests DISCOVERY_MODE PRE_TEST
+    TEST_PREFIX "MultiDecrypt.")
 
 # RDK adapter tests: compile open_cdm_decrypt.cpp with GStreamer stubs so
 # the pure-logic paths (null checks, key-status branching, retry flow) can
@@ -186,36 +192,42 @@ set(ADAPTER_RDK_TEST_SRC
 )
 
 add_executable(OpenCDMIAdapterRdkL1Tests ${ADAPTER_RDK_TEST_SRC})
+add_executable(OpenCDMIAdapterRdkMultiL1Tests ${ADAPTER_RDK_TEST_SRC})
+target_compile_definitions(OpenCDMIAdapterRdkMultiL1Tests PRIVATE ENABLE_MULTI_DECRYPT)
 
-# tests/mocks MUST come first so our gst/gst.h and gst_svp_meta.h stubs
-# shadow any real GStreamer headers that may be installed on the build host.
-target_include_directories(OpenCDMIAdapterRdkL1Tests
-    BEFORE PUBLIC
-        ${CMAKE_CURRENT_SOURCE_DIR}/tests/mocks
-    PUBLIC
-        ../../client
-        ../../client/adapter
-        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
-        $<INSTALL_INTERFACE:include>
-        ${CMAKE_SOURCE_DIR}/entservices-testframework/Tests/mocks/thunder
-        ${CMAKE_SOURCE_DIR}/Thunder/Source/plugins
-)
+foreach(adapter_target OpenCDMIAdapterRdkL1Tests OpenCDMIAdapterRdkMultiL1Tests)
+    # Shadow installed GStreamer headers with the local unit-test stubs.
+    target_include_directories(${adapter_target}
+        BEFORE PUBLIC
+            ${CMAKE_CURRENT_SOURCE_DIR}/tests/mocks
+        PUBLIC
+            ../../client
+            ../../client/adapter
+            $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
+            $<INSTALL_INTERFACE:include>
+            ${CMAKE_SOURCE_DIR}/entservices-testframework/Tests/mocks/thunder
+            ${CMAKE_SOURCE_DIR}/Thunder/Source/plugins
+    )
 
-target_link_directories(OpenCDMIAdapterRdkL1Tests
-    PUBLIC
-    ${CMAKE_INSTALL_PREFIX}/lib
-    ${CMAKE_INSTALL_PREFIX}/lib/wpeframework/plugins
-)
+    target_link_directories(${adapter_target}
+        PUBLIC
+        ${CMAKE_INSTALL_PREFIX}/lib
+        ${CMAKE_INSTALL_PREFIX}/lib/wpeframework/plugins
+    )
 
-target_link_libraries(OpenCDMIAdapterRdkL1Tests
-    GTest::gtest_main
-    GTest::gtest
-)
+    target_link_libraries(${adapter_target}
+        GTest::gtest_main
+        GTest::gtest
+    )
+endforeach()
 
 gtest_discover_tests(OpenCDMIAdapterRdkL1Tests DISCOVERY_MODE PRE_TEST)
+gtest_discover_tests(OpenCDMIAdapterRdkMultiL1Tests DISCOVERY_MODE PRE_TEST
+    TEST_PREFIX "MultiDecrypt.")
 
 install(TARGETS ${PROJECT_NAME} DESTINATION bin)
 install(TARGETS OpenCDMIClientCoreL1Tests DESTINATION bin)
 install(TARGETS OpenCDMIAdapterRdkL1Tests DESTINATION bin)
+install(TARGETS OpenCDMIClientCoreMultiL1Tests OpenCDMIAdapterRdkMultiL1Tests DESTINATION bin)
 
 
