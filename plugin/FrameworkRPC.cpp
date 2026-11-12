@@ -268,6 +268,10 @@ namespace Plugin {
                     {
                         return (_type);
                     }
+                    uint8_t InitLength() const override
+                    {
+                        return (0);
+                    }
 
                 private:
                     uint16_t _height;
