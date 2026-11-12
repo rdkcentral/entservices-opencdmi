@@ -706,6 +706,64 @@ TEST(ClientOpenCdmCoreApiL1Tests, DecryptApisRejectNullSession)
                                          nullptr, nullptr));
 }
 
+TEST(ClientOpenCdmCoreApiL1Tests, DecryptFpsRejectsNullSessionEvenWithEmptyInput)
+{
+    uint8_t encrypted[4] = {};
+    for (const uint32_t length : { 0u, 4u }) {
+        EXPECT_EQ(ERROR_INVALID_SESSION,
+                  opencdm_session_decrypt_fps(
+                      nullptr, 1, 2, 3, 0xA, encrypted, length,
+                      nullptr, 0, nullptr, nullptr));
+    }
+}
+
+TEST(ClientOpenCdmCoreApiL1Tests, DecryptFpsEmptyInputDoesNotCreateDataExchange)
+{
+    ScopedFakeAccessor scoped;
+    FakeOpenCDMAccessor::FakeSession fakeSession;
+    scoped.accessor.sessionToCreate = &fakeSession;
+    OpenCDMSystem system("com.apple.fps", "meta");
+    OpenCDMSession session(&system, "cenc", nullptr, 0, nullptr, 0,
+                           Temporary, nullptr, nullptr);
+    uint8_t output = 0xA5;
+
+    EXPECT_EQ(ERROR_NONE,
+              opencdm_session_decrypt_fps(
+                  &session, 1, 2, 3, 0xA, nullptr, 0,
+                  nullptr, 0, nullptr, &output));
+    EXPECT_EQ(0xA5, output);
+    EXPECT_EQ(nullptr, session._decryptSession.load());
+}
+
+#ifdef ENABLE_MULTI_DECRYPT
+TEST(ClientOpenCdmCoreApiL1Tests, DecryptV3RejectsNullSessionEvenWithEmptyInput)
+{
+    uint8_t encrypted[4] = {};
+    for (const uint32_t length : { 0u, 4u }) {
+        EXPECT_EQ(ERROR_INVALID_SESSION,
+                  opencdm_session_decrypt_v3(
+                      nullptr, encrypted, length, nullptr, 0, nullptr));
+    }
+}
+
+TEST(ClientOpenCdmCoreApiL1Tests, DecryptV3EmptyInputDoesNotCreateDataExchange)
+{
+    ScopedFakeAccessor scoped;
+    FakeOpenCDMAccessor::FakeSession fakeSession;
+    scoped.accessor.sessionToCreate = &fakeSession;
+    OpenCDMSystem system("com.widevine.alpha", "meta");
+    OpenCDMSession session(&system, "cenc", nullptr, 0, nullptr, 0,
+                           Temporary, nullptr, nullptr);
+    uint8_t encrypted = 0xA5;
+
+    EXPECT_EQ(ERROR_NONE,
+              opencdm_session_decrypt_v3(
+                  &session, &encrypted, 0, nullptr, 0, nullptr));
+    EXPECT_EQ(0xA5, encrypted);
+    EXPECT_EQ(nullptr, session._decryptSession.load());
+}
+#endif
+
 TEST(ClientOpenCdmCoreApiL1Tests, MetricSessionDataRejectsNullSession)
 {
     uint32_t length = 4;
@@ -1024,6 +1082,32 @@ TEST(ClientOpenCdmCoreApiL1Tests, SessionExtensionApisHandleZeroOrShortInputs)
 
     delete session;
     delete fakeSession;
+}
+
+TEST(ClientOpenCdmCoreApiL1Tests, ConstructSessionForwardsMaximumUint16InitData)
+{
+    ScopedFakeAccessor scoped;
+    FakeOpenCDMAccessor::FakeSession fakeSession;
+    fakeSession.sessionIdValue = "maximum-init-data";
+    scoped.accessor.sessionToCreate = &fakeSession;
+
+    std::vector<uint8_t> initData(std::numeric_limits<uint16_t>::max(), 0x5A);
+    initData.front() = 0x01;
+    initData.back() = 0xFE;
+    OpenCDMSystem system("com.widevine.alpha", "meta");
+    OpenCDMSession* session = nullptr;
+
+    EXPECT_EQ(ERROR_NONE,
+              opencdm_construct_session(
+                  &system, Temporary, "cenc", initData.data(),
+                  static_cast<uint16_t>(initData.size()), nullptr, 0,
+                  nullptr, nullptr, &session));
+    EXPECT_NE(nullptr, session);
+    EXPECT_EQ(initData, scoped.accessor.lastCreateSessionInitData);
+    if (session != nullptr) {
+        EXPECT_EQ(ERROR_NONE, opencdm_destruct_session(session));
+    }
+    EXPECT_TRUE(fakeSession.revokeCalled);
 }
 
 } // namespace

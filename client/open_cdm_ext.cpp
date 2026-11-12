@@ -46,6 +46,7 @@ static domainKeysystemMap domainMap =  {
         abort();                                                      \
     }
 
+
 OpenCDMError opencdm_parse_keysystem(std::string& keySystemDomain)
 {
     OpenCDMError result = ERROR_NONE;
@@ -500,4 +501,118 @@ OpenCDMError opencdm_system_ext_get_properties(struct PlayLevels* system, const 
 
      return result;
     
+}
+
+// Fairplay
+OpenCDMError opencdm_create_moviesession(struct OpenCDMSystem* system, uint32_t version, const uint8_t* cert, uint32_t certificatesize, const uint8_t* versionlist, uint32_t versionListSize, uint8_t* movieIdOut, uint32_t movieId_bytes)
+{
+	ASSERT(system != nullptr);
+    OpenCDMError result(OpenCDMError::ERROR_INVALID_ARG);
+
+    if (system != nullptr) {
+        OpenCDMAccessor* accessor = OpenCDMAccessor::Instance();
+        if(!accessor)
+            return ERROR_INVALID_ACCESSOR;
+
+        std::string keySystem = system->keySystem();
+        result = (OpenCDMError)accessor->CreateMovieSession(keySystem, version, cert, certificatesize, versionlist, versionListSize, movieIdOut, movieId_bytes);
+    }
+    return result;
+}
+
+OpenCDMError opencdm_destroy_moviesession(struct OpenCDMSystem* system, uint32_t version, uint64_t movieId)
+{
+	ASSERT(system != nullptr);
+    OpenCDMError result(OpenCDMError::ERROR_INVALID_ARG);
+
+    if (system != nullptr) {
+        OpenCDMAccessor* accessor = OpenCDMAccessor::Instance();
+        if(!accessor)
+            return ERROR_INVALID_ACCESSOR;
+
+        std::string keySystem = system->keySystem();
+        result = (OpenCDMError)accessor->DestroyMovieSession(keySystem, version, movieId);
+    }
+    return result;
+}
+
+
+OpenCDMError opencdm_generate_challenge_with_version_list(struct OpenCDMSystem* system, uint32_t version, uint64_t movieId, const uint8_t* assetidData, uint32_t assetidSize, const uint8_t* versionlist, uint32_t versionListSize, const uint8_t* streamerChallengeData, uint32_t streamerChallengeSize, uint64_t cryptorId, uint8_t* licenseChallengeBuffer, uint32_t maxbufferSize,  uint8_t* licenseSize, uint32_t licensesize_bytes, uint8_t* session, uint32_t sessionSize_bytes)
+{
+    ASSERT(system != nullptr);
+    OpenCDMError result(OpenCDMError::ERROR_INVALID_ARG);
+
+    if (system != nullptr) {
+        OpenCDMAccessor* accessor = OpenCDMAccessor::Instance();
+        if(!accessor)
+            return ERROR_INVALID_ACCESSOR;
+
+        std::string keySystem = system->keySystem();
+        result = (OpenCDMError)accessor->GenerateChallengeWithVersionList(keySystem, version, movieId, assetidData, assetidSize, versionlist, versionListSize, streamerChallengeData, streamerChallengeSize, cryptorId, licenseChallengeBuffer, maxbufferSize, licenseSize, licensesize_bytes, session, sessionSize_bytes);
+    }
+    return result;
+}
+
+OpenCDMError opencdm_destroy_server_exchange(struct OpenCDMSystem* system, uint32_t version, uint8_t* session, uint32_t sessionsize_bytes)
+{
+	ASSERT(system != nullptr);
+    OpenCDMError result(OpenCDMError::ERROR_INVALID_ARG);
+
+    if (system != nullptr) {
+        OpenCDMAccessor* accessor = OpenCDMAccessor::Instance();
+        if(!accessor)
+            return ERROR_INVALID_ACCESSOR;
+
+        std::string keySystem = system->keySystem();
+        result = (OpenCDMError)accessor->DestroyServerExchange(keySystem, version, session, sessionsize_bytes);
+    }
+    return result;
+}
+
+OpenCDMError opencdm_init_library(struct OpenCDMSystem* system)
+{
+    ASSERT(system != nullptr);
+    OpenCDMError result(OpenCDMError::ERROR_INVALID_ARG);
+
+    if (system != nullptr) {
+        OpenCDMAccessor* accessor = OpenCDMAccessor::Instance();
+        if(!accessor)
+            return ERROR_INVALID_ACCESSOR;
+
+        std::string keySystem = system->keySystem();
+        result = (OpenCDMError)accessor->InitLibrary(keySystem);
+    }
+    return result;
+}
+
+OpenCDMError opencdm_process_license(struct OpenCDMSystem* system, uint32_t version, uint8_t* session, uint32_t sessionsize_bytes, const uint8_t* licenseData, uint32_t licenseDataSize, uint8_t* cryptoId, uint32_t cryptoId_size)
+{
+    ASSERT(system != nullptr);
+    OpenCDMError result(OpenCDMError::ERROR_INVALID_ARG);
+
+    if (system != nullptr) {
+        OpenCDMAccessor* accessor = OpenCDMAccessor::Instance();
+        if(!accessor)
+            return ERROR_INVALID_ACCESSOR;
+
+        std::string keySystem = system->keySystem();
+        result = (OpenCDMError)accessor->ProcessLicense(keySystem, version, session, sessionsize_bytes, licenseData, licenseDataSize, cryptoId, cryptoId_size);
+    }
+    return result;
+}
+
+OpenCDMError opencdm_destroy_cryptor(struct OpenCDMSystem* system, uint32_t version, uint64_t cryptoId)
+{
+    ASSERT(system != nullptr);
+    OpenCDMError result(OpenCDMError::ERROR_INVALID_ARG);
+
+    if (system != nullptr) {
+        OpenCDMAccessor* accessor = OpenCDMAccessor::Instance();
+        if(!accessor)
+            return ERROR_INVALID_ACCESSOR;
+
+        std::string keySystem = system->keySystem();
+        result = (OpenCDMError)accessor->DestroyCryptor(keySystem, version, cryptoId);
+    }
+    return result;
 }
