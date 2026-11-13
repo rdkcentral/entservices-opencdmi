@@ -1025,7 +1025,10 @@ namespace Plugin {
                         memcpy(versionlist32.data(), versionlist, versionListSize * sizeof(uint32_t));
                         const uint32_t* versionlist_converted = versionlist32.data();
 
-                        CDMi::CDMi_RESULT mediasystem_return = system->GenerateChallengeWithVersionList(version, movieId, assetidData, assetidSize, versionlist_converted, versionListSize, streamerChallengeData, streamerChallengeSize, cryptorId, licenseChallenge, licenseChallengeSize, session);
+                        // RPC hands over a non-null pointer for an empty buffer; FairPlay expects NULL when there is no streamer challenge.
+                        const uint8_t* streamerChallenge = (streamerChallengeSize != 0) ? streamerChallengeData : nullptr;
+
+                        CDMi::CDMi_RESULT mediasystem_return = system->GenerateChallengeWithVersionList(version, movieId, assetidData, assetidSize, versionlist_converted, versionListSize, streamerChallenge, streamerChallengeSize, cryptorId, licenseChallenge, licenseChallengeSize, session);
 
                         if (mediasystem_return == CDMi::CDMi_RESULT::CDMi_SUCCESS)
                         {
