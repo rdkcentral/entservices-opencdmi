@@ -246,6 +246,7 @@ RUNNER_NAMES=(
     OpenCDMIL1Tests
     OpenCDMIClientCoreL1Tests
     OpenCDMIClientCoreMultiL1Tests
+    OpenCDMIClientCorePerfL1Tests
     OpenCDMIAdapterRdkL1Tests
     OpenCDMIAdapterRdkMultiL1Tests
 )
