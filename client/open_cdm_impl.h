@@ -1034,6 +1034,11 @@ public:
         return _pvtData;
     }
 
+    Core::CriticalSection& DecryptToHostLock()
+    {
+        return _decryptToHostLock;
+    }
+
     bool NeedsDecryptToHostUpdate(bool decryptToHost)
     {
         if (_decryptToHostSet && (_decryptToHost == decryptToHost)) {
@@ -1221,6 +1226,7 @@ private:
     Exchange::OCDM_RESULT _sysError;
     OpenCDMSystem* _system;
     void* _pvtData;
+    Core::CriticalSection _decryptToHostLock;
     bool _decryptToHostSet;
     bool _decryptToHost;
 };
