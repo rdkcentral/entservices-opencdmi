@@ -123,13 +123,6 @@ bool isOutputRestrictedStatus(KeyStatus status)
     return (status == OutputRestricted) || (status == OutputRestrictedHDCP22);
 }
 
-bool isUsableStatus(KeyStatus status)
-{
-    return ( (status == Usable) ||
-             (status == OutputDownscaled) ||
-             (status == StatusPending) );
-}
-
 KeyStatus getKeyStatus(struct OpenCDMSession* session, const std::vector<uint8_t>& keyId)
 {
     if ((session == nullptr) || keyId.empty() || (keyId.size() > 255)) {
@@ -187,18 +180,6 @@ OpenCDMError decryptWithOutputRestrictedRetry(struct OpenCDMSession* session, co
     OpenCDMError lastResult = ERROR_FAIL;
 
     while (std::chrono::steady_clock::now() < deadline) {
-        KeyStatus preDecryptStatus = getKeyStatus(session, keyId);
-        if (isOutputRestrictedStatus(preDecryptStatus)) {
-            LOGDECRYPT(WARNING, "Key status is output restricted (%d), retrying decryption after delay.", preDecryptStatus);
-            std::this_thread::sleep_for(kOutputRestrictedRetryInterval);
-            continue;
-        }
-
-        if (!isUsableStatus(preDecryptStatus)) {
-            LOGDECRYPT(WARNING, "Output protection retry aborted for non-usable key status: %d", preDecryptStatus);
-            return ERROR_FAIL;
-        }
-
         lastResult = decryptOnce();
         if (lastResult == ERROR_NONE) {
             return lastResult;
