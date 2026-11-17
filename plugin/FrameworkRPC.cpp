@@ -21,6 +21,7 @@
 #include <string>
 #include <utility>
 #include <vector>
+#include <cctype>
 #include <sys/prctl.h>
 
 #include "Module.h"
@@ -42,12 +43,12 @@ namespace Plugin {
 
     static void TrimWs(const std::string& str, size_t& start, size_t& end)
     {
-        while(std::isspace(str[start]) && start < end) {
+        while ((start < end) && std::isspace(static_cast<unsigned char>(str[start]))) {
             ++start;
         }
 
-        while(std::isspace(str[end - 1]) && end - 1 > 0) {
-         --end;
+        while ((end > start) && std::isspace(static_cast<unsigned char>(str[end - 1]))) {
+            --end;
         }
     }
 
@@ -189,8 +190,6 @@ namespace Plugin {
 
                     // We do not expect more that 4 buffers to be allocated concurrently,
                     // so more than X would be dramatic
-                    ASSERT(index < (sizeof(_occupation) * 8));
-
                     if (index < (sizeof(_occupation) * 8)) {
                         _occupation |= (1 << index);
                         locator = _basePath + BufferFileName + Core::NumberType<uint8_t>(index).Text();
@@ -339,13 +338,12 @@ namespace Plugin {
                              if(contentType == 0x80000007)
                               {
                                     svpmemoryhandle = FPSSvpOut();
-                                    printf("*******the svpout = 0x%x***** \n",svpmemoryhandle);fflush(stdout);
+                                    TRACE(Trace::Information, (_T("FPS SVP out handle 0x%x"), svpmemoryhandle));
                                     decryptedmem =(void *)&svpmemoryhandle;
 
                                }
                                else
                                {
-                                     printf("*********FS Audio Handling*********** \n");fflush(stdout);
                                      //Allocate the memory
                                      decryptedmem = (void *)calloc(1, encryptedDataSize);
                                      if (decryptedmem == nullptr) {
@@ -369,7 +367,6 @@ namespace Plugin {
                                         decryptedmem);
                                      if ((cr == 0) && (contentType == 0xA)) {
                                          SetBuffer(0, encryptedDataSize, static_cast<uint8_t *>(decryptedmem));
-                                         printf("*******Free the clear data******** \n");fflush(stdout);
                                      }
                                      if (contentType != 0x80000007) {
                                          free(decryptedmem);
@@ -1610,6 +1607,7 @@ namespace Plugin {
         {
             uint32_t result = Core::ERROR_NONE;
 
+            OpenCDM::Logging::Initialize();
             _shell = service;
 
             _shell->AddRef();
@@ -1655,7 +1653,7 @@ namespace Plugin {
                         }
                     }
                 } else {
-                    SYSLOG(Logging::Startup, (_T("Could not load factory [%s], error [%s]"), Core::File::FileNameExtended(entry.Current()).c_str(), library.Error().c_str()));
+                    TRACE_L1(_T("Could not load factory [%s], error [%s]"), Core::File::FileNameExtended(entry.Current()).c_str(), library.Error().c_str());
                     result = Core::ERROR_OPENING_FAILED;
                 }
             }
@@ -1679,7 +1677,7 @@ namespace Plugin {
                                 _systemToFactory.insert(std::pair<const std::string, SystemFactory>(designator, factory->second));
 
                             } else {
-                                SYSLOG(Logging::Startup, (_T("Required factory [%s], not found for [%s]"), system.c_str(), designator.c_str()));
+                                TRACE_L1(_T("Required factory [%s], not found for [%s]"), system.c_str(), designator.c_str());
                                 result = Core::ERROR_OPENING_FAILED;
                             }
                         }
@@ -1702,7 +1700,7 @@ namespace Plugin {
             }
 
             if (_systemToFactory.size() == 0) {
-                SYSLOG(Logging::Startup, (_T("No DRM factories specified. OCDM can not service any DRM requests.")));
+                TRACE_L1(_T("No DRM factories specified. OCDM can not service any DRM requests."));
             }
 
             _entryPoint = Core::Service<AccessorOCDM>::Create<Exchange::IAccessorOCDM>(this, config.SharePath.Value(), config.ShareSize.Value());
@@ -1727,7 +1725,7 @@ namespace Plugin {
                         subSystem->Set(PluginHost::ISubSystem::DECRYPTION, this);
                     }
                     if (_systemToFactory.size() == 0) {
-                        SYSLOG(Logging::Startup, (string(_T("OCDM server has NO key systems registered!!!"))));
+                        TRACE_L1(_T("OCDM server has NO key systems registered!!!"));
                     }
                 }
             }

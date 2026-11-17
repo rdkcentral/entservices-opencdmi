@@ -96,7 +96,7 @@ OpenCDMError opencdm_gstreamer_session_decrypt_once(struct OpenCDMSession* sessi
     if (session != nullptr) {
         GstMapInfo dataMap = { 0 };
         if (gst_buffer_map(buffer, &dataMap, (GstMapFlags) GST_MAP_READWRITE) == false) {
-            fprintf(stderr, "Invalid buffer.\n");
+            TRACE_L1("Invalid buffer.");
             return (ERROR_INVALID_DECRYPT_BUFFER);
         }
 
@@ -114,7 +114,7 @@ OpenCDMError opencdm_gstreamer_session_decrypt_once(struct OpenCDMSession* sessi
 
         if (gst_buffer_map(IV, &ivMap, (GstMapFlags) GST_MAP_READ) == false) {
             gst_buffer_unmap(buffer, &dataMap);
-            fprintf(stderr, "Invalid IV buffer.\n");
+            TRACE_L1("Invalid IV buffer.");
             return (ERROR_INVALID_DECRYPT_BUFFER);
         }
 
@@ -123,7 +123,7 @@ OpenCDMError opencdm_gstreamer_session_decrypt_once(struct OpenCDMSession* sessi
         if (gst_buffer_map(keyID, &keyIDMap, (GstMapFlags) GST_MAP_READ) == false) {
             gst_buffer_unmap(buffer, &dataMap);
             gst_buffer_unmap(IV, &ivMap);
-            fprintf(stderr, "Invalid keyID buffer.\n");
+            TRACE_L1("Invalid keyID buffer.");
             return (ERROR_INVALID_DECRYPT_BUFFER);
         }
 
@@ -155,7 +155,7 @@ OpenCDMError opencdm_gstreamer_session_decrypt_once(struct OpenCDMSession* sessi
             GstMapInfo sampleMap = { 0 };
 
             if (gst_buffer_map(subSample, &sampleMap, GST_MAP_READ) == false) {
-                fprintf(stderr, "Invalid subsample buffer.\n");
+                TRACE_L1("Invalid subsample buffer.");
                 gst_buffer_unmap(keyID, &keyIDMap);
                 gst_buffer_unmap(IV, &ivMap);
                 gst_buffer_unmap(buffer, &dataMap);
