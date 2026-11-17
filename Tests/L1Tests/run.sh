@@ -25,11 +25,13 @@
 #   4) return non-zero on failure
 #
 # Options:
-#   -c              enable coverage-oriented compiler flags
+#   -c              instrument tests and collect production-source lcov coverage
 #   -t <seconds>    per-run timeout for test execution (default: 60)
 #   -f <filter>     gtest filter passed to each L1 test runner
 #   -n              configure/build only, do not execute tests
 #   -d              bootstrap dependencies using repo build_dependencies.sh
+
+set -e
 
 if [[ "$(uname -s)" != "Linux" || ! -f /etc/os-release || \
       "$(. /etc/os-release && echo "${ID}")" != "ubuntu" ]]; then
@@ -205,6 +207,12 @@ if [[ -z "${_wpe_cfg}" || -z "${_plugins_cfg}" ]]; then
     exit 1
 fi
 
+if [[ "${ENABLE_COVERAGE}" -eq 1 && "${BUILD_ONLY}" -eq 0 ]] && \
+    ! command -v lcov >/dev/null 2>&1; then
+    echo "ERROR: -c requires lcov to collect coverage. Install it on the Ubuntu build host."
+    exit 1
+fi
+
 # USE_THUNDER_R4 comes from the Plugins imported target; redefining it here warns.
 EXTRA_CXX_FLAGS="-DEXCEPTIONS_ENABLE=ON -DRDK_SERVICES_L1_TEST"
 if [[ "${ENABLE_COVERAGE}" -eq 1 ]]; then
@@ -237,8 +245,18 @@ export LD_LIBRARY_PATH="${INSTALL_DIR}/lib:${INSTALL_DIR}/lib/wpeframework/plugi
 RUNNER_NAMES=(
     OpenCDMIL1Tests
     OpenCDMIClientCoreL1Tests
+    OpenCDMIClientCoreMultiL1Tests
     OpenCDMIAdapterRdkL1Tests
+    OpenCDMIAdapterRdkMultiL1Tests
 )
+
+if [[ "${ENABLE_COVERAGE}" -eq 1 ]]; then
+    COVERAGE_DIR="${BUILD_DIR}/coverage"
+    mkdir -p "${COVERAGE_DIR}"
+    lcov --zerocounters --directory "${BUILD_DIR}"
+    lcov --capture --initial --directory "${BUILD_DIR}" \
+        --output-file "${COVERAGE_DIR}/initial.info"
+fi
 
 overall_status=0
 for runner_name in "${RUNNER_NAMES[@]}"; do
@@ -318,5 +336,32 @@ print("-" * 82)
 print(f"{'TOTAL':<32} {totals['tests']:>7} {totals['passed']:>7} "
     f"{totals['failed']:>7} {totals['disabled']:>9}")
 PY
+
+if [[ "${ENABLE_COVERAGE}" -eq 1 ]]; then
+    lcov --capture --directory "${BUILD_DIR}" \
+        --output-file "${COVERAGE_DIR}/run.info"
+    lcov --add-tracefile "${COVERAGE_DIR}/initial.info" \
+        --add-tracefile "${COVERAGE_DIR}/run.info" \
+        --output-file "${COVERAGE_DIR}/combined.info"
+    lcov --extract "${COVERAGE_DIR}/combined.info" \
+        "${REPO_ROOT}/client/*" "${REPO_ROOT}/plugin/*" "${REPO_ROOT}/helpers/*" \
+        --output-file "${COVERAGE_DIR}/coverage.info"
+
+    if ! grep -Fxq "SF:${REPO_ROOT}/client/adapter/rdk/open_cdm_decrypt.cpp" \
+        "${COVERAGE_DIR}/coverage.info"; then
+        echo "ERROR: Coverage is missing client/adapter/rdk/open_cdm_decrypt.cpp."
+        exit 1
+    fi
+
+    lcov --list "${COVERAGE_DIR}/coverage.info"
+    echo "Coverage tracefile: ${COVERAGE_DIR}/coverage.info"
+    if command -v genhtml >/dev/null 2>&1; then
+        genhtml "${COVERAGE_DIR}/coverage.info" \
+            --output-directory "${COVERAGE_DIR}/html"
+        echo "Coverage HTML report: ${COVERAGE_DIR}/html/index.html"
+    else
+        echo "WARNING: genhtml is unavailable; only the lcov tracefile was generated."
+    fi
+fi
 
 exit "${overall_status}"
