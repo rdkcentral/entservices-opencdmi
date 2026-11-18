@@ -62,7 +62,7 @@ protected:
         , _interested(0)
         , _sessionKeys()
     {
-        TRACE_L1("Trying to open an OCDM connection @ %s\n", domainName);
+        TRACE_L3("Trying to open an OCDM connection @ %s\n", domainName);
         Reconnect(); // make sure ResourceMonitor singleton is created before OpenCDMAccessor so the destruction order is correct
     }
 
@@ -81,7 +81,7 @@ protected:
             ASSERT(_remote != nullptr);
 
             if (_remote == nullptr) {
-                TRACE_L1("Failed to open a channel to OCDM implementation");
+                TRACE_L2("Failed to open a channel to OCDM implementation");
                 if (_client.IsValid()) {
                   _client.Release();
                 }
@@ -106,7 +106,7 @@ public:
             _client.Release();
         }
 
-        TRACE_L1("Destructed the OpenCDMAccessor %p", this);
+        TRACE_L2("Destructed the OpenCDMAccessor %p", this);
     }
     bool WaitForKey(const uint8_t keyLength, const uint8_t keyId[],
         const uint32_t waitTime,
@@ -553,15 +553,15 @@ private:
             , _busy(false)
         {
 
-            TRACE_L1("Constructing buffer client side: %p - %s", this,
+            TRACE_L3("Constructing buffer client side: %p - %s", this,
                 bufferName.c_str());
         }
         virtual ~DataExchange()
         {
             if (_busy == true) {
-                TRACE_L1("Destructed a DataExchange while still in progress. %p", this);
+                TRACE_L2("Destructed a DataExchange while still in progress. %p", this);
             }
-            TRACE_L1("Destructing buffer client side: %p - %s", this,
+            TRACE_L3("Destructing buffer client side: %p - %s", this,
                  Exchange::DataExchange::Name().c_str());
         }
 
@@ -823,7 +823,7 @@ PUSH_WARNING(DISABLE_WARNING_THIS_IN_MEMBER_INITIALIZER_LIST)
             _sessionId, realSession);
 
         if (realSession == nullptr) {
-            TRACE_L1("Creating a Session failed. %d", __LINE__);
+            TRACE_L2("Creating a Session failed. %d", __LINE__);
         } else {
             Session(realSession);
             realSession->Release();

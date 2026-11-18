@@ -1653,7 +1653,7 @@ namespace Plugin {
                         }
                     }
                 } else {
-                    TRACE_L1(_T("Could not load factory [%s], error [%s]"), Core::File::FileNameExtended(entry.Current()).c_str(), library.Error().c_str());
+                    TRACE_L2(_T("Could not load factory [%s], error [%s]"), Core::File::FileNameExtended(entry.Current()).c_str(), library.Error().c_str());
                     result = Core::ERROR_OPENING_FAILED;
                 }
             }
@@ -1677,7 +1677,7 @@ namespace Plugin {
                                 _systemToFactory.insert(std::pair<const std::string, SystemFactory>(designator, factory->second));
 
                             } else {
-                                TRACE_L1(_T("Required factory [%s], not found for [%s]"), system.c_str(), designator.c_str());
+                                TRACE_L2(_T("Required factory [%s], not found for [%s]"), system.c_str(), designator.c_str());
                                 result = Core::ERROR_OPENING_FAILED;
                             }
                         }
@@ -1700,7 +1700,7 @@ namespace Plugin {
             }
 
             if (_systemToFactory.size() == 0) {
-                TRACE_L1(_T("No DRM factories specified. OCDM can not service any DRM requests."));
+                TRACE_L2(_T("No DRM factories specified. OCDM can not service any DRM requests."));
             }
 
             _entryPoint = Core::Service<AccessorOCDM>::Create<Exchange::IAccessorOCDM>(this, config.SharePath.Value(), config.ShareSize.Value());

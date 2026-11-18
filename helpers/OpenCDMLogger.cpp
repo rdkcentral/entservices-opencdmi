@@ -12,7 +12,7 @@ namespace Logging {
 namespace {
 
 const char kConfigPath[] = "/opt/rdk_adapter_logging.conf";
-const int kDefaultLevel = 1;
+const int kDefaultLevel = Logging::WARNING;  // Default: WARNING (L2) and ERROR (L1) only
 std::once_flag gInitialization;
 std::mutex gOutputMutex;
 int gLogLevel = kDefaultLevel;
@@ -40,16 +40,20 @@ void LoadConfiguration()
             *--end = '\0';
         }
 
-        if ((std::strcmp(value, "ERROR") == 0) || (std::strcmp(value, "error") == 0)) {
-            gLogLevel = 1;
+        if ((std::strcmp(value, "ERROR") == 0) || (std::strcmp(value, "error") == 0) || (std::strcmp(value, "1") == 0)) {
+            gLogLevel = Logging::ERROR;
             break;
         }
-        if ((std::strcmp(value, "WARNING") == 0) || (std::strcmp(value, "warning") == 0)) {
-            gLogLevel = 2;
+        if ((std::strcmp(value, "WARNING") == 0) || (std::strcmp(value, "warning") == 0) || (std::strcmp(value, "2") == 0)) {
+            gLogLevel = Logging::WARNING;
             break;
         }
-        if ((std::strcmp(value, "INFO") == 0) || (std::strcmp(value, "info") == 0)) {
-            gLogLevel = 3;
+        if ((std::strcmp(value, "DEBUG") == 0) || (std::strcmp(value, "debug") == 0) || (std::strcmp(value, "3") == 0)) {
+            gLogLevel = Logging::DEBUG;
+            break;
+        }
+        if ((std::strcmp(value, "INFO") == 0) || (std::strcmp(value, "info") == 0) || (std::strcmp(value, "4") == 0)) {
+            gLogLevel = Logging::INFO;
             break;
         }
     }
@@ -77,8 +81,52 @@ void Write(const int level, const char* format, ...)
     std::vsnprintf(message, sizeof(message), format, arguments);
     va_end(arguments);
 
+    const char* levelStr = "unknown";
+    switch (level) {
+        case ERROR:
+            levelStr = "err";
+            break;
+        case WARNING:
+            levelStr = "warn";
+            break;
+        case DEBUG:
+            levelStr = "debug";
+            break;
+        case INFO:
+            levelStr = "info";
+            break;
+    }
+
     std::lock_guard<std::mutex> lock(gOutputMutex);
-    std::fprintf(stderr, "[OpenCDM][L%d] %s\n", level, message);
+    std::fprintf(stderr, "[OpenCDM][%s] %s\n", levelStr, message);
+}
+
+void SetLogLevel(const int level)
+{
+    if (level >= Logging::ERROR && level <= Logging::INFO) {
+        gLogLevel = level;
+        const char* levelStr = "unknown";
+        switch (level) {
+            case ERROR:
+                levelStr = "err";
+                break;
+            case WARNING:
+                levelStr = "warn";
+                break;
+            case DEBUG:
+                levelStr = "debug";
+                break;
+            case INFO:
+                levelStr = "info";
+                break;
+        }
+        std::fprintf(stderr, "[OpenCDM][%s] Log level changed to %s\n", levelStr, levelStr);
+    }
+}
+
+int GetLogLevel()
+{
+    return gLogLevel;
 }
 
 } // namespace Logging

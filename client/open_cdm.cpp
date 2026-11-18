@@ -373,7 +373,7 @@ opencdm_construct_session(struct OpenCDMSystem* system,
     OpenCDMError result(OpenCDMError::ERROR_INVALID_SESSION);
 
     if ((system != nullptr) && (session != nullptr)) {
-        TRACE_L1("Creating a Session for %s", system->keySystem().c_str());
+        TRACE_L2("Creating a Session for %s", system->keySystem().c_str());
         result = OpenCDMSession::CreateSession(system,
                                             licenseType,
                                             initDataType,
@@ -382,7 +382,7 @@ opencdm_construct_session(struct OpenCDMSystem* system,
                                             callbacks, userData,
                                             session
     );
-        TRACE_L1("Created a Session, result %p, %d", *session, result);
+        TRACE_L2("Created a Session, result %p, %d", *session, result);
     }
 
     return result;
@@ -832,7 +832,7 @@ bool OpenCDMAccessor::WaitForKey(const uint8_t keyLength, const uint8_t keyId[],
 
                 _adminLock.Unlock();
 
-                TRACE_L1("Waiting for KeyId: %s", paramKey.ToString().c_str());
+                TRACE_L3("Waiting for KeyId: %s", paramKey.ToString().c_str());
 
                 uint64_t now(Core::Time::Now().Ticks());
 
@@ -873,7 +873,7 @@ bool OpenCDMAccessor::WaitForKey(const uint8_t keyLength, const uint8_t keyId[],
         if (index == _sessionKeys.end()) {
             _sessionKeys.insert(std::pair<string, OpenCDMSession*>(sessionId, session));
         } else {
-            TRACE_L1("Same session created, again ???? Keep the old one than. [%s]",
+            TRACE_L2("Same session created, again ???? Keep the old one than. [%s]",
                 sessionId.c_str());
         }
 
@@ -889,7 +889,7 @@ bool OpenCDMAccessor::WaitForKey(const uint8_t keyLength, const uint8_t keyId[],
         if (index != _sessionKeys.end()) {
             _sessionKeys.erase(index);
         } else {
-            TRACE_L1("A session is destroyed of which we were not aware [%s]",
+            TRACE_L2("A session is destroyed of which we were not aware [%s]",
                 sessionId.c_str());
         }
 
@@ -901,7 +901,7 @@ bool OpenCDMAccessor::WaitForKey(const uint8_t keyLength, const uint8_t keyId[],
         _adminLock.Lock();
         for (auto& sessionKey : _sessionKeys) {
             if (sessionKey.second->BelongsTo(system) == true) {
-                TRACE_L1("System the session %s belongs to is being destructed. Destruct the session before destructing the system!", sessionKey.second->SessionId().c_str());
+                TRACE_L2("System the session %s belongs to is being destructed. Destruct the session before destructing the system!", sessionKey.second->SessionId().c_str());
             }
         }
         _adminLock.Unlock();
