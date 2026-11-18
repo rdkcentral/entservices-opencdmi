@@ -582,6 +582,19 @@ TEST(ClientOpenCdmExtL1Tests, GetVersionExtReturnsAccessorValue)
     EXPECT_STREQ("7.3.1", version);
 }
 
+TEST(ClientOpenCdmExtL1Tests, GetVersionReportsTruncation)
+{
+    ScopedFakeAccessor scoped;
+    scoped.accessor.versionValue = std::string(64, 'v');
+
+    OpenCDMSystem system("com.widevine.alpha", "meta");
+    char version[64] = {};
+
+    EXPECT_EQ(ERROR_BUFFER_TOO_SMALL, opencdm_system_get_version(&system, version));
+    EXPECT_EQ('v', version[62]);
+    EXPECT_EQ('\0', version[63]);
+}
+
 TEST(ClientOpenCdmExtL1Tests, MockAccessorDrmTimeZeroValueIsReturned)
 {
     ScopedFakeAccessor scoped;
