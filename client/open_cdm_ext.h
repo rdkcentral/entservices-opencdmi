@@ -234,6 +234,14 @@ struct PlayLevels {
  */
 EXTERNAL OpenCDMError opencdm_system_ext_get_properties(struct PlayLevels* system, const char* propertiesJSONText);
 
+// Fairplay
+EXTERNAL OpenCDMError opencdm_create_moviesession(struct OpenCDMSystem* system, uint32_t version, const uint8_t * cert, uint32_t certificatesize, const uint8_t* versionlist, uint32_t versionListSize, uint8_t *movieIdOut,uint32_t movieId_bytes);
+EXTERNAL OpenCDMError opencdm_destroy_moviesession(struct OpenCDMSystem* system, uint32_t version, uint64_t movieId);
+EXTERNAL OpenCDMError opencdm_generate_challenge_with_version_list(struct OpenCDMSystem* system, uint32_t version, uint64_t movieId, const uint8_t* assetidData,uint32_t assetidSize, const uint8_t* versionlist, uint32_t versionListSize, const uint8_t* streamerChallengeData, uint32_t streamerChallengeSize, uint64_t cryptorId, uint8_t* licenseChallengeBuffer, uint32_t maxbufferSize,  uint8_t* licenseSize, uint32_t licensesize_bytes, uint8_t* session, uint32_t sessionSize_bytes);
+EXTERNAL OpenCDMError opencdm_destroy_server_exchange(struct OpenCDMSystem* system, uint32_t version, uint8_t* session, uint32_t sessionsize_bytes);
+EXTERNAL OpenCDMError opencdm_init_library(struct OpenCDMSystem* system);
+EXTERNAL OpenCDMError opencdm_process_license(struct OpenCDMSystem* system, uint32_t version, uint8_t* session, uint32_t sessionsize_bytes,  const uint8_t* licenseData, uint32_t licenseDataSize, uint8_t* cryptoId, uint32_t crytorId_bytes);
+EXTERNAL OpenCDMError opencdm_destroy_cryptor(struct OpenCDMSystem* system, uint32_t version, uint64_t cryptoId);
 
 #ifdef __cplusplus
 } // extern "C"

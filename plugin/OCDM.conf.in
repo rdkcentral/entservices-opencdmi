@@ -22,6 +22,11 @@ if boolean("@PLUGIN_OPENCDMI_CLEARKEY@"):
     keysystem.add("designators", [ "org.chromium.externalclearkey", "org.w3.clearkey" ])
     systems.append(keysystem)
 
+if boolean("@PLUGIN_OPENCDMI_FAIRPLAY@"):
+    keysystem = JSON()
+    keysystem.add("name", "CFairPlay")
+    keysystem.add("designators", [ "com.apple.fps"])
+    systems.append(keysystem)
 
 if boolean("@PLUGIN_OPENCDMI_PLAYREADY@") or \
     boolean("@PLUGIN_OPENCDMI_PLAYREADY_NEXUS@") or \
