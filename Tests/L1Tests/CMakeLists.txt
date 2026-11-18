@@ -137,7 +137,6 @@ target_include_directories(${PROJECT_NAME}
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
         $<INSTALL_INTERFACE:include>
         ${CMAKE_SOURCE_DIR}/entservices-testframework/Tests/mocks
-        ${CMAKE_SOURCE_DIR}/entservices-testframework/Tests/mocks/devicesettings
         ${CMAKE_SOURCE_DIR}/entservices-testframework/Tests/mocks/thunder
         ${CMAKE_SOURCE_DIR}/Thunder/Source/plugins
         )
@@ -162,7 +161,6 @@ target_include_directories(OpenCDMIClientCoreL1Tests
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
     $<INSTALL_INTERFACE:include>
     ${CMAKE_SOURCE_DIR}/entservices-testframework/Tests/mocks
-    ${CMAKE_SOURCE_DIR}/entservices-testframework/Tests/mocks/devicesettings
     ${CMAKE_SOURCE_DIR}/entservices-testframework/Tests/mocks/thunder
     ${CMAKE_SOURCE_DIR}/Thunder/Source/plugins
 )
