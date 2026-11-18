@@ -39,4 +39,6 @@
 #undef EXTERNAL
 #define EXTERNAL
 
+#include <helpers/OpenCDMLogger.h>
+
 #endif // __MODULE_PLUGIN_OPENCDMI_MODULE_H

@@ -26,5 +26,5 @@
 #include <rdk_perf.h>
 #define OCDM_PERF_SCOPE(name) RDKPerf ocdmPerfScope(name)
 #else
-#define OCDM_PERF_SCOPE(name) do {} while (0)
+#define OCDM_PERF_SCOPE(name) ((void)0)
 #endif
