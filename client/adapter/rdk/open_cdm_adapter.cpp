@@ -68,7 +68,7 @@ uint32_t opencdm_construct_session_private(struct OpenCDMSession* session, void*
 {
     bool success = gst_svp_ext_get_context(&pvtData, Server, (unsigned int)session);
     if (success) {
-        TRACE_L1("Initialized SVP context for server side ID = %X\n",(unsigned int)session);
+        TRACE_L2("Initialized SVP context for server side ID = %X\n",(unsigned int)session);
         char buf[25] = { 0 };
         snprintf(buf, 25, "%X", (unsigned int)session);
         session->SetParameter("rpcId", buf);
@@ -96,7 +96,7 @@ OpenCDMError opencdm_gstreamer_session_decrypt_once(struct OpenCDMSession* sessi
     if (session != nullptr) {
         GstMapInfo dataMap = { 0 };
         if (gst_buffer_map(buffer, &dataMap, (GstMapFlags) GST_MAP_READWRITE) == false) {
-            fprintf(stderr, "Invalid buffer.\n");
+            TRACE_L1("Invalid buffer.");
             return (ERROR_INVALID_DECRYPT_BUFFER);
         }
 
@@ -114,7 +114,7 @@ OpenCDMError opencdm_gstreamer_session_decrypt_once(struct OpenCDMSession* sessi
 
         if (gst_buffer_map(IV, &ivMap, (GstMapFlags) GST_MAP_READ) == false) {
             gst_buffer_unmap(buffer, &dataMap);
-            fprintf(stderr, "Invalid IV buffer.\n");
+            TRACE_L1("Invalid IV buffer.");
             return (ERROR_INVALID_DECRYPT_BUFFER);
         }
 
@@ -123,7 +123,7 @@ OpenCDMError opencdm_gstreamer_session_decrypt_once(struct OpenCDMSession* sessi
         if (gst_buffer_map(keyID, &keyIDMap, (GstMapFlags) GST_MAP_READ) == false) {
             gst_buffer_unmap(buffer, &dataMap);
             gst_buffer_unmap(IV, &ivMap);
-            fprintf(stderr, "Invalid keyID buffer.\n");
+            TRACE_L1("Invalid keyID buffer.");
             return (ERROR_INVALID_DECRYPT_BUFFER);
         }
 
@@ -155,7 +155,7 @@ OpenCDMError opencdm_gstreamer_session_decrypt_once(struct OpenCDMSession* sessi
             GstMapInfo sampleMap = { 0 };
 
             if (gst_buffer_map(subSample, &sampleMap, GST_MAP_READ) == false) {
-                fprintf(stderr, "Invalid subsample buffer.\n");
+                TRACE_L1("Invalid subsample buffer.");
                 gst_buffer_unmap(keyID, &keyIDMap);
                 gst_buffer_unmap(IV, &ivMap);
                 gst_buffer_unmap(buffer, &dataMap);
@@ -450,7 +450,7 @@ OpenCDMError opencdm_gstreamer_session_decrypt_buffer_once(struct OpenCDMSession
                             mediaType = Video;
                             if (capsParser.IsSecureMemoryDisabled()) {
                                 isSecureMemoryDisabled = true;
-                                TRACE_L1("Secure Memory Preallocation disabled as decrypt-to-host is set\n");
+                                TRACE_L2("Secure Memory Preallocation disabled as decrypt-to-host is set\n");
                             }
                             perfString += "_Video";
                         break;
@@ -589,7 +589,7 @@ OpenCDMError opencdm_gstreamer_session_decrypt_buffer_once(struct OpenCDMSession
                {
                 if(isSecureMemoryDisabled)
                 {
-                   TRACE_L1("Secure Memory Preallocation disabled, Setting TokenType to InPlace");
+                   TRACE_L3("Secure Memory Preallocation disabled, Setting TokenType to InPlace");
                    gst_svp_header_set_field(session->SessionPrivateData(), svpData, SvpHeaderFieldName::Type, (uint32_t)TokenType::InPlace);
                 }
 
@@ -807,7 +807,7 @@ namespace {
                     streamProperties.media_type = MediaType_Video;
                     if (capsParser.IsSecureMemoryDisabled()) {
                         isSecureMemoryDisabled = true;
-                        TRACE_L1("Secure Memory Preallocation disabled as decrypt-to-host is set\n");
+                        TRACE_L2("Secure Memory Preallocation disabled as decrypt-to-host is set\n");
                     }
                     break;
 

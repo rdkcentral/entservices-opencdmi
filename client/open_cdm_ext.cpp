@@ -21,6 +21,7 @@
 #include "open_cdm_ext.h"
 
 #include "open_cdm_impl.h"
+#include <cstdio>
 #include <map>
 #include <string>
 #define KEYSYSTEM_DOMAIN_SEPERATOR ";origin="
@@ -38,14 +39,6 @@ static domainKeysystemMap domainMap =  {
     {"videotron.ccast.api.amazonvideo.com", "com.amazon.playready"},
 #endif
     };
-
-#define ASSERT_NOT_EXECUTED()                                         \
-    {                                                                 \
-        fprintf(stderr, "Error: didn't expect to use %s (%s:%d)!!\n", \
-            __PRETTY_FUNCTION__, __FILE__, __LINE__);                 \
-        abort();                                                      \
-    }
-
 
 OpenCDMError opencdm_parse_keysystem(std::string& keySystemDomain)
 {
@@ -103,9 +96,15 @@ OpenCDMError opencdm_system_get_version(struct OpenCDMSystem* system,
 
     std::string versionStdStr = accessor->GetVersionExt(system->keySystem());
 
-    assert(versionStdStr.length() < 64);
+    /* The API contract is a 64-byte caller buffer - bound the copy and make
+       truncation explicit rather than relying on a release-inert assert */
+    std::snprintf(versionStr, 64, "%s", versionStdStr.c_str());
 
-    strcpy(versionStr, versionStdStr.c_str());
+    if (versionStdStr.length() >= 64) {
+        TRACE_L1("Version string truncated to 63 chars (full length %u)",
+            static_cast<unsigned>(versionStdStr.length()));
+        return OpenCDMError::ERROR_BUFFER_TOO_SMALL;
+    }
 
     return OpenCDMError::ERROR_NONE;
 }
