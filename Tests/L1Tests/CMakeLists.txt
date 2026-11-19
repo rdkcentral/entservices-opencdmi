@@ -36,6 +36,7 @@ set (TEST_SRC
     tests/mocks/FakeServerInterfacesCommon.cpp
     tests/mocks/FakeServerInterfacesStandaloneAccessor.cpp
     ../../client/CapsParser.cpp
+    ../../helpers/OpenCDMLogger.cpp
     ../../client/open_cdm_ext.cpp
     ../../plugin/CENCParser.cpp
     ../../plugin/Module.cpp
@@ -48,6 +49,7 @@ set (TEST_LIB
 )
 
 set (TEST_INC
+    ../..
     ../../helpers
     ../../client
     ../../plugin
@@ -152,6 +154,7 @@ set (CLIENT_CORE_TEST_SRC
     ../../client/open_cdm.cpp
     ../../client/open_cdm_ext.cpp
     ../../client/open_cdm_impl.cpp
+    ../../helpers/OpenCDMLogger.cpp
 )
 
 add_executable(OpenCDMIClientCoreL1Tests ${CLIENT_CORE_TEST_SRC})
@@ -216,6 +219,7 @@ set(ADAPTER_RDK_TEST_SRC
     tests/AdapterRdkL1Tests.cpp
     tests/mocks/AdapterMocks.cpp
     ../../client/adapter/rdk/open_cdm_decrypt.cpp
+    ../../helpers/OpenCDMLogger.cpp
 )
 
 add_executable(OpenCDMIAdapterRdkL1Tests ${ADAPTER_RDK_TEST_SRC})
@@ -228,6 +232,8 @@ foreach(adapter_target OpenCDMIAdapterRdkL1Tests OpenCDMIAdapterRdkMultiL1Tests)
         BEFORE PUBLIC
             ${CMAKE_CURRENT_SOURCE_DIR}/tests/mocks
         PUBLIC
+            ../..
+            ../../helpers
             ../../client
             ../../client/adapter
             $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
@@ -245,6 +251,7 @@ foreach(adapter_target OpenCDMIAdapterRdkL1Tests OpenCDMIAdapterRdkMultiL1Tests)
     target_link_libraries(${adapter_target}
         GTest::gtest_main
         GTest::gtest
+        ${TEST_LIB}
     )
 endforeach()
 
