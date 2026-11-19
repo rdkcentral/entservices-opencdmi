@@ -57,8 +57,10 @@ static void adapter_logging(int level, const char* func, int line, const char* f
     std::vsnprintf(message, sizeof(message), fmt, args);
     va_end(args);
 
-    if (level <= WARNING) {
-        TRACE_L1("%s - %s:%d: %s", (level == ERROR) ? "ERROR" : "WARNING", func, line, message);
+    if (level == ERROR) {
+        TRACE_L1("ERROR - %s:%d: %s", func, line, message);
+    } else if (level == WARNING) {
+        TRACE_L2("WARNING - %s:%d: %s", func, line, message);
     } else {
         TRACE_L3("INFO - %s:%d: %s", func, line, message);
     }

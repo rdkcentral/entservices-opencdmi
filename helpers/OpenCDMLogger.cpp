@@ -1,6 +1,7 @@
 #define OPENCDM_LOGGER_BUILD
 #include "OpenCDMLogger.h"
 
+#include <atomic>
 #include <cctype>
 #include <cstdio>
 #include <cstring>
@@ -15,7 +16,7 @@ const char kConfigPath[] = "/opt/rdk_adapter_logging.conf";
 const int kDefaultLevel = Logging::WARNING;  // Default: WARNING (L2) and ERROR (L1) only
 std::once_flag gInitialization;
 std::mutex gOutputMutex;
-int gLogLevel = kDefaultLevel;
+std::atomic<int> gLogLevel{kDefaultLevel};
 
 void LoadConfiguration()
 {
@@ -103,6 +104,8 @@ void Write(const int level, const char* format, ...)
 
 void SetLogLevel(const int level)
 {
+    // Load the configuration first so it cannot overwrite this override later
+    Initialize();
     if (level >= Logging::ERROR && level <= Logging::INFO) {
         gLogLevel = level;
         const char* levelStr = "unknown";
@@ -126,6 +129,7 @@ void SetLogLevel(const int level)
 
 int GetLogLevel()
 {
+    Initialize();
     return gLogLevel;
 }
 
