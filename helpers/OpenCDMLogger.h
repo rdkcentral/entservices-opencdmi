@@ -47,6 +47,9 @@ OPENCDM_LOGGER_API int GetLogLevel();
 #ifdef TRACE_L3
 #undef TRACE_L3
 #endif
+#ifdef TRACE_L4
+#undef TRACE_L4
+#endif
 
 // Log levels: L1=ERROR, L2=WARNING, L3=DEBUG, L4=INFO
 #define TRACE_L1(...) ::OpenCDM::Logging::Write(::OpenCDM::Logging::ERROR, __VA_ARGS__)

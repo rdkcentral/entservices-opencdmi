@@ -62,6 +62,10 @@ set_target_properties(${PLUGIN_OCDM_IMPLEMENTATION} PROPERTIES
         CXX_STANDARD 11
         CXX_STANDARD_REQUIRED YES)
 
+# Module.h includes <helpers/OpenCDMLogger.h>, resolved from the repo root
+target_include_directories(${MODULE_NAME} PRIVATE ${CMAKE_CURRENT_LIST_DIR}/..)
+target_include_directories(${PLUGIN_OCDM_IMPLEMENTATION} PRIVATE ${CMAKE_CURRENT_LIST_DIR}/..)
+
 target_link_libraries(${MODULE_NAME}
         PRIVATE
                 CompileSettingsDebug::CompileSettingsDebug

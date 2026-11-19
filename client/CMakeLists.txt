@@ -193,6 +193,16 @@ install(
         DESTINATION include/opencdm
 )
 
+# Installed Module.h includes <helpers/OpenCDMLogger.h>; provide it in both public include layouts
+install(
+        FILES ../helpers/OpenCDMLogger.h
+        DESTINATION include/opencdm/helpers
+)
+install(
+        FILES ../helpers/OpenCDMLogger.h
+        DESTINATION include/${NAMESPACE}/ocdm/helpers COMPONENT devel
+)
+
 InstallCMakeConfig(
         TARGETS ${TARGET})
 

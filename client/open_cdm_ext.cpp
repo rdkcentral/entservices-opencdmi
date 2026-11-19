@@ -100,11 +100,13 @@ OpenCDMError opencdm_system_get_version(struct OpenCDMSystem* system,
 
     /* The API contract is a 64-byte caller buffer - bound the copy and make
        truncation explicit rather than relying on a release-inert assert */
+    std::snprintf(versionStr, 64, "%s", versionStdStr.c_str());
+
     if (versionStdStr.length() >= 64) {
         TRACE_L1("Version string truncated to 63 chars (full length %u)",
             static_cast<unsigned>(versionStdStr.length()));
+        return OpenCDMError::ERROR_BUFFER_TOO_SMALL;
     }
-    std::snprintf(versionStr, 64, "%s", versionStdStr.c_str());
 
     return OpenCDMError::ERROR_NONE;
 }
