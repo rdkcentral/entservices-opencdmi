@@ -127,7 +127,7 @@ add_executable(${PROJECT_NAME} ${TEST_SRC})
 
 include_directories(${TEST_INC})
 
-target_link_directories(${PROJECT_NAME} PUBLIC ${CMAKE_INSTALL_PREFIX}/lib ${CMAKE_INSTALL_PREFIX}/lib/wpeframework/plugins)
+target_link_directories(${PROJECT_NAME} PUBLIC ${CMAKE_INSTALL_PREFIX}/lib ${CMAKE_INSTALL_PREFIX}/lib/${STORAGE_DIRECTORY}/plugins)
 
 target_link_libraries(${PROJECT_NAME}
     GTest::gtest_main
@@ -173,7 +173,7 @@ foreach(client_core_target OpenCDMIClientCoreL1Tests OpenCDMIClientCoreMultiL1Te
         ${CMAKE_SOURCE_DIR}/Thunder/Source/plugins
     )
 
-    target_link_directories(${client_core_target} PUBLIC ${CMAKE_INSTALL_PREFIX}/lib ${CMAKE_INSTALL_PREFIX}/lib/wpeframework/plugins)
+    target_link_directories(${client_core_target} PUBLIC ${CMAKE_INSTALL_PREFIX}/lib ${CMAKE_INSTALL_PREFIX}/lib/${STORAGE_DIRECTORY}/plugins)
 
     target_link_libraries(${client_core_target}
         GTest::gtest_main
@@ -204,7 +204,7 @@ target_include_directories(OpenCDMIClientCorePerfL1Tests
         ${CMAKE_SOURCE_DIR}/entservices-testframework/Tests/mocks/thunder
         ${CMAKE_SOURCE_DIR}/Thunder/Source/plugins
 )
-target_link_directories(OpenCDMIClientCorePerfL1Tests PUBLIC ${CMAKE_INSTALL_PREFIX}/lib ${CMAKE_INSTALL_PREFIX}/lib/wpeframework/plugins)
+target_link_directories(OpenCDMIClientCorePerfL1Tests PUBLIC ${CMAKE_INSTALL_PREFIX}/lib ${CMAKE_INSTALL_PREFIX}/lib/${STORAGE_DIRECTORY}/plugins)
 target_link_libraries(OpenCDMIClientCorePerfL1Tests
     GTest::gtest_main
     GTest::gtest
@@ -234,6 +234,8 @@ foreach(adapter_target OpenCDMIAdapterRdkL1Tests OpenCDMIAdapterRdkMultiL1Tests)
         PUBLIC
             ../..
             ../../helpers
+            ../..
+            ../../helpers
             ../../client
             ../../client/adapter
             $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
@@ -245,7 +247,7 @@ foreach(adapter_target OpenCDMIAdapterRdkL1Tests OpenCDMIAdapterRdkMultiL1Tests)
     target_link_directories(${adapter_target}
         PUBLIC
         ${CMAKE_INSTALL_PREFIX}/lib
-        ${CMAKE_INSTALL_PREFIX}/lib/wpeframework/plugins
+        ${CMAKE_INSTALL_PREFIX}/lib/${STORAGE_DIRECTORY}/plugins
     )
 
     target_link_libraries(${adapter_target}
