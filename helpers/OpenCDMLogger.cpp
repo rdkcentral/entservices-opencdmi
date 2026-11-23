@@ -22,10 +22,17 @@ void LoadConfiguration()
 {
     FILE* config = std::fopen(kConfigPath, "r");
     if (config == nullptr) {
+        // Log to stderr directly (before initialization) that config file not found
+        std::fprintf(stderr, "[OpenCDM][warn] Config file not found at %s, using default level (WARNING)\n", kConfigPath);
+        std::fflush(stderr);  // Ensure diagnostic log appears immediately
         return;
     }
 
+    std::fprintf(stderr, "[OpenCDM][warn] Config file found at %s, loading configuration...\n", kConfigPath);
+    std::fflush(stderr);  // Ensure diagnostic log appears immediately
+
     char line[128];
+    bool configFound = false;
     while (std::fgets(line, sizeof(line), config) != nullptr) {
         char* value = line;
         while (std::isspace(static_cast<unsigned char>(*value)) != 0) {
@@ -43,20 +50,37 @@ void LoadConfiguration()
 
         if ((std::strcmp(value, "ERROR") == 0) || (std::strcmp(value, "error") == 0) || (std::strcmp(value, "1") == 0)) {
             gLogLevel = Logging::ERROR;
+            std::fprintf(stderr, "[OpenCDM][warn] Log level set to ERROR (1) from config file\n");
+            std::fflush(stderr);  // Ensure diagnostic log appears immediately
+            configFound = true;
             break;
         }
         if ((std::strcmp(value, "WARNING") == 0) || (std::strcmp(value, "warning") == 0) || (std::strcmp(value, "2") == 0)) {
             gLogLevel = Logging::WARNING;
+            std::fprintf(stderr, "[OpenCDM][warn] Log level set to WARNING (2) from config file\n");
+            std::fflush(stderr);  // Ensure diagnostic log appears immediately
+            configFound = true;
             break;
         }
         if ((std::strcmp(value, "DEBUG") == 0) || (std::strcmp(value, "debug") == 0) || (std::strcmp(value, "3") == 0)) {
             gLogLevel = Logging::DEBUG;
+            std::fprintf(stderr, "[OpenCDM][warn] Log level set to DEBUG (3) from config file\n");
+            std::fflush(stderr);  // Ensure diagnostic log appears immediately
+            configFound = true;
             break;
         }
         if ((std::strcmp(value, "INFO") == 0) || (std::strcmp(value, "info") == 0) || (std::strcmp(value, "4") == 0)) {
             gLogLevel = Logging::INFO;
+            std::fprintf(stderr, "[OpenCDM][warn] Log level set to INFO (4) from config file\n");
+            std::fflush(stderr);  // Ensure diagnostic log appears immediately
+            configFound = true;
             break;
         }
+    }
+
+    if (!configFound) {
+        std::fprintf(stderr, "[OpenCDM][warn] No valid log level found in config file, using default level (WARNING)\n");
+        std::fflush(stderr);  // Ensure diagnostic log appears immediately
     }
 
     std::fclose(config);
