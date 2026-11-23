@@ -24,6 +24,7 @@
 // scope (an unnamed RDKPerf temporary would stop immediately).
 #ifdef ENABLE_OCDM_RDKPERF
 #include <rdk_perf.h>
+#errr123123123
 #define OCDM_PERF_SCOPE(name) RDKPerf ocdmPerfScope(name)
 #else
 #define OCDM_PERF_SCOPE(name) ((void)0)
