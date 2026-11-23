@@ -26,6 +26,8 @@
 #include <core/core.h>
 #include <com/com.h>
 
+#include <helpers/OpenCDMLogger.h>
+
 #if defined(__WINDOWS__) && defined(OCDM_EXPORTS)
 #ifndef EXTERNAL
 #define EXTERNAL EXTERNAL_EXPORT

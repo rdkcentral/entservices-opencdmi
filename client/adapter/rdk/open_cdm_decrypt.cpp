@@ -17,6 +17,7 @@
  * limitations under the License.
  */
 
+#include "Module.h"
 #include "open_cdm_adapter.h"  // OpenCDMError, OpenCDMSession, opencdm_session_status, KeyStatus
 
 #include <gst/gst.h>           // GstBuffer, GstCaps, GstMapInfo, GstProtectionMeta, gst_buffer_map/unmap,
@@ -27,10 +28,7 @@
 #include <chrono>              // std::chrono::milliseconds, seconds, steady_clock
 #include <cstdarg>             // va_list, va_start, va_end — adapter_logging
 #include <cstdint>             // uint8_t, uint32_t
-#include <cstdio>              // FILE*, fopen, fgets, fclose, fprintf, vfprintf, fflush — adapter_logging, readLogLevelFromConfig
-#include <cstring>             // strncmp — readLogLevelFromConfig
-#include <iomanip>             // std::hex, std::setfill, std::setw — toHexString
-#include <sstream>             // std::ostringstream — toHexString
+#include <cstdio>              // vsnprintf
 #include <thread>              // std::this_thread::sleep_for
 #include <vector>              // std::vector<uint8_t>
 
@@ -51,68 +49,21 @@ enum LogLevel {
     INFO        = 2
 };
 
-static LogLevel readLogLevelFromConfig()
-{
-    static constexpr const char* kConfigPath = "/opt/rdk_adapter_logging.conf";
-    FILE* fp = fopen(kConfigPath, "r");
-    if (fp == nullptr) {
-        return WARNING;
-    }
-    char line[64];
-    LogLevel result = WARNING;
-    while (fgets(line, sizeof(line), fp) != nullptr) {
-        const char* p = line;
-        while (*p == ' ' || *p == '\t') { ++p; }
-        // Accept both "level=LEVELNAME" and bare "LEVELNAME"
-        const char* val = p;
-        if (strncmp(p, "level=", 6) == 0) {
-            val = p + 6;
-        }
-        if (strncmp(val, "ERROR",   5) == 0) { result = ERROR;   break; }
-        if (strncmp(val, "WARNING", 7) == 0) { result = WARNING; break; }
-        if (strncmp(val, "INFO",    4) == 0) { result = INFO;    break; }
-    }
-    fclose(fp);
-    return result;
-}
-
-static LogLevel gLogLevel = readLogLevelFromConfig();
-
-static const char* levelToString(int level)
-{
-    switch (level) {
-        case 0: return "ERROR";
-        case 1: return "WARNING";
-        case 2: return "INFO";
-        default: return "UNKNOWN";
-    }
-}
-
 static void adapter_logging(int level, const char* func, int line, const char* fmt, ...)
 {
-    FILE* fp = stdout;
-    if (level == ERROR) {
-        fp = stderr;
-    }
-    if(gLogLevel >= level) {
-        va_list args;
-        va_start(args, fmt);
-        fprintf(fp, "%s - %s:%d: ", levelToString(level), func, line);
-        vfprintf(fp, fmt, args);
-        fprintf(fp, "\n");
-        fflush(fp);
-        va_end(args);
-    }
-}
+    char message[512];
+    va_list args;
+    va_start(args, fmt);
+    std::vsnprintf(message, sizeof(message), fmt, args);
+    va_end(args);
 
-static std::string toHexString(const std::vector<uint8_t>& data)
-{
-    std::ostringstream oss;
-    oss << std::hex << std::setfill('0');
-    for (uint8_t byte : data) {
-        oss << std::setw(2) << static_cast<unsigned>(byte);
+    if (level == ERROR) {
+        TRACE_L1("ERROR - %s:%d: %s", func, line, message);
+    } else if (level == WARNING) {
+        TRACE_L2("WARNING - %s:%d: %s", func, line, message);
+    } else {
+        TRACE_L3("INFO - %s:%d: %s", func, line, message);
     }
-    return oss.str();
 }
 
 constexpr std::chrono::milliseconds kOutputRestrictedRetryInterval{250};
@@ -180,9 +131,6 @@ OpenCDMError decryptWithOutputRestrictedRetry(struct OpenCDMSession* session, co
     }
 
     RDKPerf(__FUNCTION__);
-    LOGDECRYPT(INFO, "%s - Starting decryption with output restricted retry logic for key ID: %s",
-          __FUNCTION__, toHexString(keyId).c_str());
-
     const auto deadline = std::chrono::steady_clock::now() + kOutputRestrictedRetryTimeout;
     OpenCDMError lastResult = ERROR_FAIL;
 
