@@ -36,6 +36,7 @@ set (TEST_SRC
     tests/mocks/FakeServerInterfacesCommon.cpp
     tests/mocks/FakeServerInterfacesStandaloneAccessor.cpp
     ../../client/CapsParser.cpp
+    ../../helpers/OpenCDMLogger.cpp
     ../../client/open_cdm_ext.cpp
     ../../plugin/CENCParser.cpp
     ../../plugin/Module.cpp
@@ -48,6 +49,7 @@ set (TEST_LIB
 )
 
 set (TEST_INC
+    ../..
     ../../helpers
     ../../client
     ../../plugin
@@ -125,7 +127,7 @@ add_executable(${PROJECT_NAME} ${TEST_SRC})
 
 include_directories(${TEST_INC})
 
-target_link_directories(${PROJECT_NAME} PUBLIC ${CMAKE_INSTALL_PREFIX}/lib ${CMAKE_INSTALL_PREFIX}/lib/wpeframework/plugins)
+target_link_directories(${PROJECT_NAME} PUBLIC ${CMAKE_INSTALL_PREFIX}/lib ${CMAKE_INSTALL_PREFIX}/lib/${STORAGE_DIRECTORY}/plugins)
 
 target_link_libraries(${PROJECT_NAME}
     GTest::gtest_main
@@ -152,6 +154,7 @@ set (CLIENT_CORE_TEST_SRC
     ../../client/open_cdm.cpp
     ../../client/open_cdm_ext.cpp
     ../../client/open_cdm_impl.cpp
+    ../../helpers/OpenCDMLogger.cpp
 )
 
 add_executable(OpenCDMIClientCoreL1Tests ${CLIENT_CORE_TEST_SRC})
@@ -170,7 +173,7 @@ foreach(client_core_target OpenCDMIClientCoreL1Tests OpenCDMIClientCoreMultiL1Te
         ${CMAKE_SOURCE_DIR}/Thunder/Source/plugins
     )
 
-    target_link_directories(${client_core_target} PUBLIC ${CMAKE_INSTALL_PREFIX}/lib ${CMAKE_INSTALL_PREFIX}/lib/wpeframework/plugins)
+    target_link_directories(${client_core_target} PUBLIC ${CMAKE_INSTALL_PREFIX}/lib ${CMAKE_INSTALL_PREFIX}/lib/${STORAGE_DIRECTORY}/plugins)
 
     target_link_libraries(${client_core_target}
         GTest::gtest_main
@@ -182,6 +185,33 @@ gtest_discover_tests(OpenCDMIClientCoreL1Tests DISCOVERY_MODE PRE_TEST)
 gtest_discover_tests(OpenCDMIClientCoreMultiL1Tests DISCOVERY_MODE PRE_TEST
     TEST_PREFIX "MultiDecrypt.")
 
+# Core client built with ENABLE_OCDM_RDKPERF against a recording rdk_perf.h
+# stub, to check which public APIs are instrumented.
+add_executable(OpenCDMIClientCorePerfL1Tests
+    tests/ClientOpenCdmPerfL1Tests.cpp
+    ${CLIENT_CORE_TEST_SRC}
+)
+target_compile_definitions(OpenCDMIClientCorePerfL1Tests PRIVATE ENABLE_OCDM_RDKPERF ENABLE_MULTI_DECRYPT)
+target_include_directories(OpenCDMIClientCorePerfL1Tests
+    BEFORE PUBLIC
+        ${CMAKE_CURRENT_SOURCE_DIR}/tests/mocks/rdkperf
+    PUBLIC
+        ${TEST_INC}
+        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
+        $<INSTALL_INTERFACE:include>
+        ${CMAKE_SOURCE_DIR}/entservices-testframework/Tests/mocks
+        ${CMAKE_SOURCE_DIR}/entservices-testframework/Tests/mocks/devicesettings
+        ${CMAKE_SOURCE_DIR}/entservices-testframework/Tests/mocks/thunder
+        ${CMAKE_SOURCE_DIR}/Thunder/Source/plugins
+)
+target_link_directories(OpenCDMIClientCorePerfL1Tests PUBLIC ${CMAKE_INSTALL_PREFIX}/lib ${CMAKE_INSTALL_PREFIX}/lib/${STORAGE_DIRECTORY}/plugins)
+target_link_libraries(OpenCDMIClientCorePerfL1Tests
+    GTest::gtest_main
+    GTest::gtest
+    ${TEST_LIB})
+gtest_discover_tests(OpenCDMIClientCorePerfL1Tests DISCOVERY_MODE PRE_TEST
+    TEST_PREFIX "RDKPerf.")
+
 # RDK adapter tests: compile open_cdm_decrypt.cpp with GStreamer stubs so
 # the pure-logic paths (null checks, key-status branching, retry flow) can
 # be exercised without GStreamer or SVP hardware being present.
@@ -189,6 +219,7 @@ set(ADAPTER_RDK_TEST_SRC
     tests/AdapterRdkL1Tests.cpp
     tests/mocks/AdapterMocks.cpp
     ../../client/adapter/rdk/open_cdm_decrypt.cpp
+    ../../helpers/OpenCDMLogger.cpp
 )
 
 add_executable(OpenCDMIAdapterRdkL1Tests ${ADAPTER_RDK_TEST_SRC})
@@ -201,6 +232,10 @@ foreach(adapter_target OpenCDMIAdapterRdkL1Tests OpenCDMIAdapterRdkMultiL1Tests)
         BEFORE PUBLIC
             ${CMAKE_CURRENT_SOURCE_DIR}/tests/mocks
         PUBLIC
+            ../..
+            ../../helpers
+            ../..
+            ../../helpers
             ../../client
             ../../client/adapter
             $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
@@ -212,12 +247,13 @@ foreach(adapter_target OpenCDMIAdapterRdkL1Tests OpenCDMIAdapterRdkMultiL1Tests)
     target_link_directories(${adapter_target}
         PUBLIC
         ${CMAKE_INSTALL_PREFIX}/lib
-        ${CMAKE_INSTALL_PREFIX}/lib/wpeframework/plugins
+        ${CMAKE_INSTALL_PREFIX}/lib/${STORAGE_DIRECTORY}/plugins
     )
 
     target_link_libraries(${adapter_target}
         GTest::gtest_main
         GTest::gtest
+        ${TEST_LIB}
     )
 endforeach()
 
@@ -229,5 +265,6 @@ install(TARGETS ${PROJECT_NAME} DESTINATION bin)
 install(TARGETS OpenCDMIClientCoreL1Tests DESTINATION bin)
 install(TARGETS OpenCDMIAdapterRdkL1Tests DESTINATION bin)
 install(TARGETS OpenCDMIClientCoreMultiL1Tests OpenCDMIAdapterRdkMultiL1Tests DESTINATION bin)
+install(TARGETS OpenCDMIClientCorePerfL1Tests DESTINATION bin)
 
 

@@ -51,6 +51,7 @@ option(CDMI_ADAPTER_IMPLEMENTATION "Defines which implementation is used." "None
 
 
 add_library(${TARGET} SHARED
+        ../helpers/OpenCDMLogger.cpp
         CapsParser.cpp
         open_cdm.cpp
         open_cdm_ext.cpp
@@ -153,6 +154,19 @@ if (${CDMI_ADAPTER_IMPLEMENTATION} STREQUAL "rdk")
             )
 endif()
 
+option(ENABLE_OCDM_RDKPERF "Instrument latency-critical OCDM client APIs with RDKPerf" OFF)
+if (ENABLE_OCDM_RDKPERF)
+    find_path(RDKPERF_INCLUDE_DIR rdk_perf.h PATH_SUFFIXES rdkperf)
+    find_library(RDKPERF_LIBRARY rdkperf)
+    if (NOT RDKPERF_INCLUDE_DIR OR NOT RDKPERF_LIBRARY)
+        message(FATAL_ERROR "ENABLE_OCDM_RDKPERF=ON but rdkperf was not found (rdk_perf.h: ${RDKPERF_INCLUDE_DIR}, librdkperf: ${RDKPERF_LIBRARY})")
+    endif()
+    message(STATUS "OCDM RDKPerf instrumentation enabled (${RDKPERF_LIBRARY})")
+    target_compile_definitions(${TARGET} PRIVATE ENABLE_OCDM_RDKPERF)
+    target_include_directories(${TARGET} PRIVATE ${RDKPERF_INCLUDE_DIR})
+    target_link_libraries(${TARGET} PRIVATE ${RDKPERF_LIBRARY})
+endif()
+
 set_target_properties(${TARGET} PROPERTIES
         CXX_STANDARD 11
         CXX_STANDARD_REQUIRED YES
@@ -177,6 +191,16 @@ install(
 install(
         FILES ${PUBLIC_HEADERS}
         DESTINATION include/opencdm
+)
+
+# Installed Module.h includes <helpers/OpenCDMLogger.h>; provide it in both public include layouts
+install(
+        FILES ../helpers/OpenCDMLogger.h
+        DESTINATION include/opencdm/helpers
+)
+install(
+        FILES ../helpers/OpenCDMLogger.h
+        DESTINATION include/${NAMESPACE}/ocdm/helpers COMPONENT devel
 )
 
 InstallCMakeConfig(

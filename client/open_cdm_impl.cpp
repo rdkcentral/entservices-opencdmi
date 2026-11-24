@@ -127,5 +127,5 @@ OpenCDMSession::~OpenCDMSession()
         DecryptSession(nullptr);
     }
 
-    TRACE_L1("Destructed the Session Client side: %p", this);
+    TRACE_L2("Destructed the Session Client side: %p", this);
 }
