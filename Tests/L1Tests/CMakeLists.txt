@@ -182,6 +182,33 @@ gtest_discover_tests(OpenCDMIClientCoreL1Tests DISCOVERY_MODE PRE_TEST)
 gtest_discover_tests(OpenCDMIClientCoreMultiL1Tests DISCOVERY_MODE PRE_TEST
     TEST_PREFIX "MultiDecrypt.")
 
+# Core client built with ENABLE_OCDM_RDKPERF against a recording rdk_perf.h
+# stub, to check which public APIs are instrumented.
+add_executable(OpenCDMIClientCorePerfL1Tests
+    tests/ClientOpenCdmPerfL1Tests.cpp
+    ${CLIENT_CORE_TEST_SRC}
+)
+target_compile_definitions(OpenCDMIClientCorePerfL1Tests PRIVATE ENABLE_OCDM_RDKPERF ENABLE_MULTI_DECRYPT)
+target_include_directories(OpenCDMIClientCorePerfL1Tests
+    BEFORE PUBLIC
+        ${CMAKE_CURRENT_SOURCE_DIR}/tests/mocks/rdkperf
+    PUBLIC
+        ${TEST_INC}
+        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
+        $<INSTALL_INTERFACE:include>
+        ${CMAKE_SOURCE_DIR}/entservices-testframework/Tests/mocks
+        ${CMAKE_SOURCE_DIR}/entservices-testframework/Tests/mocks/devicesettings
+        ${CMAKE_SOURCE_DIR}/entservices-testframework/Tests/mocks/thunder
+        ${CMAKE_SOURCE_DIR}/Thunder/Source/plugins
+)
+target_link_directories(OpenCDMIClientCorePerfL1Tests PUBLIC ${CMAKE_INSTALL_PREFIX}/lib ${CMAKE_INSTALL_PREFIX}/lib/wpeframework/plugins)
+target_link_libraries(OpenCDMIClientCorePerfL1Tests
+    GTest::gtest_main
+    GTest::gtest
+    ${TEST_LIB})
+gtest_discover_tests(OpenCDMIClientCorePerfL1Tests DISCOVERY_MODE PRE_TEST
+    TEST_PREFIX "RDKPerf.")
+
 # RDK adapter tests: compile open_cdm_decrypt.cpp with GStreamer stubs so
 # the pure-logic paths (null checks, key-status branching, retry flow) can
 # be exercised without GStreamer or SVP hardware being present.
@@ -229,5 +256,6 @@ install(TARGETS ${PROJECT_NAME} DESTINATION bin)
 install(TARGETS OpenCDMIClientCoreL1Tests DESTINATION bin)
 install(TARGETS OpenCDMIAdapterRdkL1Tests DESTINATION bin)
 install(TARGETS OpenCDMIClientCoreMultiL1Tests OpenCDMIAdapterRdkMultiL1Tests DESTINATION bin)
+install(TARGETS OpenCDMIClientCorePerfL1Tests DESTINATION bin)
 
 

@@ -21,6 +21,7 @@
 #include "open_cdm_ext.h"
 
 #include "open_cdm_impl.h"
+#include "ocdm_perf.h"
 #include <map>
 #include <string>
 #define KEYSYSTEM_DOMAIN_SEPERATOR ";origin="
@@ -76,6 +77,7 @@ DEPRECATED struct OpenCDMSystem* opencdm_create_system(const char keySystem[])
 
 OpenCDMError opencdm_create_system_extended(const char keySystem[], struct OpenCDMSystem** system)
 {
+    OCDM_PERF_SCOPE(__FUNCTION__);
     ASSERT(system != nullptr);
     *system = nullptr;
     OpenCDMAccessor* accessor = OpenCDMAccessor::Instance();
@@ -301,6 +303,7 @@ opencdm_session_get_challenge_data(struct OpenCDMSession* mOpenCDMSession,
     uint8_t* challenge, uint32_t* challengeSize,
     uint32_t isLDL)
 {
+    OCDM_PERF_SCOPE(__FUNCTION__);
     ASSERT(mOpenCDMSession != nullptr);
     ASSERT(challengeSize != nullptr);
     OpenCDMError result(OpenCDMError::ERROR_INVALID_SESSION);
@@ -333,6 +336,7 @@ OpenCDMError opencdm_session_store_license_data(
     struct OpenCDMSession* mOpenCDMSession, const uint8_t licenseData[],
     uint32_t licenseDataSize, uint8_t* secureStopId)
 {
+    OCDM_PERF_SCOPE(__FUNCTION__);
     ASSERT(mOpenCDMSession != nullptr);
     OpenCDMError result(OpenCDMError::ERROR_INVALID_SESSION);
 
