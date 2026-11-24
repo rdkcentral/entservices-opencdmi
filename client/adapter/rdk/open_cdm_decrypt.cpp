@@ -135,7 +135,7 @@ KeyStatus getKeyStatus(struct OpenCDMSession* session, const std::vector<uint8_t
     if ((session == nullptr) || keyId.empty() || (keyId.size() > 255)) {
         return InternalError;
     }
-    RDKPerf(__FUNCTION__);
+    RDKPerf perf(__FUNCTION__);
     return opencdm_session_status(session, keyId.data(), static_cast<uint8_t>(keyId.size()));
 }
 
@@ -179,7 +179,7 @@ OpenCDMError decryptWithOutputRestrictedRetry(struct OpenCDMSession* session, co
         return decryptOnce();
     }
 
-    RDKPerf(__FUNCTION__);
+    RDKPerf perf(__FUNCTION__);
     LOGDECRYPT(INFO, "%s - Starting decryption with output restricted retry logic for key ID: %s",
           __FUNCTION__, toHexString(keyId).c_str());
 
@@ -223,7 +223,7 @@ OpenCDMError opencdm_gstreamer_session_decrypt(struct OpenCDMSession* session, G
                                                GstBuffer* subSample, const uint32_t subSampleCount,
                                                GstBuffer* IV, GstBuffer* keyID, uint32_t initWithLast15)
 {
-    RDKPerf(__FUNCTION__);
+    RDKPerf perf(__FUNCTION__);
     std::vector<uint8_t> keyId;
     copyKeyId(keyID, keyId);
 
@@ -235,7 +235,7 @@ OpenCDMError opencdm_gstreamer_session_decrypt(struct OpenCDMSession* session, G
 
 OpenCDMError opencdm_gstreamer_session_decrypt_buffer(struct OpenCDMSession* session, GstBuffer* buffer, GstCaps* caps)
 {
-    RDKPerf(__FUNCTION__);
+    RDKPerf perf(__FUNCTION__);
     std::vector<uint8_t> keyId;
     copyKeyIdFromProtectionMeta(buffer, keyId);
 
@@ -247,7 +247,7 @@ OpenCDMError opencdm_gstreamer_session_decrypt_buffer(struct OpenCDMSession* ses
 #ifdef ENABLE_MULTI_DECRYPT
 OpenCDMError opencdm_gstreamer_session_decrypt_buffer_multi(struct OpenCDMSession* session, GstBuffer* buffers[], const uint16_t count, GstCaps* caps)
 {
-    RDKPerf(__FUNCTION__);
+    RDKPerf perf(__FUNCTION__);
     OpenCDMError result(OpenCDMError::ERROR_INVALID_ARG);
 
     if (!gst_svp_is_multiple_decrypt_supported()) {
