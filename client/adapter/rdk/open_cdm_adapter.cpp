@@ -485,6 +485,8 @@ OpenCDMError opencdm_gstreamer_session_decrypt_buffer_once(struct OpenCDMSession
             }
             RDKPerf perf(perfString.c_str());
 
+            session->DecryptToHostLock().Lock();
+
             if (s_svpSetValueFn && session->NeedsDecryptToHostUpdate(capsParser.IsSecureMemoryDisabled())) {
                 const gboolean decryptToHost = capsParser.IsSecureMemoryDisabled() ? TRUE : FALSE;
                 if (!s_svpSetValueFn(session->SessionPrivateData(),
@@ -494,6 +496,8 @@ OpenCDMError opencdm_gstreamer_session_decrypt_buffer_once(struct OpenCDMSession
                     TRACE_L1("Failed to set decryptToHost=%s in SVP context\n", decryptToHost ? "true" : "false");
                 }
             }
+
+            session->DecryptToHostLock().Unlock();
 
             if (subSample == nullptr && IV == nullptr && keyID == nullptr) {
             // no encrypted data, skip decryption...
@@ -1084,6 +1088,8 @@ OpenCDMError opencdm_gstreamer_session_decrypt_buffer_multi_once(struct OpenCDMS
             }
             RDKPerf perf(perfString.c_str());
 
+            session->DecryptToHostLock().Lock();
+
             if (s_svpSetValueFn && session->NeedsDecryptToHostUpdate(isSecureMemoryDisabled)) {
                 const gboolean decryptToHost = isSecureMemoryDisabled ? TRUE : FALSE;
                 if (!s_svpSetValueFn(session->SessionPrivateData(),
@@ -1093,6 +1099,8 @@ OpenCDMError opencdm_gstreamer_session_decrypt_buffer_multi_once(struct OpenCDMS
                     TRACE_L1("Failed to set decryptToHost=%s in SVP context\n", decryptToHost ? "true" : "false");
                 }
             }
+
+            session->DecryptToHostLock().Unlock();
 
             if((totalBytesToDecrypt > 0) && (result == ERROR_NONE)) {
                uint8_t* svpData;
